@@ -1,8 +1,9 @@
 export ARCH:=microblaze
 export CROSS_COMPILE:=/home/kgodfryd/petalinux/petalinux-v2016.2-final/tools/linux-i386/microblazeel-xilinx-linux-gnu/bin/microblazeel-xilinx-linux-gnu-
 ccflags-y += -DDEBUG -std=gnu99 -Wno-declaration-after-statemenit
+
 ifneq ($(KERNELRELEASE),)
-	obj-m := reminder.o
+	obj-m := pdi.o
 
 else
 	KERNELDIR ?= /home/kgodfryd/petalinux/workspace/first_project/build/linux/kernel/xlnx-4.4/

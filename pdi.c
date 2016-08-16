@@ -18,7 +18,6 @@
 MODULE_LICENSE("GPL");
 
 static struct cdev *pdi_cdev = NULL;
-static char *message = NULL;
 static dev_t dev;
 static struct class *pdi_class = NULL;
 
@@ -35,17 +34,15 @@ static int pdi_release(struct inode *node, struct file *f)
 }
 
 const struct file_operations pdi_fops = {
-	.write = pdi_write,
 	.open = pdi_open,
-	.release = pid_release,
+	.release = pdi_release,
 };
 
 static int __init pdi_init(void)
 {
 	int rt;
 	struct device *device = NULL;
-	if (message)
-		cmdmsg = 1;
+
 	rt = alloc_chrdev_region(&dev, 0, 1, "pdi");
 	if (rt)
 		return rt;
@@ -83,15 +80,11 @@ err:
 	return rt;
 }
 
-static void __exit reminder_exit(void)
+static void __exit pdi_exit(void)
 {
 	device_destroy(pdi_class, dev);
 	cdev_del(pdi_cdev);
 	class_destroy(pdi_class);
-	if (message && (!cmdmsg)) {
-		kfree(message);
-		message = NULL;
-	}
 	pr_info("pdi unloaded.\n");
 	unregister_chrdev_region(dev, 1);
 }
