@@ -15,8 +15,12 @@
 #include <linux/moduleparam.h>
 #include <linux/stat.h>
 #include <linux/ioport.h>
-
+#include <linux/interrupt.h>
 #include <asm/io.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_device.h>
+#include <linux/of_platform.h>
 
 MODULE_LICENSE("GPL");
 
@@ -69,12 +73,13 @@ static int pdi_test_simple_periph(void)
 	unsigned int temp;
 	temp = 0x12345678;
 	iowrite32(temp, reg0);
-		
+	//TODO
+	//ioread32be/le???	
 	if (temp != ioread32(reg0)) {
 		pr_info("pdi: test 1 failed!\n");
 		return -EINVAL;
 	} else {
-		pr_info("pdi: test 2 passed.\n");
+		pr_info("pdi: test 1 passed.\n");
 	}
 
 	temp = 0x87654321;
@@ -103,6 +108,58 @@ const struct file_operations pdi_fops = {
 	.open = pdi_open,
 	.release = pdi_release,
 };
+
+static irqreturn_t pdi_int_handler(int irq, void *data)
+{
+	pr_info("pdi_int_handler executed.\n");
+	return IRQ_HANDLED;
+}
+
+static int irq;
+
+static int pdi_probe(struct platform_device *pdev)
+{
+	int rt;
+	irq = platform_get_irq(pdev, 0);
+	if (irq <= 0) {
+		pr_info("platform_get_irq failed.\n");
+		return -ENXIO;
+	}
+
+	rt = request_irq(irq, pdi_int_handler, 0, "pdi", NULL);
+	if (rt) {
+		pr_info("request_irq failed.\n");
+		return rt;
+	}
+	return 0;
+}
+
+static int pdi_remove(struct platform_device *pdev)
+{
+	return 0;
+}
+
+//TODO: look at drivers/tty/serial/uartlite.c
+//how static struct ulite_of_match[] is defined.
+//If CONFIG_OF is not defined, ulite_of_match 
+//will dissapear. Futhermore, it won't compile (look at line 715).
+
+static const struct of_device_id pdi_of_match[] = {
+	{ .compatible = "xlnx,my-simple-peripherial-1.0", },
+	{}
+};
+
+static struct platform_driver pdi_platform_driver = {
+	.probe = pdi_probe,
+	.remove = pdi_remove,
+	.driver = {
+		.name = "pdi",
+		.of_match_table = of_match_ptr(pdi_of_match),
+	},
+};
+
+MODULE_DEVICE_TABLE(of, pdi_of_match);
+MODULE_ALIAS("platform:pdi");
 
 static int __init pdi_init(void)
 {
@@ -157,6 +214,12 @@ static int __init pdi_init(void)
 	if (rt)
 		goto err;
 
+	rt = platform_driver_register(&pdi_platform_driver);
+	if (rt) {
+		pr_info("platform_driver_register failed.\n");
+		goto err;
+	}
+
 	pr_info("pdi loaded.\n");
 	return 0;
 err:
@@ -182,6 +245,8 @@ err:
 
 static void __exit pdi_exit(void)
 {
+	platform_driver_unregister(&pdi_platform_driver);
+	free_irq(irq, NULL);
 	iounmap(reg3);
 	iounmap(reg2);
 	iounmap(reg1);
