@@ -16,7 +16,14 @@ entity my_simple_peripherial_v1_0_S00_AXI is
 	);
 	port (
 		-- Users to add ports here
-        interrupt : out std_logic;
+	        interrupt : out std_logic;
+		slv_reg0_in	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg1_in	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg2_out    : out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+
+		slv_reg0_strb   : out std_logic;
+		slv_reg1_strb   : out std_logic;
+		slv_reg2_strb   : out std_logic;
 		-- User ports ends
 		-- Do not modify the ports beyond this line
 
@@ -118,10 +125,16 @@ architecture arch_imp of my_simple_peripherial_v1_0_S00_AXI is
 	signal slv_reg_wren	: std_logic;
 	signal reg_data_out	:std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
 	signal byte_index	: integer;
+	slv_reg0_strb_s		: std_logic := (others => '0');
+	slv_reg1_strb_s		: std_logic := (others => '0');
 
 begin
 	-- I/O Connections assignments
-    interrupt <= interrupt_s;
+	interrupt <= interrupt_s;
+	slv_reg0_strb <= slv_reg0_strb_s;
+	slv_reg1_strb <= slv_reg1_strb_s;
+	slv_reg2_out <= slv_reg2;
+
 	S_AXI_AWREADY	<= axi_awready;
 	S_AXI_WREADY	<= axi_wready;
 	S_AXI_BRESP	<= axi_bresp;
@@ -204,11 +217,11 @@ begin
 	-- Slave register write enable is asserted when valid address and data are available
 	-- and the slave is ready to accept the write address and write data.
 	slv_reg_wren <= axi_wready and S_AXI_WVALID and axi_awready and S_AXI_AWVALID ;
-
 	process (S_AXI_ACLK)
 	variable loc_addr :std_logic_vector(OPT_MEM_ADDR_BITS downto 0); 
 	begin
 	  if rising_edge(S_AXI_ACLK) then
+	      slv_reg2_strb_s <= '0';
 	    if S_AXI_ARESETN = '0' then
 	      slv_reg0 <= (others => '0');
 	      slv_reg1 <= (others => '0');
@@ -240,6 +253,7 @@ begin
 	                -- Respective byte enables are asserted as per write strobes                   
 	                -- slave registor 2
 	                slv_reg2(byte_index*8+7 downto byte_index*8) <= S_AXI_WDATA(byte_index*8+7 downto byte_index*8);
+			slv_reg2_strb_s <= '1';
 	              end if;
 	            end loop;
 	          when b"11" =>
@@ -340,26 +354,29 @@ begin
 	-- Implement memory mapped register select and read logic generation
 	-- Slave register read enable is asserted when valid address is available
 	-- and the slave is ready to accept the read address.
-	slv_reg_rden <= axi_arready and S_AXI_ARVALID and (not axi_rvalid) ;
+	slv_reg_rden <= axi_arready and S_AXI_ARVALID and (not axi_rvalid);
 
 	process (S_AXI_ACLK)
 	variable loc_addr :std_logic_vector(OPT_MEM_ADDR_BITS downto 0);
 	begin
-	    -- Address decoding for reading registers   
 	    if (rising_edge(S_AXI_ACLK)) then
 	     loc_addr := axi_araddr(ADDR_LSB + OPT_MEM_ADDR_BITS downto ADDR_LSB);
+	     slv_reg0_strb_s <= '0';
+	     slv_reg1_strb_s <= '0';
 		if (S_AXI_ARESETN = '0') then
 		  axi_rdata <= (others => '0');
 		elsif (slv_reg_rden = '1') then
 		  case loc_addr is
 		  when b"00" =>
-	          axi_rdata <= slv_reg0;
+	          axi_rdata <= slv_reg0_in;
+		  slv_reg0_strb_s <= '1'; 
 		  when b"01" =>
-	          axi_rdata <= slv_reg1;
+	          axi_rdata <= slv_reg1_in;
+		  slv_reg1_strb_s <= '1';
 		  when b"10" =>
-	          axi_rdata <= std_logic_vector(unsigned(slv_reg0) + unsigned(slv_reg1));
+	          axi_rdata <= std_logic_vector(unsigned(slv_reg0) + unsigned(slv_reg1) + 1);
 		  when b"11" =>
-	          axi_rdata <= std_logic_vector(unsigned(slv_reg2) + unsigned(slv_reg3));
+	          axi_rdata <= std_logic_vector(unsigned(slv_reg2) + unsigned(slv_reg3) + 1);
 		  when others =>
 	          axi_rdata <= (others => '0');
 		  end case;
@@ -368,6 +385,8 @@ begin
 		end if;
 	    else
 		  axi_rdata <= axi_rdata;
+		  slv_reg0_strb_s <= slv_reg0_strb_s;
+		  slv_reg1_strb_s <= slv_reg1_strb_s;
 	    end if;
 	end process; 
 
