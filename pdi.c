@@ -155,7 +155,7 @@ static int pdi_remove(struct platform_device *pdev)
 //will dissapear. Futhermore, it won't compile (look at line 715).
 
 static const struct of_device_id pdi_of_match[] = {
-	{ .compatible = "xlnx,my-simple-peripherial-1.0", },
+	{ .compatible = "xlnx,xgbe-PDI-1.0", },
 	{}
 };
 
@@ -196,7 +196,7 @@ static int __init pdi_init(void)
 		pdi_cdev = NULL;
 		goto err;
 	}
-	device = device_create(pdi_class, NULL, dev, NULL, "reminder");
+	device = device_create(pdi_class, NULL, dev, NULL, "pdi");
 	if (IS_ERR(device)) {
 		rt = PTR_ERR(device);
 		goto err;
