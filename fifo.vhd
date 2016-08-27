@@ -3,7 +3,6 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity fifo is
-
 	port (
 		rst		: in std_logic;
 		clk_in		: in std_logic;
@@ -30,9 +29,6 @@ begin
 	process (clk_in) begin
 		if (clk_in'event and clk_in = '1') then
 		    if (rst = '0') then
-		      for i in 0 to 1023 loop
-		        mem(i) := (others => '0');
-		      end loop;
 		      data_head := (others => '0');
 		    elsif (strb_in = '1') then
 		      mem(to_integer(data_head)) := data_in;
@@ -57,9 +53,6 @@ begin
 		if (clk_in'event and clk_in = '1') then
 		
 		    if (rst = '0') then
-		      for i in 0 to 1023 loop
-		         cnt(i) := (others => '0');
-		      end loop;
 		      cnt_temp := (others => '0');
 		      cnt_head := (others => '0');
 		      

@@ -72,33 +72,43 @@ static int pdi_test_simple_periph(void)
 {
 	unsigned int temp;
 	temp = 0x12345678;
-	iowrite32(temp, reg0);
+	iowrite32(temp, reg2);
 	//TODO
-	//ioread32be/le???	
-	if (temp != ioread32(reg0)) {
+	//ioread32be/le???
+	//
+	wmb();	
+	if (temp != ioread32(reg1)) {
 		pr_info("pdi: test 1 failed!\n");
+		pr_info("pdi: waiting for: %d, got: %d", 0x12345678, temp);
 		return -EINVAL;
 	} else {
 		pr_info("pdi: test 1 passed.\n");
 	}
 
 	temp = 0x87654321;
-	iowrite32(temp, reg1);
-	
+	iowrite32(temp, reg2);
+	wmb();
 	if (temp != ioread32(reg1)) {
 		pr_info("pdi: test 2 failed!\n");
+		pr_info("pdi: waiting for: %d, got: %d", 0x87654321, temp);
 		return -EINVAL;
 	} else {
 		pr_info("pdi: test 2 passed.\n");
 	}
-
-	temp = ioread32(reg2);
-	if (temp != 0x99999999) {
-		pr_info("pdi: test 3 failed.\n");
-		return -EINVAL;
-	} else {
-		pr_info("pdi: test 3 passed.\n");
+	for (int i = 0; i < 10; i++)
+		iowrite32(i, reg2);
+	wmb();
+	for (int i = 0; i < 10; i++) {
+		temp = ioread32(reg1);
+		if (temp != i) {
+			pr_info("pdi: test 3 failed.\n");
+			pr_info("pdi: waiting for: %d, got: %d", i, temp);
+			return -EINVAL;
+		}
 	}
+
+	pr_info("pdi: test 3 passed.\n");
+
 	return 0;
 }
 

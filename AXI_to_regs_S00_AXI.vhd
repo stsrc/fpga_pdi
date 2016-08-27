@@ -2,7 +2,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity my_simple_peripherial_v1_0_S00_AXI is
+entity AXI_to_regs_S00_AXI is
 	generic (
 		-- Users to add parameters here
 
@@ -88,9 +88,9 @@ entity my_simple_peripherial_v1_0_S00_AXI is
     		-- accept the read data and response information.
 		S_AXI_RREADY	: in std_logic
 	);
-end my_simple_peripherial_v1_0_S00_AXI;
+end AXI_to_regs_S00_AXI;
 
-architecture arch_imp of my_simple_peripherial_v1_0_S00_AXI is
+architecture arch_AXI_to_regs_S00_AXI of AXI_to_regs_S00_AXI is
 
     signal interrupt_s  : std_logic := '0';
     signal counter      : unsigned(25 downto 0);
@@ -125,14 +125,16 @@ architecture arch_imp of my_simple_peripherial_v1_0_S00_AXI is
 	signal slv_reg_wren	: std_logic;
 	signal reg_data_out	:std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
 	signal byte_index	: integer;
-	slv_reg0_strb_s		: std_logic := (others => '0');
-	slv_reg1_strb_s		: std_logic := (others => '0');
-
+	signal slv_reg0_strb_s		: std_logic := '0';
+	signal slv_reg1_strb_s		: std_logic := '0';
+    signal slv_reg2_strb_s		: std_logic := '0';
+    
 begin
 	-- I/O Connections assignments
 	interrupt <= interrupt_s;
 	slv_reg0_strb <= slv_reg0_strb_s;
 	slv_reg1_strb <= slv_reg1_strb_s;
+	slv_reg2_strb <= slv_reg2_strb_s;
 	slv_reg2_out <= slv_reg2;
 
 	S_AXI_AWREADY	<= axi_awready;
@@ -402,4 +404,4 @@ begin
             end if;
         end if;
     end process;
-end arch_imp;
+end arch_AXI_to_regs_S00_AXI;

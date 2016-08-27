@@ -2,7 +2,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity my_simple_peripherial_v1_0 is
+entity AXI_to_regs is
 	generic (
 		-- Users to add parameters here
 
@@ -16,7 +16,15 @@ entity my_simple_peripherial_v1_0 is
 	);
 	port (
 		-- Users to add ports here
-        interrupt       : out std_logic;
+	        interrupt : out std_logic;
+		slv_reg0_in	: in std_logic_vector(C_S00_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg1_in	: in std_logic_vector(C_S00_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg2_out    : out std_logic_vector(C_S00_AXI_DATA_WIDTH - 1 downto 0);
+
+		slv_reg0_strb   : out std_logic;
+		slv_reg1_strb   : out std_logic;
+		slv_reg2_strb   : out std_logic;
+		
 		-- User ports ends
 		-- Do not modify the ports beyond this line
 
@@ -44,18 +52,26 @@ entity my_simple_peripherial_v1_0 is
 		s00_axi_rvalid	: out std_logic;
 		s00_axi_rready	: in std_logic
 	);
-end my_simple_peripherial_v1_0;
+end AXI_to_regs;
 
-architecture arch_imp of my_simple_peripherial_v1_0 is
+architecture arch_AXI_to_regs of AXI_to_regs is
 
 	-- component declaration
-	component my_simple_peripherial_v1_0_S00_AXI is
+	component AXI_to_regs_S00_AXI is
 		generic (
 		C_S_AXI_DATA_WIDTH	: integer	:= 32;
 		C_S_AXI_ADDR_WIDTH	: integer	:= 4
 		);
 		port (
-		interrupt   : out std_logic;
+		interrupt : out std_logic;
+		slv_reg0_in	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg1_in	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg2_out    : out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+
+		slv_reg0_strb   : out std_logic;
+		slv_reg1_strb   : out std_logic;
+		slv_reg2_strb   : out std_logic;
+	
 		S_AXI_ACLK	: in std_logic;
 		S_AXI_ARESETN	: in std_logic;
 		S_AXI_AWADDR	: in std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
@@ -78,18 +94,25 @@ architecture arch_imp of my_simple_peripherial_v1_0 is
 		S_AXI_RVALID	: out std_logic;
 		S_AXI_RREADY	: in std_logic
 		);
-	end component my_simple_peripherial_v1_0_S00_AXI;
+	end component AXI_to_regs_S00_AXI;
 
 begin
 
 -- Instantiation of Axi Bus Interface S00_AXI
-my_simple_peripherial_v1_0_S00_AXI_inst : my_simple_peripherial_v1_0_S00_AXI
+AXI_to_regs_S00_AXI_inst : AXI_to_regs_S00_AXI
 	generic map (
 		C_S_AXI_DATA_WIDTH	=> C_S00_AXI_DATA_WIDTH,
 		C_S_AXI_ADDR_WIDTH	=> C_S00_AXI_ADDR_WIDTH
 	)
 	port map (
-	    interrupt  =>  interrupt,
+	    	interrupt => interrupt,
+		slv_reg0_in => slv_reg0_in,
+		slv_reg1_in => slv_reg1_in,
+		slv_reg2_out  => slv_reg2_out,
+
+		slv_reg0_strb   => slv_reg0_strb,
+		slv_reg1_strb   => slv_reg1_strb,
+		slv_reg2_strb   => slv_reg2_strb,
 		S_AXI_ACLK	=> s00_axi_aclk,
 		S_AXI_ARESETN	=> s00_axi_aresetn,
 		S_AXI_AWADDR	=> s00_axi_awaddr,
@@ -117,4 +140,4 @@ my_simple_peripherial_v1_0_S00_AXI_inst : my_simple_peripherial_v1_0_S00_AXI
 
 	-- User logic ends
 
-end arch_imp;
+end arch_AXI_to_regs;
