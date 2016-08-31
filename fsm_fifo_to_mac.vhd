@@ -52,8 +52,8 @@ entity fsm_fifo_to_mac is
 end fsm_fifo_to_mac;
 
 architecture Behavioral of fsm_fifo_to_mac is
-signal state, state_tmp : std_logic_vector(1 downto 0);
-signal cnt, cnt_tmp : unsigned(13 downto 0);
+signal state, state_tmp : std_logic_vector(1 downto 0) := (others => '0');
+signal cnt, cnt_tmp : unsigned(13 downto 0) := (others => '0');
 
 begin
 	process (clk) begin
@@ -64,12 +64,13 @@ begin
 		else
 			state <= state_tmp;
 			cnt <= cnt_tmp;
+			
 		end if;
 	end if;
 	end process;
 
-	process(state, cnt, packet_strb, fifo_cnt, fifo_data) begin
-		state_tmp <= state;
+	process(state, cnt, packet_strb, fifo_cnt, fifo_data, pkt_tx_full) begin
+		state_tmp <= "00";
 		cnt_tmp <= cnt;
 		fifo_cnt_strb <= '0';
 		fifo_data_strb <= '0';
@@ -78,6 +79,7 @@ begin
 		pkt_tx_sop <= '0';
 		pkt_tx_eop <= '0';
 		pkt_tx_mod <= (others => '0');
+	if (pkt_tx_full = '0') then
 	case state is
 	when "00" =>
 		if (packet_strb = '1') then
@@ -87,7 +89,12 @@ begin
 			pkt_tx_sop <= '1';
 			fifo_data_strb <= '1';
 			fifo_cnt_strb <= '1';
-			state_tmp <= "01";
+			if (unsigned(fifo_cnt) = 8) then
+				state_tmp <= "00";
+				pkt_tx_eop <= '1';
+			else
+				state_tmp <= "01";
+			end if;
 		end if;
 	when "01" =>
 		  cnt_tmp <= cnt - 8;
@@ -98,42 +105,41 @@ begin
 		      state_tmp <= "11";
 		  end if;
 	when "11" =>
-        
-        
         pkt_tx_val <= '1';
         fifo_data_strb <= '1';
         pkt_tx_eop <= '1';
+        state_tmp <= "00";
         
-        case cnt is
-        when to_unsigned(1, 14) =>
+        case to_integer(cnt) is
+        when 1 =>
         pkt_tx_data(63 downto 8) <= fifo_data(63 downto 8);
         pkt_tx_data(7 downto 0) <= fifo_data(7 downto 0);
         pkt_tx_mod <= "001";
-        when to_unsigned(2, 14) =>
+        when 2 =>
         pkt_tx_data(63 downto 16) <= (others => '0');
         pkt_tx_data(15 downto 0) <= fifo_data(15 downto 0);
         pkt_tx_mod <= "010";
-        when to_unsigned(3, 14) =>
+        when 3 =>
         pkt_tx_data(63 downto 24) <= (others => '0');
         pkt_tx_data(23 downto 0) <= fifo_data(23 downto 0);
         pkt_tx_mod <= "011";
-        when to_unsigned(4, 14) =>            
+        when 4 =>            
         pkt_tx_data(63 downto 32) <= (others => '0');
         pkt_tx_data(31 downto 0) <= fifo_data(31 downto 0);
         pkt_tx_mod <= "100";
-        when to_unsigned(5, 14) =>
+        when 5 =>
         pkt_tx_data(63 downto 40) <= (others => '0');
         pkt_tx_data(39 downto 0) <= fifo_data(39 downto 0);
         pkt_tx_mod <= "101";
-        when to_unsigned(6, 14) =>
+        when 6 =>
         pkt_tx_data(63 downto 48) <= (others => '0');
         pkt_tx_data(47 downto 0) <= fifo_data(47 downto 0);
         pkt_tx_mod <= "110";
-        when to_unsigned(7, 14) =>
+        when 7 =>
         pkt_tx_data(63 downto 56) <= (others => '0');
         pkt_tx_data(55 downto 0) <= fifo_data(55 downto 0);
         pkt_tx_mod <= "111";
-        when to_unsigned(8, 14) =>
+        when 8 =>
         pkt_tx_data <= fifo_data;
         pkt_tx_mod <= "000";
         when others =>
@@ -142,6 +148,6 @@ begin
 		state_tmp <= (others => '0');
 		cnt_tmp <= (others => '0');
 	end case;
-
+    end if;
 	end process;
 end Behavioral;

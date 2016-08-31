@@ -20,11 +20,12 @@ entity AXI_to_regs is
 		slv_reg0_in	: in std_logic_vector(C_S00_AXI_DATA_WIDTH - 1 downto 0);
 		slv_reg1_in	: in std_logic_vector(C_S00_AXI_DATA_WIDTH - 1 downto 0);
 		slv_reg2_out    : out std_logic_vector(C_S00_AXI_DATA_WIDTH - 1 downto 0);
-
+        slv_reg3_out    : out std_logic_vector(C_S00_AXI_DATA_WIDTH - 1 downto 0);
+    
 		slv_reg0_strb   : out std_logic;
 		slv_reg1_strb   : out std_logic;
 		slv_reg2_strb   : out std_logic;
-		
+		slv_reg3_strb   : out std_logic;
 		-- User ports ends
 		-- Do not modify the ports beyond this line
 
@@ -67,11 +68,13 @@ architecture arch_AXI_to_regs of AXI_to_regs is
 		slv_reg0_in	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
 		slv_reg1_in	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
 		slv_reg2_out    : out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
-
+        slv_reg3_out    : out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+        
 		slv_reg0_strb   : out std_logic;
 		slv_reg1_strb   : out std_logic;
 		slv_reg2_strb   : out std_logic;
-	
+	    slv_reg3_strb   : out std_logic;
+	   
 		S_AXI_ACLK	: in std_logic;
 		S_AXI_ARESETN	: in std_logic;
 		S_AXI_AWADDR	: in std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
@@ -109,10 +112,11 @@ AXI_to_regs_S00_AXI_inst : AXI_to_regs_S00_AXI
 		slv_reg0_in => slv_reg0_in,
 		slv_reg1_in => slv_reg1_in,
 		slv_reg2_out  => slv_reg2_out,
-
+        slv_reg3_out => slv_reg3_out,
 		slv_reg0_strb   => slv_reg0_strb,
 		slv_reg1_strb   => slv_reg1_strb,
 		slv_reg2_strb   => slv_reg2_strb,
+		slv_reg3_strb   => slv_reg3_strb,
 		S_AXI_ACLK	=> s00_axi_aclk,
 		S_AXI_ARESETN	=> s00_axi_aresetn,
 		S_AXI_AWADDR	=> s00_axi_awaddr,

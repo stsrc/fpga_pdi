@@ -78,6 +78,9 @@ wait for 10 ns;
 axi_data <= "10101010101010101010101010101010";
 wait for 10 ns; -- nothing changes
 axi_strb <= '0';
+cnt_axi_strb <= '1';
+wait for 10 ns;
+cnt_axi_strb <= '0';
 wait;
 end process;
 

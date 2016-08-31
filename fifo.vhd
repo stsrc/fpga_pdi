@@ -49,7 +49,7 @@ begin
 		    elsif (strb_out = '1') then
 		        tail := tail + 1;
 		    end if;
-		    data_out <= mem(to_integer(tail));     
+	            data_out <= mem(to_integer(tail));     
 		end if;
 	end process;
 end fifo_arch;

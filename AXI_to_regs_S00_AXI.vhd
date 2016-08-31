@@ -21,10 +21,12 @@ entity AXI_to_regs_S00_AXI is
 		slv_reg0_in	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
 		slv_reg1_in	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
 		slv_reg2_out    : out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
-
+        slv_reg3_out    : out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+        
 		slv_reg0_strb   : out std_logic;
 		slv_reg1_strb   : out std_logic;
 		slv_reg2_strb   : out std_logic;
+		slv_reg3_strb   : out std_logic;
 		-- User ports ends
 		-- Do not modify the ports beyond this line
 
@@ -129,14 +131,16 @@ architecture arch_AXI_to_regs_S00_AXI of AXI_to_regs_S00_AXI is
 	signal slv_reg0_strb_s		: std_logic := '0';
 	signal slv_reg1_strb_s		: std_logic := '0';
     signal slv_reg2_strb_s		: std_logic := '0';
-    
+    signal slv_reg3_strb_s		: std_logic := '0';
 begin
 	-- I/O Connections assignments
 	interrupt <= interrupt_s;
 	slv_reg0_strb <= slv_reg0_strb_s;
 	slv_reg1_strb <= slv_reg1_strb_s;
 	slv_reg2_strb <= slv_reg2_strb_s;
+	slv_reg3_strb <= slv_reg3_strb_s;
 	slv_reg2_out <= slv_reg2;
+	slv_reg3_out <= slv_reg3;
 
 	S_AXI_AWREADY	<= axi_awready;
 	S_AXI_WREADY	<= axi_wready;
@@ -225,6 +229,7 @@ begin
 	begin
 	  if rising_edge(S_AXI_ACLK) then
 	      slv_reg2_strb_s <= '0';
+	      slv_reg3_strb_s <= '0';
 	    if S_AXI_ARESETN = '0' then
 	      slv_reg0 <= (others => '0');
 	      slv_reg1 <= (others => '0');
@@ -256,7 +261,7 @@ begin
 	                -- Respective byte enables are asserted as per write strobes                   
 	                -- slave registor 2
 	                slv_reg2(byte_index*8+7 downto byte_index*8) <= S_AXI_WDATA(byte_index*8+7 downto byte_index*8);
-			slv_reg2_strb_s <= '1';
+			        slv_reg2_strb_s <= '1';
 	              end if;
 	            end loop;
 	          when b"11" =>
@@ -265,6 +270,7 @@ begin
 	                -- Respective byte enables are asserted as per write strobes                   
 	                -- slave registor 3
 	                slv_reg3(byte_index*8+7 downto byte_index*8) <= S_AXI_WDATA(byte_index*8+7 downto byte_index*8);
+	                slv_reg3_strb_s <= '1';
 	              end if;
 	            end loop;
 	          when others =>

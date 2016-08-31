@@ -59,7 +59,10 @@ process begin
 	wait for 10 ns; -- fifo_cnt_strb = '1', fifo_data_strb = '1', pkt_tx_val = '1', pkt_tx_sop = '1',
 			-- pkt_tx_eop = '0', pkt_tx_mod = "000".
 	packet_strb <= '0';
+	pkt_tx_full <= '1';
 	fifo_data <= std_logic_vector(to_unsigned(101, 64));
+	wait for 10 ns; -- happens nothing.
+	pkt_tx_full <= '0';
 	wait for 10 ns; -- fifo_cnt_strb = '0', fifo_data_strb = '1', pkt_tx_val = '1', pkt_tx_sop = '0',
 			-- pkt_tx_eop = '0', pkt_tx_mod = "000".
 	wait for 10 ns; -- fifo_cnt_strb = '0', fifo_data_strb = '1', pkt_tx_val = '1', pkt_tx_sop = '0',

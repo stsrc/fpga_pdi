@@ -56,7 +56,6 @@ begin
 
 cnt_fifo <= cnt_axi(13 downto 0);
 cnt_fifo_strb <= cnt_axi_strb;
-packet_strb <= cnt_axi_strb;
 
 process (clk) begin
 if (rising_edge(clk)) then
@@ -66,6 +65,9 @@ if (rst = '0') then
 else
     state <= state_tmp;
     data_reg <= data_reg_tmp;
+    packet_strb <= cnt_axi_strb; 
+    
+    --TODO: add packet_strb signal to fifo (time domain convertion).
 end if;
 end if;
 end process;
