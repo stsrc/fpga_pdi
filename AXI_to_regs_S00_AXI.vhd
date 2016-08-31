@@ -16,7 +16,8 @@ entity AXI_to_regs_S00_AXI is
 	);
 	port (
 		-- Users to add ports here
-	        interrupt : out std_logic;
+		    interrupt : out std_logic;
+	       
 		slv_reg0_in	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
 		slv_reg1_in	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
 		slv_reg2_out    : out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
@@ -371,10 +372,10 @@ begin
 		  case loc_addr is
 		  when b"00" =>
 	          axi_rdata <= slv_reg0_in;
-		  slv_reg0_strb_s <= '1'; 
+		      slv_reg0_strb_s <= '1'; 
 		  when b"01" =>
 	          axi_rdata <= slv_reg1_in;
-		  slv_reg1_strb_s <= '1';
+		      slv_reg1_strb_s <= '1';
 		  when b"10" =>
 	          axi_rdata <= std_logic_vector(unsigned(slv_reg0) + unsigned(slv_reg1) + 1);
 		  when b"11" =>
