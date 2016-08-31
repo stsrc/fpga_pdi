@@ -70,11 +70,12 @@ architecture arch_AXI_to_regs of AXI_to_regs is
 		slv_reg1_in	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
 		slv_reg2_out    : out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
         slv_reg3_out    : out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
-        
+       
 		slv_reg0_strb   : out std_logic;
 		slv_reg1_strb   : out std_logic;
 		slv_reg2_strb   : out std_logic;
 	    slv_reg3_strb   : out std_logic;
+	    interrupt_in    :  in std_logic;
 	   
 		S_AXI_ACLK	: in std_logic;
 		S_AXI_ARESETN	: in std_logic;

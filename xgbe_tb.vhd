@@ -12,7 +12,6 @@ end tb;
 architecture STRUCTURE of tb is
   component block_design_wrapper is
   port (
-    eop_strb : out STD_LOGIC;
     interrupt : out STD_LOGIC;
     pkt_rx_avail : in STD_LOGIC;
     pkt_rx_data : in STD_LOGIC_VECTOR ( 63 downto 0 );
@@ -54,7 +53,7 @@ end component block_design_wrapper;
   signal pkt_tx_data : std_logic_vector(63 downto 0) := (others => '0');
   signal pkt_tx_mod : std_logic_vector(2 downto 0) := (others => '0');
 
-  signal eop_strb, interrupt, pkt_rx_avail, pkt_rx_eop, pkt_rx_err, pkt_rx_ren, pkt_rx_sop, pkt_rx_val : std_logic := '0';
+  signal interrupt, pkt_rx_avail, pkt_rx_eop, pkt_rx_err, pkt_rx_ren, pkt_rx_sop, pkt_rx_val : std_logic := '0';
   signal s00_axi_aclk, s00_axi_aresetn, s00_axi_arready, s00_axi_arvalid, s00_axi_awready, s00_axi_awvalid : std_logic := '0';
   signal s00_axi_bready, s00_axi_bvalid, s00_axi_rready, s00_axi_rvalid, s00_axi_wready, s00_axi_wvalid : std_logic := '0';
   signal pkt_rx_data : std_logic_vector(63 downto 0) := (others => '0');
@@ -68,7 +67,6 @@ begin
 
 block_design_i: component block_design_wrapper
      port map (
-      eop_strb => eop_strb,
       interrupt => interrupt,
       pkt_rx_avail => pkt_rx_avail,
       pkt_rx_data(63 downto 0) => pkt_rx_data(63 downto 0),
