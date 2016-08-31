@@ -16,9 +16,9 @@ entity AXI_to_regs is
 	);
 	port (
 		-- Users to add ports here
-	        interrupt : out std_logic;
-		slv_reg0_in	: in std_logic_vector(C_S00_AXI_DATA_WIDTH - 1 downto 0);
-		slv_reg1_in	: in std_logic_vector(C_S00_AXI_DATA_WIDTH - 1 downto 0);
+	    interrupt       : out std_logic;
+		slv_reg0_in	    : in std_logic_vector(C_S00_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg1_in	    : in std_logic_vector(C_S00_AXI_DATA_WIDTH - 1 downto 0);
 		slv_reg2_out    : out std_logic_vector(C_S00_AXI_DATA_WIDTH - 1 downto 0);
         slv_reg3_out    : out std_logic_vector(C_S00_AXI_DATA_WIDTH - 1 downto 0);
     
@@ -26,6 +26,7 @@ entity AXI_to_regs is
 		slv_reg1_strb   : out std_logic;
 		slv_reg2_strb   : out std_logic;
 		slv_reg3_strb   : out std_logic;
+		interrupt_in    : in std_logic;
 		-- User ports ends
 		-- Do not modify the ports beyond this line
 
@@ -117,6 +118,7 @@ AXI_to_regs_S00_AXI_inst : AXI_to_regs_S00_AXI
 		slv_reg1_strb   => slv_reg1_strb,
 		slv_reg2_strb   => slv_reg2_strb,
 		slv_reg3_strb   => slv_reg3_strb,
+		interrupt_in => interrupt_in,
 		S_AXI_ACLK	=> s00_axi_aclk,
 		S_AXI_ARESETN	=> s00_axi_aresetn,
 		S_AXI_AWADDR	=> s00_axi_awaddr,

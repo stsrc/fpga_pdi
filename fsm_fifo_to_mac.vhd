@@ -64,7 +64,6 @@ begin
 		else
 			state <= state_tmp;
 			cnt <= cnt_tmp;
-			
 		end if;
 	end if;
 	end process;

@@ -27,6 +27,7 @@ entity AXI_to_regs_S00_AXI is
 		slv_reg1_strb   : out std_logic;
 		slv_reg2_strb   : out std_logic;
 		slv_reg3_strb   : out std_logic;
+		interrupt_in    : in std_logic;
 		-- User ports ends
 		-- Do not modify the ports beyond this line
 
@@ -95,8 +96,6 @@ end AXI_to_regs_S00_AXI;
 
 architecture arch_AXI_to_regs_S00_AXI of AXI_to_regs_S00_AXI is
 
-    signal interrupt_s  : std_logic := '0';
-    signal counter      : unsigned(25 downto 0);
 	-- AXI4LITE signals
 	signal axi_awaddr	: std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
 	signal axi_awready	: std_logic;
@@ -133,8 +132,7 @@ architecture arch_AXI_to_regs_S00_AXI of AXI_to_regs_S00_AXI is
     signal slv_reg2_strb_s		: std_logic := '0';
     signal slv_reg3_strb_s		: std_logic := '0';
 begin
-	-- I/O Connections assignments
-	interrupt <= interrupt_s;
+	-- I/O Connections assignment
 	slv_reg0_strb <= slv_reg0_strb_s;
 	slv_reg1_strb <= slv_reg1_strb_s;
 	slv_reg2_strb <= slv_reg2_strb_s;
@@ -399,16 +397,10 @@ begin
 	    end if;
 	end process; 
 
-    process(S_AXI_ACLK, interrupt_s) is
+    process(S_AXI_ACLK) is
     begin
-        interrupt_s <= interrupt_s;
         if (rising_edge (S_AXI_ACLK)) then
-            counter <= counter + 1;
-            if (counter < 49) then
-                interrupt_s <= '1';
-            else
-                interrupt_s <= '0';
-            end if;
+            interrupt <= interrupt_in;
         end if;
     end process;
 end arch_AXI_to_regs_S00_AXI;
