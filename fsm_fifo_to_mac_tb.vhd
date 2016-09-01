@@ -54,7 +54,7 @@ process begin
 	wait for 15 ns;
 	rst <= '1';
 	fifo_data <= std_logic_vector(to_unsigned(100, 64));
-	fifo_cnt <= std_logic_vector(to_unsigned(20, 14));
+	fifo_cnt <= std_logic_vector(to_unsigned(16, 14));
 	packet_strb <= '1';
 	wait for 10 ns; -- fifo_cnt_strb = '1', fifo_data_strb = '1', pkt_tx_val = '1', pkt_tx_sop = '1',
 			-- pkt_tx_eop = '0', pkt_tx_mod = "000".
@@ -67,8 +67,23 @@ process begin
 			-- pkt_tx_eop = '0', pkt_tx_mod = "000".
 	wait for 10 ns; -- fifo_cnt_strb = '0', fifo_data_strb = '1', pkt_tx_val = '1', pkt_tx_sop = '0',
 			-- pkt_tx_eop = '1', pkt_tx_mod = "100".
-	wait for 10 ns; -- fifo_cnt_strb = '0', fifo_data_strb = '0', pkt_tx_val = '0', pkt_tx_sop = '0',
+	fifo_cnt <= std_logic_vector(to_unsigned(8, 14));
+	fifo_data <= std_logic_vector(to_unsigned(1, 64));
+	packet_strb <= '1';
+	wait for 10 ns; -- fifo_cnt_strb = '1', fifo_data_strb = '1', pkt_tx_val = '1', pkt_tx_sop = '1',
+			-- pkt_tx_eop = '1', pkt_tx_mod = "000".
+	packet_strb <= '1';
+	fifo_cnt <= std_logic_vector(to_unsigned(17, 14));
+	fifo_data <= std_logic_vector(to_unsigned(2, 64));
+	wait for 10 ns; -- fifo_cnt_strb = '1', fifo_data_strb = '1', pkt_tx_val = '1', pkt_tx_sop = '1',
 			-- pkt_tx_eop = '0', pkt_tx_mod = "000".
+	packet_strb <= '0';
+	fifo_data <= std_logic_vector(to_unsigned(3, 64));
+	wait for 10 ns; -- fifo_cnt_strb = '0', fifo_data_strb = '1', pkt_tx_val = '1', pkt_tx_sop = '0',
+			-- pkt_tx_eop = '0', pkt_tx_mod = "000".
+	fifo_data <= std_logic_vector(to_unsigned(4, 64));
+	wait for 10 ns; -- fifo_cnt_strb = '0', fifo_data_strb = '1', pkt_tx_val = '1', pkt_tx_sop = '0',
+			-- pkt_tx_eop = '0', pkt_tx_mod = "001".
 	wait;
 end process;
 

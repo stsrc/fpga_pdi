@@ -74,13 +74,13 @@ begin
     case state is
     
     when '0' =>
-        axi_in <= fifo_out(63 downto 32);
+        axi_in <= fifo_out(31 downto 0);
         if (axi_strb = '1') then
             state_tmp <= '1';
         end if;
         
     when '1' =>
-        axi_in <= fifo_out(31 downto 0);
+        axi_in <= fifo_out(63 downto 32);
         if (axi_strb = '1') then
             fifo_strb <= '1';
             state_tmp <= '0';

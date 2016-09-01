@@ -83,7 +83,7 @@ if (axi_strb = '1') then
 end if;
 when '1' =>
 if (axi_strb = '1') then
-    fifo_data <= data_reg & axi_data;
+    fifo_data <= axi_data & data_reg;
     fifo_strb <= '1';
     state_tmp <= '0';
 end if;

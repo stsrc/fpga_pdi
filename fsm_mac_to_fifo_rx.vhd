@@ -76,15 +76,18 @@ begin
     fifo_drop <= '0';
     case state is
     when "00" =>
-        
         if (pkt_rx_avail = '1') then
            pkt_rx_ren <= '1';
            tmp_state <= "01";
         end if;
     when "01" =>
-        if (pkt_rx_val = '0' or pkt_rx_err = '1') then
+    if (pkt_rx_err = '1') then
             fifo_strb <= '1';
             fifo_drop <= '1';
+	elsif (pkt_rx_val = '0') then
+		tmp_state <= "01";
+		cnt_temp <= cnt;
+		pkt_rx_ren <= '1';
         elsif (pkt_rx_val = '1' and pkt_rx_eop = '0') then
             tmp_state <= "01";
             pkt_rx_ren <= '1';

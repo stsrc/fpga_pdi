@@ -12,6 +12,7 @@ end tb;
 architecture STRUCTURE of tb is
   component block_design_wrapper is
   port (
+    clk_mac : in STD_LOGIC;
     interrupt : out STD_LOGIC;
     pkt_rx_avail : in STD_LOGIC;
     pkt_rx_data : in STD_LOGIC_VECTOR ( 63 downto 0 );
@@ -23,6 +24,7 @@ architecture STRUCTURE of tb is
     pkt_rx_val : in STD_LOGIC;
     pkt_tx_data : out STD_LOGIC_VECTOR ( 63 downto 0 );
     pkt_tx_eop : out STD_LOGIC;
+    pkt_tx_full : in STD_LOGIC;
     pkt_tx_mod : out STD_LOGIC_VECTOR ( 2 downto 0 );
     pkt_tx_sop : out STD_LOGIC;
     pkt_tx_val : out STD_LOGIC;
@@ -49,10 +51,10 @@ architecture STRUCTURE of tb is
     s00_axi_wvalid : in STD_LOGIC
   );
 end component block_design_wrapper;
-  signal pkt_tx_eop, pkt_tx_sop, pkt_tx_val : std_logic := '0';
+  signal pkt_tx_eop, pkt_tx_sop, pkt_tx_val, pkt_tx_full : std_logic := '0';
   signal pkt_tx_data : std_logic_vector(63 downto 0) := (others => '0');
   signal pkt_tx_mod : std_logic_vector(2 downto 0) := (others => '0');
-
+  signal clk_mac : std_logic := '0';
   signal interrupt, pkt_rx_avail, pkt_rx_eop, pkt_rx_err, pkt_rx_ren, pkt_rx_sop, pkt_rx_val : std_logic := '0';
   signal s00_axi_aclk, s00_axi_aresetn, s00_axi_arready, s00_axi_arvalid, s00_axi_awready, s00_axi_awvalid : std_logic := '0';
   signal s00_axi_bready, s00_axi_bvalid, s00_axi_rready, s00_axi_rvalid, s00_axi_wready, s00_axi_wvalid : std_logic := '0';
@@ -67,6 +69,7 @@ begin
 
 block_design_i: component block_design_wrapper
      port map (
+      clk_mac => clk_mac,
       interrupt => interrupt,
       pkt_rx_avail => pkt_rx_avail,
       pkt_rx_data(63 downto 0) => pkt_rx_data(63 downto 0),
@@ -78,6 +81,7 @@ block_design_i: component block_design_wrapper
       pkt_rx_val => pkt_rx_val,
       pkt_tx_data(63 downto 0) => pkt_tx_data(63 downto 0),
       pkt_tx_eop => pkt_tx_eop,
+      pkt_tx_full => pkt_tx_full,
       pkt_tx_mod(2 downto 0) => pkt_tx_mod(2 downto 0),
       pkt_tx_sop => pkt_tx_sop,
       pkt_tx_val => pkt_tx_val,
@@ -107,8 +111,10 @@ block_design_i: component block_design_wrapper
     
 process begin
     s00_axi_aclk <= '0';
+    clk_mac <= '0';
     wait for 5 ns;
     s00_axi_aclk <= '1';
+    clk_mac <= '1';
     wait for 5 ns;
 end process;
  
@@ -155,69 +161,69 @@ send : PROCESS
 tb : process
 begin
  
- S00_AXI_ARESETN <= '0';
+    S00_AXI_ARESETN <= '0';
     wait for 10 ns;
     S00_AXI_ARESETN <= '1';
 
 	S00_AXI_AWADDR<="1100";
-        S00_AXI_WDATA<=x"00000001";
-        S00_AXI_WSTRB<=b"1111";
-        sendIt<='1';                --Start AXI Write to Slave
-        wait for 1 ns; sendIt<='0'; --Clear Start Send Flag
+    S00_AXI_WDATA<=x"00000001";
+    S00_AXI_WSTRB<=b"1111";
+    sendIt<='1';                --Start AXI Write to Slave
+    wait for 1 ns; sendIt<='0'; --Clear Start Send Flag
 	wait until S00_AXI_BVALID = '1';
 	wait until S00_AXI_BVALID = '0';  --AXI Write finished
-        S00_AXI_WSTRB<=b"0000";
+    S00_AXI_WSTRB<=b"0000";
 
 	S00_AXI_AWADDR<="1100";
-        S00_AXI_WDATA<=x"00000010";
-        S00_AXI_WSTRB<=b"1111";
-        sendIt<='1';                --Start AXI Write to Slave
-        wait for 1 ns; sendIt<='0'; --Clear Start Send Flag
+    S00_AXI_WDATA<=x"00000010";
+    S00_AXI_WSTRB<=b"1111";
+    sendIt<='1';                --Start AXI Write to Slave
+    wait for 1 ns; sendIt<='0'; --Clear Start Send Flag
 	wait until S00_AXI_BVALID = '1';
 	wait until S00_AXI_BVALID = '0';  --AXI Write finished
-        S00_AXI_WSTRB<=b"0000";
+    S00_AXI_WSTRB<=b"0000";
 
 	S00_AXI_AWADDR<="1000";
-        S00_AXI_WDATA<=x"00000008";
-        S00_AXI_WSTRB<=b"1111";
-        sendIt<='1';                --Start AXI Write to Slave
-        wait for 1 ns; sendIt<='0'; --Clear Start Send Flag
+    S00_AXI_WDATA<=x"00000008";
+    S00_AXI_WSTRB<=b"1111";
+    sendIt<='1';                --Start AXI Write to Slave
+    wait for 1 ns; sendIt<='0'; --Clear Start Send Flag
 	wait until S00_AXI_BVALID = '1';
 	wait until S00_AXI_BVALID = '0';  --AXI Write finished
-        S00_AXI_WSTRB<=b"0000";
+    S00_AXI_WSTRB<=b"0000";
 
-    --pkt_rx_avail <= '1';
-    --wait for 10 ns;
-   -- pkt_rx_sop <= '1';
-   -- pkt_rx_val <= '1';
-   -- pkt_rx_data <= "1000000010000000100000001000000000000001000000010000000100000001";
-   -- wait for 10 ns;
-   -- pkt_rx_sop <= '0';
-   -- pkt_rx_data <= "1100000011000000110000001100000000000011000000110000001100000011";
-   -- wait for 10 ns;
-   -- pkt_rx_eop <= '1';
-   -- pkt_rx_data <= "1110000011100000111000001110000000000111000001110000011100000111";
-   -- pkt_rx_mod <= std_logic_vector(to_unsigned(1, 3));
-   -- wait for 10 ns;
-   -- pkt_rx_eop <= '0';
-   -- pkt_rx_val <= '0';
-   -- pkt_rx_avail <= '0';
-   -- wait for 10 ns; 
+    pkt_rx_avail <= '1';
+    wait for 10 ns;
+    pkt_rx_sop <= '1';
+    pkt_rx_val <= '1';
+    pkt_rx_data <= "1000000010000000100000001000000000000001000000010000000100000001";
+    wait for 10 ns;
+    pkt_rx_sop <= '0';
+    pkt_rx_data <= "1100000011000000110000001100000000000011000000110000001100000011";
+    wait for 10 ns;
+    pkt_rx_eop <= '1';
+    pkt_rx_data <= "1110000011100000111000001110000000000111000001110000011100000111";
+    pkt_rx_mod <= std_logic_vector(to_unsigned(1, 3));
+    wait for 10 ns;
+    pkt_rx_eop <= '0';
+    pkt_rx_val <= '0';
+    pkt_rx_avail <= '0';
+    wait for 10 ns; 
     
-   -- S00_AXI_ARADDR<="0000";
-   --     readIt<='1';                --Start AXI Read from Slave
-   --     wait for 1 ns; 
-   --    readIt<='0';                --Clear "Start Read" Flag
-   -- wait until S00_AXI_RREADY = '1';
-   -- wait until S00_AXI_RREADY = '0';    --AXI_DATA should be equal to 17
-    --    S00_AXI_ARADDR<="0100";
-   -- for i in 0 to 5 loop
-   --     readIt<='1';                --Start AXI Read from Slave
-   --     wait for 1 ns; 
-   --     readIt<='0';                --Clear "Start Read" Flag
-   -- wait until S00_AXI_RREADY = '1';    --AXI_DATA should be equal to 10000000...
-   -- wait until S00_AXI_RREADY = '0';
-   -- end loop;
+    S00_AXI_ARADDR<="0000";
+        readIt<='1';                --Start AXI Read from Slave
+        wait for 1 ns; 
+       readIt<='0';                --Clear "Start Read" Flag
+    wait until S00_AXI_RREADY = '1';
+    wait until S00_AXI_RREADY = '0';    --AXI_DATA should be equal to 17
+        S00_AXI_ARADDR<="0100";
+   for i in 0 to 5 loop
+        readIt<='1';                --Start AXI Read from Slave
+        wait for 1 ns; 
+       readIt<='0';                --Clear "Start Read" Flag
+    wait until S00_AXI_RREADY = '1';    --AXI_DATA should be equal to 10000000...
+    wait until S00_AXI_RREADY = '0';
+    end loop;
 
      wait; -- will wait forever     
 end process tb;   

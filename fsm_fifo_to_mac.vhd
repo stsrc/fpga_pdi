@@ -69,7 +69,7 @@ begin
 	end process;
 
 	process(state, cnt, packet_strb, fifo_cnt, fifo_data, pkt_tx_full) begin
-		state_tmp <= "00";
+		state_tmp <= state;
 		cnt_tmp <= cnt;
 		fifo_cnt_strb <= '0';
 		fifo_data_strb <= '0';
@@ -91,6 +91,8 @@ begin
 			if (unsigned(fifo_cnt) = 8) then
 				state_tmp <= "00";
 				pkt_tx_eop <= '1';
+			elsif (unsigned(fifo_cnt) <= 16) then
+				state_tmp <= "11";
 			else
 				state_tmp <= "01";
 			end if;

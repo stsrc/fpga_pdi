@@ -80,13 +80,13 @@ end process;
 
 process begin
 rst <= '0';
-wait for 10 ns;
+wait for 6 ns;
 rst <= '1';
 wait;
 end process;
 
 process begin
-wait for 14 ns;
+wait for 6 ns;
 pkt_rx_avail <= '1';
 wait for 10 ns;
 pkt_rx_sop <= '1';
@@ -94,6 +94,7 @@ pkt_rx_val <= '1';
 pkt_rx_data <= std_logic_vector(to_unsigned(101, 64));
 wait for 10 ns;
 pkt_rx_sop <= '0';
+pkt_rx_avail <= '0';
 --pkt_rx_err <= '1';
 pkt_rx_data <= std_logic_vector(to_unsigned(102, 64));
 wait for 10 ns;
