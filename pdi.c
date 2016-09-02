@@ -68,47 +68,35 @@ static int pdi_read(struct file *f, char __user *buf, size_t nbytes,
 	return sizeof(int);
 }
 
-static int pdi_test_simple_periph(void) 
+static int pdi_write_test_packet(void) 
 {
-	unsigned int temp;
-	temp = 0x12345678;
-	iowrite32(temp, reg2);
-	//TODO
-	//ioread32be/le???
-	//
-	wmb();	
-	if (temp != ioread32(reg1)) {
-		pr_info("pdi: test 1 failed!\n");
-		pr_info("pdi: waiting for: %d, got: %d", 0x12345678, temp);
-		return -EINVAL;
-	} else {
-		pr_info("pdi: test 1 passed.\n");
+	uint32_t tab[16];
+	
+	tab[0] = 0x00010010;
+	tab[1] = 0x00000100;
+	tab[2] = 0x88b50001;
+	tab[3] = 0x94000002;
+	tab[4] = 0x06070809;
+	tab[5] = 0x02030405;
+	tab[6] = 0x0e0f1011;
+	tab[7] = 0x0a0b0c0d;
+	tab[8] = 0x16171819;
+	tab[9] = 0x12131415;
+	tab[10] = 0x1e1f2021;
+	tab[11] = 0x1a1b1c1d;
+	tab[12] = 0x26272829;
+	tab[13] = 0x22232425;
+	tab[14] = 0x2e2f3031;
+	tab[15] = 0x2a2b2c2d;
+	for (int i = 0; i < 16; i++) {
+		//TODO
+		//ioread32be/le???
+		//
+		iowrite32(tab[i], reg2);
+		wmb();
 	}
 
-	temp = 0x87654321;
-	iowrite32(temp, reg2);
-	wmb();
-	if (temp != ioread32(reg1)) {
-		pr_info("pdi: test 2 failed!\n");
-		pr_info("pdi: waiting for: %d, got: %d", 0x87654321, temp);
-		return -EINVAL;
-	} else {
-		pr_info("pdi: test 2 passed.\n");
-	}
-	for (int i = 0; i < 10; i++)
-		iowrite32(i, reg2);
-	wmb();
-	for (int i = 0; i < 10; i++) {
-		temp = ioread32(reg1);
-		if (temp != i) {
-			pr_info("pdi: test 3 failed.\n");
-			pr_info("pdi: waiting for: %d, got: %d", i, temp);
-			return -EINVAL;
-		}
-	}
-
-	pr_info("pdi: test 3 passed.\n");
-
+	iowrite32(64, reg3);
 	return 0;
 }
 
@@ -122,6 +110,11 @@ const struct file_operations pdi_fops = {
 static irqreturn_t pdi_int_handler(int irq, void *data)
 {
 	pr_info("pdi_int_handler executed.\n");
+	int temp = ioread32(reg0);
+	for (int i = 0; i < temp/4; i++) {
+		pr_info("PDI: received word: %d\n", ioread32(reg1));
+		rmb();
+	}
 	return IRQ_HANDLED;
 }
 
@@ -141,6 +134,7 @@ static int pdi_probe(struct platform_device *pdev)
 		pr_info("request_irq failed.\n");
 		return rt;
 	}
+	pdi_write_test_packet();
 	return 0;
 }
 
@@ -220,10 +214,6 @@ static int __init pdi_init(void)
 		goto err;
 	}
 	
-	rt = pdi_test_simple_periph();
-	if (rt)
-		goto err;
-
 	rt = platform_driver_register(&pdi_platform_driver);
 	if (rt) {
 		pr_info("platform_driver_register failed.\n");
