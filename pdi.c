@@ -92,11 +92,11 @@ static int pdi_write_test_packet(void)
 		//TODO
 		//ioread32be/le???
 		//
-		iowrite32(tab[i], reg2);
+		iowrite32(tab[i], reg3);
 		wmb();
 	}
 
-	iowrite32(64, reg3);
+	iowrite32(64, reg2);
 	return 0;
 }
 
@@ -109,10 +109,12 @@ const struct file_operations pdi_fops = {
 
 static irqreturn_t pdi_int_handler(int irq, void *data)
 {
+	int temp;
+
 	pr_info("pdi_int_handler executed.\n");
-	int temp = ioread32(reg0);
+	temp = ioread32(reg0);
 	for (int i = 0; i < temp/4; i++) {
-		pr_info("PDI: received word: %d\n", ioread32(reg1));
+		pr_info("PDI: received word: 0x%08x\n", ioread32(reg1));
 		rmb();
 	}
 	return IRQ_HANDLED;
