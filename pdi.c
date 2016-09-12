@@ -92,11 +92,11 @@ static int pdi_write_test_packet(void)
 		//TODO
 		//ioread32be/le???
 		//
-		iowrite32(tab[i], reg3);
+		iowrite32(0xffffffff, reg3);
 		wmb();
 	}
 
-	iowrite32(64, reg2);
+	iowrite32(63, reg2);
 	return 0;
 }
 
@@ -113,7 +113,7 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 
 	pr_info("pdi_int_handler executed.\n");
 	temp = ioread32(reg0);
-	for (int i = 0; i < temp/4; i++) {
+	for (int i = 0; i < 64/4; i++) {
 		pr_info("PDI: received word: 0x%08x\n", ioread32(reg1));
 		rmb();
 	}
