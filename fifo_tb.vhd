@@ -48,9 +48,9 @@ begin
 	end process;
 
 	process begin
-		clk_out <= '1';
-		wait for 5 ns;
 		clk_out <= '0';
+		wait for 5 ns;
+		clk_out <= '1';
 		wait for 5 ns;
 	end process;
 

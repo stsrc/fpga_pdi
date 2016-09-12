@@ -164,34 +164,38 @@ begin
     S00_AXI_ARESETN <= '0';
     wait for 10 ns;
     S00_AXI_ARESETN <= '1';
+    
+    for i in 0 to 8 loop
+	   S00_AXI_AWADDR<="1100";
+        S00_AXI_WDATA<=x"00000001";
+        S00_AXI_WSTRB<=b"1111";
+        sendIt<='1';                --Start AXI Write to Slave
+        wait for 1 ns; sendIt<='0'; --Clear Start Send Flag
+	    wait until S00_AXI_BVALID = '1';
+	    wait until S00_AXI_BVALID = '0';  --AXI Write finished
+        S00_AXI_WSTRB<=b"0000";
 
-	S00_AXI_AWADDR<="1100";
-    S00_AXI_WDATA<=x"00000001";
-    S00_AXI_WSTRB<=b"1111";
-    sendIt<='1';                --Start AXI Write to Slave
-    wait for 1 ns; sendIt<='0'; --Clear Start Send Flag
-	wait until S00_AXI_BVALID = '1';
-	wait until S00_AXI_BVALID = '0';  --AXI Write finished
-    S00_AXI_WSTRB<=b"0000";
-
-	S00_AXI_AWADDR<="1100";
-    S00_AXI_WDATA<=x"00000010";
-    S00_AXI_WSTRB<=b"1111";
-    sendIt<='1';                --Start AXI Write to Slave
-    wait for 1 ns; sendIt<='0'; --Clear Start Send Flag
-	wait until S00_AXI_BVALID = '1';
-	wait until S00_AXI_BVALID = '0';  --AXI Write finished
-    S00_AXI_WSTRB<=b"0000";
+	    S00_AXI_AWADDR<="1100";
+        S00_AXI_WDATA<=x"00000010";
+        S00_AXI_WSTRB<=b"1111";
+        sendIt<='1';                --Start AXI Write to Slave
+        wait for 1 ns; sendIt<='0'; --Clear Start Send Flag
+	   wait until S00_AXI_BVALID = '1';
+	   wait until S00_AXI_BVALID = '0';  --AXI Write finished
+        S00_AXI_WSTRB<=b"0000";
+    end loop;
 
 	S00_AXI_AWADDR<="1000";
-    S00_AXI_WDATA<=x"00000008";
+    S00_AXI_WDATA<=x"00000041";
     S00_AXI_WSTRB<=b"1111";
     sendIt<='1';                --Start AXI Write to Slave
     wait for 1 ns; sendIt<='0'; --Clear Start Send Flag
 	wait until S00_AXI_BVALID = '1';
 	wait until S00_AXI_BVALID = '0';  --AXI Write finished
     S00_AXI_WSTRB<=b"0000";
-
+    
+    wait for 200 ns;
+    
     pkt_rx_avail <= '1';
     wait for 10 ns;
     pkt_rx_sop <= '1';
@@ -209,6 +213,8 @@ begin
     pkt_rx_val <= '0';
     pkt_rx_avail <= '0';
     wait for 10 ns; 
+    
+    wait until interrupt = '1';
     
     S00_AXI_ARADDR<="0000";
         readIt<='1';                --Start AXI Read from Slave

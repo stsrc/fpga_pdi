@@ -143,26 +143,22 @@ process begin
 	wait for 30 ns;
 	pkt_tx_val <= '1';
 	pkt_tx_sop <= '1';
-	pkt_tx_data <= x"0000010000010010";
-	wait for 10 ns;
-	pkt_tx_sop <= '0';
-	pkt_tx_data <= x"9400000288b50001";
-	wait for 10 ns;
-	pkt_tx_data <= x"0203040506070809";
-	wait for 10 ns;
-	pkt_tx_data <= x"0a0b0c0d0e0f1011";
-	wait for 10 ns;
-	pkt_tx_data <= x"1213141516171819";
-	wait for 10 ns;
-	pkt_tx_data <= x"1a1b1c1d1e1f2021";
-	wait for 10 ns;
-	pkt_tx_data <= x"2223242526272829";
-	wait for 10 ns;
-	pkt_tx_eop <= '1';
-	pkt_tx_data <= x"2a2b2c2d2e2f3031";
-	wait for 10 ns;
-	pkt_tx_val <= '0';
 	pkt_tx_eop <= '0';
+	pkt_tx_data <= x"0000000011111111";
+	wait for 10 ns;
+
+	pkt_tx_sop <= '0';
+	wait for 40 ns;
+
+	pkt_tx_mod <= "000";
+	pkt_tx_sop <= '0';
+    pkt_tx_eop <= '1';
+	wait for 10 ns;
+    pkt_tx_val <= '0';
+	pkt_tx_mod <= "000";
+	pkt_tx_sop <= '0';
+	pkt_tx_eop <= '0';
+
 	wait until pkt_rx_avail = '1';
 	pkt_rx_ren <= '1';
 	wait until pkt_rx_eop = '1';

@@ -185,7 +185,7 @@ send : PROCESS
 
 	
     
- for i in 0 to 16 loop
+ for i in 0 to 17 loop
 	S00_AXI_AWADDR<="1100";
     S00_AXI_WDATA<=x"ffffffff";
     S00_AXI_WSTRB<=b"1111";
@@ -197,7 +197,7 @@ send : PROCESS
 end loop;
 
 	S00_AXI_AWADDR<="1000";
-    S00_AXI_WDATA<=x"0000003f";
+    S00_AXI_WDATA<=x"00000041";
     S00_AXI_WSTRB<=b"1111";
     sendIt<='1';                --Start AXI Write to Slave
     wait for 1 ns; sendIt<='0'; --Clear Start Send Flag
@@ -205,7 +205,7 @@ end loop;
 	wait until S00_AXI_BVALID = '0';  --AXI Write finished
     S00_AXI_WSTRB<=b"0000";
 
-
+wait for 25 ns;
 wait until interrupt = '1';
 
     S00_AXI_ARADDR<="0000";
@@ -215,7 +215,7 @@ wait until interrupt = '1';
 wait until S00_AXI_RREADY = '1';
 wait until S00_AXI_RREADY = '0';    --AXI_DATA should be equal to 17
     S00_AXI_ARADDR<="0100";
-for i in 0 to 16 loop
+for i in 0 to 17 loop
     readIt<='1';                --Start AXI Read from Slave
     wait for 1 ns; 
    readIt<='0';                --Clear "Start Read" Flag
