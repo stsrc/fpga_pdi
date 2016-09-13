@@ -64,7 +64,11 @@ component xgbe_compilation_wrapper is
     s00_axi_wstrb : in STD_LOGIC_VECTOR ( 3 downto 0 );
     s00_axi_wvalid : in STD_LOGIC;
     wb_clk_i : in STD_LOGIC;
-    wb_resetn : in STD_LOGIC
+    wb_resetn : in STD_LOGIC;
+    xgmii_rxc : in STD_LOGIC_VECTOR ( 7 downto 0 );
+    xgmii_rxd : in STD_LOGIC_VECTOR ( 63 downto 0 );
+    xgmii_txc : out STD_LOGIC_VECTOR ( 7 downto 0 );
+    xgmii_txd : out STD_LOGIC_VECTOR ( 63 downto 0 )
   );
 end component xgbe_compilation_wrapper;
   signal interrupt : std_logic := '0';
@@ -76,6 +80,8 @@ end component xgbe_compilation_wrapper;
   signal s00_axi_araddr, s00_axi_awaddr, s00_axi_wstrb : std_logic_vector(3 downto 0) := (others => '0');
   signal pkt_rx_mod, s00_axi_arprot, s00_axi_awprot : std_logic_vector(2 downto 0) := (others => '0');
   signal s00_axi_bresp, s00_axi_rresp : std_logic_vector(1 downto 0) := (others => '0');
+  signal xgmii_rxc, xgmii_txc : std_logic_vector(7 downto 0) := (others => '0');
+  signal xgmii_rxd, xgmii_txd : std_logic_vector(63 downto 0) := (others => '0');
   
   signal ReadIt, SendIt : std_logic := '0';
 begin
@@ -108,8 +114,15 @@ s00_axi_wready => s00_axi_wready,
 s00_axi_wstrb(3 downto 0) => s00_axi_wstrb(3 downto 0),
 s00_axi_wvalid => s00_axi_wvalid,
 wb_clk_i => wb_clk_i,
-wb_resetn => wb_resetn
+wb_resetn => wb_resetn,
+xgmii_rxc => xgmii_rxc,
+xgmii_rxd => xgmii_rxd,
+xgmii_txc => xgmii_txc,
+xgmii_txd => xgmii_txd
 );
+
+xgmii_rxc <= xgmii_txc;
+xgmii_rxd <= xgmii_txd;
 
 process begin
 s00_axi_aclk <= '0';

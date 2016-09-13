@@ -18,15 +18,24 @@ entity AXI_to_regs_S00_AXI is
 		-- Users to add ports here
 		    interrupt : out std_logic;
 	       
-		slv_reg0_in	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
-		slv_reg1_in	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
-		slv_reg2_out    : out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
-        slv_reg3_out    : out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg0_rd	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg0_wr	: out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg1_rd	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg1_wr	: out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg2_rd	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg2_wr    : out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg3_rd	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+	    slv_reg3_wr    : out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
         
-		slv_reg0_strb   : out std_logic;
-		slv_reg1_strb   : out std_logic;
-		slv_reg2_strb   : out std_logic;
-		slv_reg3_strb   : out std_logic;
+		slv_reg0_rd_strb   : out std_logic;
+		slv_reg1_rd_strb  : out std_logic;
+		slv_reg2_rd_strb   : out std_logic;
+		slv_reg3_rd_strb   : out std_logic;
+		slv_reg0_wr_strb   : out std_logic;
+		slv_reg1_wr_strb   : out std_logic;
+		slv_reg2_wr_strb   : out std_logic;
+		slv_reg3_wr_strb   : out std_logic;
+
 		interrupt_in    : in std_logic;
 		-- User ports ends
 		-- Do not modify the ports beyond this line
@@ -119,26 +128,42 @@ architecture arch_AXI_to_regs_S00_AXI of AXI_to_regs_S00_AXI is
 	---- Signals for user logic register space example
 	--------------------------------------------------
 	---- Number of Slave Registers 4
-	signal slv_reg0	:std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
-	signal slv_reg1	:std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
-	signal slv_reg2	:std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
-	signal slv_reg3	:std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
+
+	signal slv_reg0_wr_s	:std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
+	signal slv_reg1_wr_s	:std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
+	signal slv_reg2_wr_s	:std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
+	signal slv_reg3_wr_s	:std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
+
 	signal slv_reg_rden	: std_logic;
 	signal slv_reg_wren	: std_logic;
 	signal reg_data_out	:std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
 	signal byte_index	: integer;
-	signal slv_reg0_strb_s		: std_logic := '0';
-	signal slv_reg1_strb_s		: std_logic := '0';
-    signal slv_reg2_strb_s		: std_logic := '0';
-    signal slv_reg3_strb_s		: std_logic := '0';
+	
+	signal slv_reg0_rd_strb_s		: std_logic := '0';
+	signal slv_reg1_rd_strb_s		: std_logic := '0';
+	signal slv_reg2_rd_strb_s		: std_logic := '0';
+	signal slv_reg3_rd_strb_s		: std_logic := '0';
+
+	signal slv_reg0_wr_strb_s		: std_logic := '0';
+	signal slv_reg1_wr_strb_s		: std_logic := '0';
+	signal slv_reg2_wr_strb_s		: std_logic := '0';
+	signal slv_reg3_wr_strb_s		: std_logic := '0';
 begin
 	-- I/O Connections assignment
-	slv_reg0_strb <= slv_reg0_strb_s;
-	slv_reg1_strb <= slv_reg1_strb_s;
-	slv_reg2_strb <= slv_reg2_strb_s;
-	slv_reg3_strb <= slv_reg3_strb_s;
-	slv_reg2_out <= slv_reg2;
-	slv_reg3_out <= slv_reg3;
+	slv_reg0_rd_strb <= slv_reg0_rd_strb_s;
+	slv_reg1_rd_strb <= slv_reg1_rd_strb_s;
+	slv_reg2_rd_strb <= slv_reg2_rd_strb_s;
+	slv_reg3_rd_strb <= slv_reg3_rd_strb_s;
+
+	slv_reg0_wr_strb <= slv_reg0_wr_strb_s;
+	slv_reg1_wr_strb <= slv_reg1_wr_strb_s;
+	slv_reg2_wr_strb <= slv_reg2_wr_strb_s;
+	slv_reg3_wr_strb <= slv_reg3_wr_strb_s;
+
+	slv_reg0_wr <= slv_reg0_wr_s;
+	slv_reg1_wr <= slv_reg1_wr_s;
+	slv_reg2_wr <= slv_reg2_wr_s;
+	slv_reg3_wr <= slv_reg3_wr_s;
 
 	S_AXI_AWREADY	<= axi_awready;
 	S_AXI_WREADY	<= axi_wready;
@@ -226,13 +251,17 @@ begin
 	variable loc_addr :std_logic_vector(OPT_MEM_ADDR_BITS downto 0); 
 	begin
 	  if rising_edge(S_AXI_ACLK) then
-	      slv_reg2_strb_s <= '0';
-	      slv_reg3_strb_s <= '0';
+	      
+	      slv_reg0_wr_strb_s <= '0';
+	      slv_reg1_wr_strb_s <= '0';
+	      slv_reg2_wr_strb_s <= '0';
+	      slv_reg3_wr_strb_s <= '0';
+
 	    if S_AXI_ARESETN = '0' then
-	      slv_reg0 <= (others => '0');
-	      slv_reg1 <= (others => '0');
-	      slv_reg2 <= (others => '0');
-	      slv_reg3 <= (others => '0');
+	      slv_reg0_wr_s <= (others => '0');
+	      slv_reg1_wr_s <= (others => '0');
+	      slv_reg2_wr_s <= (others => '0');
+	      slv_reg3_wr_s <= (others => '0');
 	    else
 	      loc_addr := axi_awaddr(ADDR_LSB + OPT_MEM_ADDR_BITS downto ADDR_LSB);
 	      if (slv_reg_wren = '1') then
@@ -242,7 +271,8 @@ begin
 	              if ( S_AXI_WSTRB(byte_index) = '1' ) then
 	                -- Respective byte enables are asserted as per write strobes                   
 	                -- slave registor 0
-	                slv_reg0(byte_index*8+7 downto byte_index*8) <= S_AXI_WDATA(byte_index*8+7 downto byte_index*8);
+	                slv_reg0_wr_s(byte_index*8+7 downto byte_index*8) <= S_AXI_WDATA(byte_index*8+7 downto byte_index*8);
+			slv_reg0_wr_strb_s <= '1';
 	              end if;
 	            end loop;
 	          when b"01" =>
@@ -250,7 +280,8 @@ begin
 	              if ( S_AXI_WSTRB(byte_index) = '1' ) then
 	                -- Respective byte enables are asserted as per write strobes                   
 	                -- slave registor 1
-	                slv_reg1(byte_index*8+7 downto byte_index*8) <= S_AXI_WDATA(byte_index*8+7 downto byte_index*8);
+	                slv_reg1_wr_s(byte_index*8+7 downto byte_index*8) <= S_AXI_WDATA(byte_index*8+7 downto byte_index*8);
+			slv_reg1_wr_strb_s <= '1';
 	              end if;
 	            end loop;
 	          when b"10" =>
@@ -258,8 +289,8 @@ begin
 	              if ( S_AXI_WSTRB(byte_index) = '1' ) then
 	                -- Respective byte enables are asserted as per write strobes                   
 	                -- slave registor 2
-	                slv_reg2(byte_index*8+7 downto byte_index*8) <= S_AXI_WDATA(byte_index*8+7 downto byte_index*8);
-			        slv_reg2_strb_s <= '1';
+	                slv_reg2_wr_s(byte_index*8+7 downto byte_index*8) <= S_AXI_WDATA(byte_index*8+7 downto byte_index*8);
+		        slv_reg2_wr_strb_s <= '1';
 	              end if;
 	            end loop;
 	          when b"11" =>
@@ -267,15 +298,15 @@ begin
 	              if ( S_AXI_WSTRB(byte_index) = '1' ) then
 	                -- Respective byte enables are asserted as per write strobes                   
 	                -- slave registor 3
-	                slv_reg3(byte_index*8+7 downto byte_index*8) <= S_AXI_WDATA(byte_index*8+7 downto byte_index*8);
-	                slv_reg3_strb_s <= '1';
+	                slv_reg3_wr_s(byte_index*8+7 downto byte_index*8) <= S_AXI_WDATA(byte_index*8+7 downto byte_index*8);
+	                slv_reg3_wr_strb_s <= '1';
 	              end if;
 	            end loop;
 	          when others =>
-	            slv_reg0 <= slv_reg0;
-	            slv_reg1 <= slv_reg1;
-	            slv_reg2 <= slv_reg2;
-	            slv_reg3 <= slv_reg3;
+	            slv_reg0_wr_s <= slv_reg0_wr_s;
+	            slv_reg1_wr_s <= slv_reg1_wr_s;
+	            slv_reg2_wr_s <= slv_reg2_wr_s;
+	            slv_reg3_wr_s <= slv_reg3_wr_s;
 	        end case;
 	      end if;
 	    end if;
@@ -368,32 +399,32 @@ begin
 	begin
 	    if (rising_edge(S_AXI_ACLK)) then
 	     loc_addr := axi_araddr(ADDR_LSB + OPT_MEM_ADDR_BITS downto ADDR_LSB);
-	     slv_reg0_strb_s <= '0';
-	     slv_reg1_strb_s <= '0';
+	     slv_reg0_rd_strb_s <= '0';
+	     slv_reg1_rd_strb_s <= '0';
+	     slv_reg2_rd_strb_s <= '0';
+	     slv_reg3_rd_strb_s <= '0';
 		if (S_AXI_ARESETN = '0') then
 		  axi_rdata <= (others => '0');
 		elsif (slv_reg_rden = '1') then
 		  case loc_addr is
 		  when b"00" =>
-	          axi_rdata <= slv_reg0_in;
-		      slv_reg0_strb_s <= '1'; 
+			axi_rdata <= slv_reg0_rd;
+			slv_reg0_rd_strb_s <= '1'; 
 		  when b"01" =>
-	          axi_rdata <= slv_reg1_in;
-		      slv_reg1_strb_s <= '1';
+			axi_rdata <= slv_reg1_rd;
+			slv_reg1_rd_strb_s <= '1';
 		  when b"10" =>
-	          axi_rdata <= std_logic_vector(unsigned(slv_reg0) + unsigned(slv_reg1) + 1);
+			axi_rdata <= slv_reg2_rd;
+			slv_reg2_rd_strb_s <= '1';
 		  when b"11" =>
-	          axi_rdata <= std_logic_vector(unsigned(slv_reg2) + unsigned(slv_reg3) + 1);
+			axi_rdata <= slv_reg3_rd;
+			slv_reg3_rd_strb_s <= '1';
 		  when others =>
-	          axi_rdata <= (others => '0');
+		        axi_rdata <= (others => '0');
 		  end case;
 		  else
 		  axi_rdata <= axi_rdata;
 		end if;
-	    else
-		  axi_rdata <= axi_rdata;
-		  slv_reg0_strb_s <= slv_reg0_strb_s;
-		  slv_reg1_strb_s <= slv_reg1_strb_s;
 	    end if;
 	end process; 
 

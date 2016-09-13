@@ -10,52 +10,65 @@ entity tb is
 end tb;
 
 architecture STRUCTURE of tb is
-  component block_design_wrapper is
-  port (
-    clk_mac : in STD_LOGIC;
-    interrupt : out STD_LOGIC;
-    pkt_rx_avail : in STD_LOGIC;
-    pkt_rx_data : in STD_LOGIC_VECTOR ( 63 downto 0 );
-    pkt_rx_eop : in STD_LOGIC;
-    pkt_rx_err : in STD_LOGIC;
-    pkt_rx_mod : in STD_LOGIC_VECTOR ( 2 downto 0 );
-    pkt_rx_ren : out STD_LOGIC;
-    pkt_rx_sop : in STD_LOGIC;
-    pkt_rx_val : in STD_LOGIC;
-    pkt_tx_data : out STD_LOGIC_VECTOR ( 63 downto 0 );
-    pkt_tx_eop : out STD_LOGIC;
-    pkt_tx_full : in STD_LOGIC;
-    pkt_tx_mod : out STD_LOGIC_VECTOR ( 2 downto 0 );
-    pkt_tx_sop : out STD_LOGIC;
-    pkt_tx_val : out STD_LOGIC;
-    s00_axi_aclk : in STD_LOGIC;
-    s00_axi_araddr : in STD_LOGIC_VECTOR ( 3 downto 0 );
-    s00_axi_aresetn : in STD_LOGIC;
-    s00_axi_arprot : in STD_LOGIC_VECTOR ( 2 downto 0 );
-    s00_axi_arready : out STD_LOGIC;
-    s00_axi_arvalid : in STD_LOGIC;
-    s00_axi_awaddr : in STD_LOGIC_VECTOR ( 3 downto 0 );
-    s00_axi_awprot : in STD_LOGIC_VECTOR ( 2 downto 0 );
-    s00_axi_awready : out STD_LOGIC;
-    s00_axi_awvalid : in STD_LOGIC;
-    s00_axi_bready : in STD_LOGIC;
-    s00_axi_bresp : out STD_LOGIC_VECTOR ( 1 downto 0 );
-    s00_axi_bvalid : out STD_LOGIC;
-    s00_axi_rdata : out STD_LOGIC_VECTOR ( 31 downto 0 );
-    s00_axi_rready : in STD_LOGIC;
-    s00_axi_rresp : out STD_LOGIC_VECTOR ( 1 downto 0 );
-    s00_axi_rvalid : out STD_LOGIC;
-    s00_axi_wdata : in STD_LOGIC_VECTOR ( 31 downto 0 );
-    s00_axi_wready : out STD_LOGIC;
-    s00_axi_wstrb : in STD_LOGIC_VECTOR ( 3 downto 0 );
-    s00_axi_wvalid : in STD_LOGIC
-  );
-end component block_design_wrapper;
-  signal pkt_tx_eop, pkt_tx_sop, pkt_tx_val, pkt_tx_full : std_logic := '0';
-  signal pkt_tx_data : std_logic_vector(63 downto 0) := (others => '0');
-  signal pkt_tx_mod : std_logic_vector(2 downto 0) := (others => '0');
-  signal clk_mac : std_logic := '0';
-  signal interrupt, pkt_rx_avail, pkt_rx_eop, pkt_rx_err, pkt_rx_ren, pkt_rx_sop, pkt_rx_val : std_logic := '0';
+	component AXI_to_regs is
+	generic (
+		-- Users to add parameters here
+
+		-- User parameters ends
+		-- Do not modify the parameters beyond this line
+
+
+		-- Parameters of Axi Slave Bus Interface S00_AXI
+		C_S00_AXI_DATA_WIDTH	: integer	:= 32;
+		C_S00_AXI_ADDR_WIDTH	: integer	:= 4
+	);
+	port (
+		-- Users to add ports here
+	    interrupt       : out std_logic;
+		slv_reg0_in	    : in std_logic_vector(C_S00_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg1_in	    : in std_logic_vector(C_S00_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg2_out    : out std_logic_vector(C_S00_AXI_DATA_WIDTH - 1 downto 0);
+        slv_reg3_out    : out std_logic_vector(C_S00_AXI_DATA_WIDTH - 1 downto 0);
+    
+		slv_reg0_strb   : out std_logic;
+		slv_reg1_strb   : out std_logic;
+		slv_reg2_strb   : out std_logic;
+		slv_reg3_strb   : out std_logic;
+		interrupt_in    : in std_logic;
+		-- User ports ends
+		-- Do not modify the ports beyond this line
+
+
+		-- Ports of Axi Slave Bus Interface S00_AXI
+		s00_axi_aclk	: in std_logic;
+		s00_axi_aresetn	: in std_logic;
+		s00_axi_awaddr	: in std_logic_vector(C_S00_AXI_ADDR_WIDTH-1 downto 0);
+		s00_axi_awprot	: in std_logic_vector(2 downto 0);
+		s00_axi_awvalid	: in std_logic;
+		s00_axi_awready	: out std_logic;
+		s00_axi_wdata	: in std_logic_vector(C_S00_AXI_DATA_WIDTH-1 downto 0);
+		s00_axi_wstrb	: in std_logic_vector((C_S00_AXI_DATA_WIDTH/8)-1 downto 0);
+		s00_axi_wvalid	: in std_logic;
+		s00_axi_wready	: out std_logic;
+		s00_axi_bresp	: out std_logic_vector(1 downto 0);
+		s00_axi_bvalid	: out std_logic;
+		s00_axi_bready	: in std_logic;
+		s00_axi_araddr	: in std_logic_vector(C_S00_AXI_ADDR_WIDTH-1 downto 0);
+		s00_axi_arprot	: in std_logic_vector(2 downto 0);
+		s00_axi_arvalid	: in std_logic;
+		s00_axi_arready	: out std_logic;
+		s00_axi_rdata	: out std_logic_vector(C_S00_AXI_DATA_WIDTH-1 downto 0);
+		s00_axi_rresp	: out std_logic_vector(1 downto 0);
+		s00_axi_rvalid	: out std_logic;
+		s00_axi_rready	: in std_logic
+	);
+	end component;
+  
+
+
+
+
+  signal interrupt : std_logic := '0';
   signal s00_axi_aclk, s00_axi_aresetn, s00_axi_arready, s00_axi_arvalid, s00_axi_awready, s00_axi_awvalid : std_logic := '0';
   signal s00_axi_bready, s00_axi_bvalid, s00_axi_rready, s00_axi_rvalid, s00_axi_wready, s00_axi_wvalid : std_logic := '0';
   signal pkt_rx_data : std_logic_vector(63 downto 0) := (others => '0');
@@ -67,54 +80,11 @@ end component block_design_wrapper;
   signal ReadIt, SendIt : std_logic := '0';
 begin
 
-block_design_i: component block_design_wrapper
-     port map (
-      clk_mac => clk_mac,
-      interrupt => interrupt,
-      pkt_rx_avail => pkt_rx_avail,
-      pkt_rx_data(63 downto 0) => pkt_rx_data(63 downto 0),
-      pkt_rx_eop => pkt_rx_eop,
-      pkt_rx_err => pkt_rx_err,
-      pkt_rx_mod(2 downto 0) => pkt_rx_mod(2 downto 0),
-      pkt_rx_ren => pkt_rx_ren,
-      pkt_rx_sop => pkt_rx_sop,
-      pkt_rx_val => pkt_rx_val,
-      pkt_tx_data(63 downto 0) => pkt_tx_data(63 downto 0),
-      pkt_tx_eop => pkt_tx_eop,
-      pkt_tx_full => pkt_tx_full,
-      pkt_tx_mod(2 downto 0) => pkt_tx_mod(2 downto 0),
-      pkt_tx_sop => pkt_tx_sop,
-      pkt_tx_val => pkt_tx_val,
-      s00_axi_aclk => s00_axi_aclk,
-      s00_axi_araddr(3 downto 0) => s00_axi_araddr(3 downto 0),
-      s00_axi_aresetn => s00_axi_aresetn,
-      s00_axi_arprot(2 downto 0) => s00_axi_arprot(2 downto 0),
-      s00_axi_arready => s00_axi_arready,
-      s00_axi_arvalid => s00_axi_arvalid,
-      s00_axi_awaddr(3 downto 0) => s00_axi_awaddr(3 downto 0),
-      s00_axi_awprot(2 downto 0) => s00_axi_awprot(2 downto 0),
-      s00_axi_awready => s00_axi_awready,
-      s00_axi_awvalid => s00_axi_awvalid,
-      s00_axi_bready => s00_axi_bready,
-      s00_axi_bresp(1 downto 0) => s00_axi_bresp(1 downto 0),
-      s00_axi_bvalid => s00_axi_bvalid,
-      s00_axi_rdata(31 downto 0) => s00_axi_rdata(31 downto 0),
-      s00_axi_rready => s00_axi_rready,
-      s00_axi_rresp(1 downto 0) => s00_axi_rresp(1 downto 0),
-      s00_axi_rvalid => s00_axi_rvalid,
-      s00_axi_wdata(31 downto 0) => s00_axi_wdata(31 downto 0),
-      s00_axi_wready => s00_axi_wready,
-      s00_axi_wstrb(3 downto 0) => s00_axi_wstrb(3 downto 0),
-      s00_axi_wvalid => s00_axi_wvalid
-    );
-
     
 process begin
     s00_axi_aclk <= '0';
-    clk_mac <= '0';
     wait for 5 ns;
     s00_axi_aclk <= '1';
-    clk_mac <= '1';
     wait for 5 ns;
 end process;
  
