@@ -167,7 +167,7 @@ begin
     
     for i in 0 to 8 loop
 	   S00_AXI_AWADDR<="0100";
-        S00_AXI_WDATA<=x"00000001";
+        S00_AXI_WDATA<=x"fffffff0" or std_logic_vector(to_unsigned(i, 32));
         S00_AXI_WSTRB<=b"1111";
         sendIt<='1';                --Start AXI Write to Slave
         wait for 1 ns; sendIt<='0'; --Clear Start Send Flag
@@ -176,7 +176,7 @@ begin
         S00_AXI_WSTRB<=b"0000";
 
 	    S00_AXI_AWADDR<="0100";
-        S00_AXI_WDATA<=x"00000010";
+        S00_AXI_WDATA<=x"fffff0f0" or std_logic_vector(to_unsigned(i, 32));
         S00_AXI_WSTRB<=b"1111";
         sendIt<='1';                --Start AXI Write to Slave
         wait for 1 ns; sendIt<='0'; --Clear Start Send Flag

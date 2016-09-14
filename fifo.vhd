@@ -56,15 +56,16 @@ begin
 		        tail := (others => '0');   
 		        int_reg_out <= '0';
 		    else
-		      data_out <= mem(to_integer(tail));
 		      int_reg_out <= int_tmp_out;
 		      if (strb_out = '1') then
 		        tail := tail + 1;
 		      end if;
-		    end if;  
+		    end if;
+		     data_out <= mem(to_integer(tail)); 
 		end if;
 	end process;
-    
+	
+
     interrupt_out <= int_reg_out;
     
     process(int_reg_in, int_reg_out, interrupt_in) begin
