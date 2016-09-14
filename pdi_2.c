@@ -22,7 +22,7 @@
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 
-#define DRIVER_NAME "pdi"
+#define DRIVER_NAME "pdi_2"
 
 MODULE_LICENSE("GPL");
 
@@ -54,11 +54,14 @@ static int pdi_release(struct inode *node, struct file *f)
 static int pdi_write(struct file *f, const char __user *buf, size_t nbytes,
 			loff_t *ppos)
 {
-	for (int i = 0; i < 16; i++)
-		iowrite32(0xfffffff0 + i, reg1);
+	for (int i = 0; i < 16; i++) {
+		iowrite32(0xffffffff - i, reg1);
+		wmb();
+	}
 
 	iowrite32(64, reg0);
-	return 0;
+	wmb();
+	return nbytes;
 }
 
 static int pdi_read(struct file *f, char __user *buf, size_t nbytes, 
@@ -80,6 +83,7 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 
 	pr_info("pdi_int_handler executed.\n");
 	temp = ioread32(reg0);
+	rmb();
 	//TODO
 	for (int i = 0; i < 64/4; i++) {
 		pr_info("PDI: received word: 0x%08x\n", ioread32(reg1));
@@ -168,7 +172,7 @@ static int pdi_remove(struct platform_device *pdev)
 //will dissapear. Futhermore, it won't compile (look at line 715).
 
 static const struct of_device_id pdi_of_match[] = {
-	{ .compatible = "xlnx,xgbe-compilation-wrapper-1.0", },
+	{ .compatible = "xlnx,xgbe-compilation-wrapper-1.1", },
 	{}
 };
 

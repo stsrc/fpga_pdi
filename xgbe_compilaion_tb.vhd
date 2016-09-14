@@ -24,7 +24,7 @@ use IEEE.STD_LOGIC_1164.ALL;
 
 -- Uncomment the following library declaration if using
 -- arithmetic functions with Signed or Unsigned values
---use IEEE.NUMERIC_STD.ALL;
+use IEEE.NUMERIC_STD.ALL;
 
 -- Uncomment the following library declaration if instantiating
 -- any Xilinx leaf cells in this code.
@@ -198,9 +198,9 @@ send : PROCESS
 
 	
     
- for i in 0 to 17 loop
+ for i in 0 to 15 loop
 	S00_AXI_AWADDR<="0100";
-    S00_AXI_WDATA<=x"ffffffff";
+    S00_AXI_WDATA<= x"fffffff0" or std_logic_vector(to_unsigned(i, 32));
     S00_AXI_WSTRB<=b"1111";
     sendIt<='1';                --Start AXI Write to Slave
     wait for 1 ns; sendIt<='0'; --Clear Start Send Flag
@@ -210,7 +210,7 @@ send : PROCESS
 end loop;
 
 	S00_AXI_AWADDR<="0000";
-    S00_AXI_WDATA<=x"00000041";
+    S00_AXI_WDATA<=x"00000040";
     S00_AXI_WSTRB<=b"1111";
     sendIt<='1';                --Start AXI Write to Slave
     wait for 1 ns; sendIt<='0'; --Clear Start Send Flag
@@ -228,7 +228,7 @@ wait until interrupt = '1';
 wait until S00_AXI_RREADY = '1';
 wait until S00_AXI_RREADY = '0';    --AXI_DATA should be equal to 17
     S00_AXI_ARADDR<="0100";
-for i in 0 to 17 loop
+for i in 0 to 15 loop
     readIt<='1';                --Start AXI Read from Slave
     wait for 1 ns; 
    readIt<='0';                --Clear "Start Read" Flag

@@ -3,7 +3,7 @@ export CROSS_COMPILE:=/home/kgodfryd/petalinux/petalinux-v2016.2-final/tools/lin
 ccflags-y += -DDEBUG -std=gnu99 -Wno-declaration-after-statemenit
 
 ifneq ($(KERNELRELEASE),)
-	obj-m := pdi.o
+	obj-m := pdi.o pdi_1.o pdi_2.o
 
 else
 	KERNELDIR ?= /home/kgodfryd/petalinux/workspace/first_project/build/linux/kernel/xlnx-4.4/
