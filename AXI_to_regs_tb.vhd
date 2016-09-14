@@ -24,17 +24,28 @@ architecture STRUCTURE of tb is
 	);
 	port (
 		-- Users to add ports here
-	    interrupt       : out std_logic;
-		slv_reg0_in	    : in std_logic_vector(C_S00_AXI_DATA_WIDTH - 1 downto 0);
-		slv_reg1_in	    : in std_logic_vector(C_S00_AXI_DATA_WIDTH - 1 downto 0);
-		slv_reg2_out    : out std_logic_vector(C_S00_AXI_DATA_WIDTH - 1 downto 0);
-        slv_reg3_out    : out std_logic_vector(C_S00_AXI_DATA_WIDTH - 1 downto 0);
-    
-		slv_reg0_strb   : out std_logic;
-		slv_reg1_strb   : out std_logic;
-		slv_reg2_strb   : out std_logic;
-		slv_reg3_strb   : out std_logic;
+		interrupt : out std_logic;
+	       
+		slv_reg0_rd	: in std_logic_vector(C_S00_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg0_wr	: out std_logic_vector(C_S00_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg1_rd	: in std_logic_vector(C_S00_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg1_wr	: out std_logic_vector(C_S00_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg2_rd	: in std_logic_vector(C_S00_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg2_wr    : out std_logic_vector(C_S00_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg3_rd	: in std_logic_vector(C_S00_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg3_wr    : out std_logic_vector(C_S00_AXI_DATA_WIDTH - 1 downto 0);
+        
+		slv_reg0_rd_strb   : out std_logic;
+		slv_reg1_rd_strb  : out std_logic;
+		slv_reg2_rd_strb   : out std_logic;
+		slv_reg3_rd_strb   : out std_logic;
+		slv_reg0_wr_strb   : out std_logic;
+		slv_reg1_wr_strb   : out std_logic;
+		slv_reg2_wr_strb   : out std_logic;
+		slv_reg3_wr_strb   : out std_logic;
+
 		interrupt_in    : in std_logic;
+
 		-- User ports ends
 		-- Do not modify the ports beyond this line
 
@@ -67,20 +78,71 @@ architecture STRUCTURE of tb is
 
 
 
-
-  signal interrupt : std_logic := '0';
   signal s00_axi_aclk, s00_axi_aresetn, s00_axi_arready, s00_axi_arvalid, s00_axi_awready, s00_axi_awvalid : std_logic := '0';
   signal s00_axi_bready, s00_axi_bvalid, s00_axi_rready, s00_axi_rvalid, s00_axi_wready, s00_axi_wvalid : std_logic := '0';
-  signal pkt_rx_data : std_logic_vector(63 downto 0) := (others => '0');
   signal s00_axi_rdata, s00_axi_wdata : std_logic_vector(31 downto 0) := (others => '0');
   signal s00_axi_araddr, s00_axi_awaddr, s00_axi_wstrb : std_logic_vector(3 downto 0) := (others => '0');
-  signal pkt_rx_mod, s00_axi_arprot, s00_axi_awprot : std_logic_vector(2 downto 0) := (others => '0');
+  signal s00_axi_arprot, s00_axi_awprot : std_logic_vector(2 downto 0) := (others => '0');
   signal s00_axi_bresp, s00_axi_rresp : std_logic_vector(1 downto 0) := (others => '0');
   
   signal ReadIt, SendIt : std_logic := '0';
+
+
+	signal interrupt : std_logic := '0';
+
+	signal slv_reg0_rd	: std_logic_vector(32 - 1 downto 0) := (others => '0');
+	signal slv_reg0_wr	: std_logic_vector(32 - 1 downto 0) := (others => '0');
+	signal slv_reg1_rd	: std_logic_vector(32 - 1 downto 0) := (others => '0');
+	signal slv_reg1_wr	: std_logic_vector(32 - 1 downto 0) := (others => '0');
+	signal slv_reg2_rd	: std_logic_vector(32 - 1 downto 0) := (others => '0');
+	signal slv_reg2_wr     : std_logic_vector(32 - 1 downto 0) := (others => '0');
+	signal slv_reg3_rd	: std_logic_vector(32 - 1 downto 0) := (others => '0');
+	signal slv_reg3_wr     : std_logic_vector(32 - 1 downto 0) := (others => '0');
+        
+	signal slv_reg0_rd_strb   : std_logic := '0';
+	signal slv_reg1_rd_strb   : std_logic := '0';
+	signal slv_reg2_rd_strb   : std_logic := '0';
+	signal slv_reg3_rd_strb   : std_logic := '0';
+	signal slv_reg0_wr_strb   : std_logic := '0';
+	signal slv_reg1_wr_strb   : std_logic := '0';
+	signal slv_reg2_wr_strb   : std_logic := '0';
+	signal slv_reg3_wr_strb   : std_logic := '0';
+	signal interrupt_in    : std_logic := '0';
+
 begin
 
-    
+axi_to_regs_1 : AXI_to_regs
+generic map(C_S00_AXI_DATA_WIDTH => 32, C_S00_AXI_ADDR_WIDTH => 4)
+port map (interrupt => interrupt, slv_reg0_rd => slv_reg0_rd, slv_reg0_wr => slv_reg0_wr,
+	slv_reg1_rd => slv_reg1_rd, slv_reg1_wr => slv_reg1_wr, slv_reg2_rd => slv_reg2_rd,
+	slv_reg2_wr => slv_reg2_wr, slv_reg3_rd => slv_reg3_rd, slv_reg3_wr => slv_reg3_wr,
+	slv_reg0_rd_strb => slv_reg0_rd_strb, slv_reg1_rd_strb => slv_reg1_rd_strb,
+	slv_reg2_rd_strb => slv_reg2_rd_strb, slv_reg3_rd_strb => slv_reg3_rd_strb,
+	slv_reg0_wr_strb => slv_reg0_wr_strb, slv_reg1_wr_strb => slv_reg1_wr_strb,
+	slv_reg2_wr_strb => slv_reg2_wr_strb, slv_reg3_wr_strb => slv_reg3_wr_strb,
+	interrupt_in => interrupt_in, 
+	s00_axi_aclk => s00_axi_aclk,
+	s00_axi_araddr(3 downto 0) => s00_axi_araddr(3 downto 0),
+	s00_axi_aresetn => s00_axi_aresetn,
+	s00_axi_arprot(2 downto 0) => s00_axi_arprot(2 downto 0),
+	s00_axi_arready => s00_axi_arready,
+	s00_axi_arvalid => s00_axi_arvalid,
+	s00_axi_awaddr(3 downto 0) => s00_axi_awaddr(3 downto 0),
+	s00_axi_awprot(2 downto 0) => s00_axi_awprot(2 downto 0),
+	s00_axi_awready => s00_axi_awready,
+	s00_axi_awvalid => s00_axi_awvalid,
+	s00_axi_bready => s00_axi_bready,
+	s00_axi_bresp(1 downto 0) => s00_axi_bresp(1 downto 0),
+	s00_axi_bvalid => s00_axi_bvalid,
+	s00_axi_rdata(31 downto 0) => s00_axi_rdata(31 downto 0),
+	s00_axi_rready => s00_axi_rready,
+	s00_axi_rresp(1 downto 0) => s00_axi_rresp(1 downto 0),
+	s00_axi_rvalid => s00_axi_rvalid,
+	s00_axi_wdata(31 downto 0) => s00_axi_wdata(31 downto 0),
+	s00_axi_wready => s00_axi_wready,
+	s00_axi_wstrb(3 downto 0) => s00_axi_wstrb(3 downto 0),
+	s00_axi_wvalid => s00_axi_wvalid
+);
 process begin
     s00_axi_aclk <= '0';
     wait for 5 ns;
@@ -130,7 +192,8 @@ send : PROCESS
       
 tb : process
 begin
- 
+	slv_reg0_rd <= std_logic_vector(to_unsigned(255, 32));
+	slv_reg1_rd <= std_logic_vector(to_unsigned(511, 32));
     S00_AXI_ARESETN <= '0';
     wait for 10 ns;
     S00_AXI_ARESETN <= '1';
@@ -165,27 +228,7 @@ begin
     S00_AXI_WSTRB<=b"0000";
     
     wait for 200 ns;
-    
-    pkt_rx_avail <= '1';
-    wait for 10 ns;
-    pkt_rx_sop <= '1';
-    pkt_rx_val <= '1';
-    pkt_rx_data <= "1000000010000000100000001000000000000001000000010000000100000001";
-    wait for 10 ns;
-    pkt_rx_sop <= '0';
-    pkt_rx_data <= "1100000011000000110000001100000000000011000000110000001100000011";
-    wait for 10 ns;
-    pkt_rx_eop <= '1';
-    pkt_rx_data <= "1110000011100000111000001110000000000111000001110000011100000111";
-    pkt_rx_mod <= std_logic_vector(to_unsigned(1, 3));
-    wait for 10 ns;
-    pkt_rx_eop <= '0';
-    pkt_rx_val <= '0';
-    pkt_rx_avail <= '0';
-    wait for 10 ns; 
-    
-    wait until interrupt = '1';
-    
+        
     S00_AXI_ARADDR<="0000";
         readIt<='1';                --Start AXI Read from Slave
         wait for 1 ns; 

@@ -199,7 +199,7 @@ send : PROCESS
 	
     
  for i in 0 to 17 loop
-	S00_AXI_AWADDR<="1100";
+	S00_AXI_AWADDR<="0100";
     S00_AXI_WDATA<=x"ffffffff";
     S00_AXI_WSTRB<=b"1111";
     sendIt<='1';                --Start AXI Write to Slave
@@ -209,7 +209,7 @@ send : PROCESS
     S00_AXI_WSTRB<=b"0000";
 end loop;
 
-	S00_AXI_AWADDR<="1000";
+	S00_AXI_AWADDR<="0000";
     S00_AXI_WDATA<=x"00000041";
     S00_AXI_WSTRB<=b"1111";
     sendIt<='1';                --Start AXI Write to Slave

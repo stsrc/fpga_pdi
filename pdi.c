@@ -92,11 +92,11 @@ static int pdi_write_test_packet(void)
 		//TODO
 		//ioread32be/le???
 		//
-		iowrite32(0xffffffff, reg3);
+		iowrite32(0xffffffff, reg1);
 		wmb();
 	}
 
-	iowrite32(63, reg2);
+	iowrite32(63, reg0);
 	return 0;
 }
 
@@ -205,10 +205,10 @@ static int __init pdi_init(void)
 		goto err;
 	}
 
-	reg0 = ioremap_nocache(0x44a00000, 4);
-	reg1 = ioremap_nocache(0x44a00004, 4);
-	reg2 = ioremap_nocache(0x44a00008, 4);
-	reg3 = ioremap_nocache(0x44a0000c, 4);
+	reg0 = ioremap(0x44a00000, 4);
+	reg1 = ioremap(0x44a00004, 4);
+	reg2 = ioremap(0x44a00008, 4);
+	reg3 = ioremap(0x44a0000c, 4);
 
 	if(!reg0 || !reg1 || !reg2 || !reg3) {
 		pr_info("ioremap_nocache failed.\n");
