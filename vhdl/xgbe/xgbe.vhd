@@ -8,50 +8,82 @@ entity xgbe is
 		C_S_AXI_ADDR_WIDTH	: integer	:= 4
 	);
 	port (
-		clk_156_25MHz	: in std_logic;
-		rst_clk_156_25MHz : in std_logic;
-		interrupt	: out std_logic;
+		clk_156_25MHz		: in std_logic;
+		rst_clk_156_25MHz 	: in std_logic;
+		clk_20MHz		: in std_logic;
+		rst_clk_20MHz		: in std_logic;
 
-		s_axi_aclk	: in std_logic;
-		s_axi_aresetn	: in std_logic;
-		s_axi_awaddr	: in std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
-		s_axi_awprot	: in std_logic_vector(2 downto 0);
-		s_axi_awvalid	: in std_logic;
-		s_axi_awready	: out std_logic;
-		s_axi_wdata	: in std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
-		s_axi_wstrb	: in std_logic_vector((C_S_AXI_DATA_WIDTH/8)-1 downto 0);
-		s_axi_wvalid	: in std_logic;
-		s_axi_wready	: out std_logic;
-		s_axi_bresp	: out std_logic_vector(1 downto 0);
-		s_axi_bvalid	: out std_logic;
-		s_axi_bready	: in std_logic;
-		s_axi_araddr	: in std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
-		s_axi_arprot	: in std_logic_vector(2 downto 0);
-		s_axi_arvalid	: in std_logic;
-		s_axi_arready	: out std_logic;
-		s_axi_rdata	: out std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
-		s_axi_rresp	: out std_logic_vector(1 downto 0);
-		s_axi_rvalid	: out std_logic;
-		s_axi_rready	: in std_logic;
+		interrupt		: out std_logic;
 
-		pkt_tx_data	: out std_logic_vector(63 downto 0);
-		pkt_tx_val	: out std_logic;
-		pkt_tx_sop	: out std_logic;
-		pkt_tx_eop	: out std_logic;
-		pkt_tx_mod	: out std_logic_vector(2 downto 0);
-		pkt_tx_full	: in std_logic;
-	        pkt_rx_data	: in  std_logic_vector(63 downto 0);
-	        pkt_rx_ren	: out std_logic;
-	        pkt_rx_avail	: in  std_logic;
-	        pkt_rx_eop	: in  std_logic;
-	        pkt_rx_val	: in  std_logic;
-	        pkt_rx_sop	: in  std_logic;
-	        pkt_rx_mod	: in  std_logic_vector(2 downto 0);
-	        pkt_rx_err	: in  std_logic
+		s_axi_aclk		: in std_logic;
+		s_axi_aresetn		: in std_logic;
+		s_axi_awaddr		: in std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
+		s_axi_awprot		: in std_logic_vector(2 downto 0);
+		s_axi_awvalid		: in std_logic;
+		s_axi_awready		: out std_logic;
+		s_axi_wdata		: in std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
+		s_axi_wstrb		: in std_logic_vector((C_S_AXI_DATA_WIDTH/8)-1 downto 0);
+		s_axi_wvalid		: in std_logic;
+		s_axi_wready		: out std_logic;
+		s_axi_bresp		: out std_logic_vector(1 downto 0);
+		s_axi_bvalid		: out std_logic;
+		s_axi_bready		: in std_logic;
+		s_axi_araddr		: in std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
+		s_axi_arprot		: in std_logic_vector(2 downto 0);
+		s_axi_arvalid		: in std_logic;
+		s_axi_arready		: out std_logic;
+		s_axi_rdata		: out std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
+		s_axi_rresp		: out std_logic_vector(1 downto 0);
+		s_axi_rvalid		: out std_logic;
+		s_axi_rready		: in std_logic;
+
+		xgmii_rxc 		: in std_logic_vector(7 downto 0);
+		xgmii_rxd 		: in std_logic_vector(63 downto 0);
+		xgmii_txc 		: out std_logic_vector(7 downto 0);
+		xgmii_txd 		: out std_logic_vector(63 downto 0)
 	);
 end xgbe;
 
 architecture xgbe_arch of xgbe is 
+
+component xge_mac is
+	port (
+		clk_156m25 : in STD_LOGIC;
+		clk_xgmii_rx : in STD_LOGIC;
+		clk_xgmii_tx : in STD_LOGIC;
+		pkt_rx_avail : out STD_LOGIC;
+		pkt_rx_data : out STD_LOGIC_VECTOR ( 63 downto 0 );
+		pkt_rx_eop : out STD_LOGIC;
+		pkt_rx_err : out STD_LOGIC;
+		pkt_rx_mod : out STD_LOGIC_VECTOR ( 2 downto 0 );
+		pkt_rx_ren : in STD_LOGIC;
+		pkt_rx_sop : out STD_LOGIC;
+		pkt_rx_val : out STD_LOGIC;
+		pkt_tx_data : in STD_LOGIC_VECTOR ( 63 downto 0 );
+		pkt_tx_eop : in STD_LOGIC;
+		pkt_tx_full : out STD_LOGIC;
+		pkt_tx_mod : in STD_LOGIC_VECTOR ( 2 downto 0 );
+		pkt_tx_sop : in STD_LOGIC;
+		pkt_tx_val : in STD_LOGIC;
+		reset_156m25_n : in STD_LOGIC;
+		reset_xgmii_rx_n : in STD_LOGIC;
+		reset_xgmii_tx_n : in STD_LOGIC;
+		wb_ack_o : out STD_LOGIC;
+		wb_adr_i : in STD_LOGIC_VECTOR ( 7 downto 0 );
+		wb_clk_i : in STD_LOGIC;
+		wb_cyc_i : in STD_LOGIC;
+		wb_dat_i : in STD_LOGIC_VECTOR ( 31 downto 0 );
+		wb_dat_o : out STD_LOGIC_VECTOR ( 31 downto 0 );
+		wb_int_o : out STD_LOGIC;
+		wb_rst_i : in STD_LOGIC;
+		wb_stb_i : in STD_LOGIC;
+		wb_we_i : in STD_LOGIC;
+		xgmii_rxc : in STD_LOGIC_VECTOR ( 7 downto 0 );
+		xgmii_rxd : in STD_LOGIC_VECTOR ( 63 downto 0 );
+		xgmii_txc : out STD_LOGIC_VECTOR ( 7 downto 0 );
+		xgmii_txd : out STD_LOGIC_VECTOR ( 63 downto 0 )
+	);
+end component xge_mac;
 
 component fifo is
 	generic (
@@ -195,6 +227,7 @@ component fsm_fifo_to_axi is
 		cnt_strb_in : in std_logic;
 		cnt_strb_out : out std_logic
 	);
+
 end component;
 	signal slv_reg0_rd_strb, slv_reg1_rd_strb, slv_reg2_rd_strb, slv_reg3_rd_strb : std_logic := '0';
 	signal slv_reg0_wr_strb, slv_reg1_wr_strb, slv_reg2_wr_strb, slv_reg3_wr_strb : std_logic := '0';
@@ -221,6 +254,10 @@ end component;
 
 	signal fifo_drop : std_logic := '0';
 
+	signal pkt_rx_avail, pkt_rx_eop, pkt_rx_err, pkt_rx_ren, pkt_rx_sop : std_logic := '0';
+	signal pkt_rx_val, pkt_tx_eop, pkt_tx_full, pkt_tx_sop, pkt_tx_val : std_logic := '0';
+	signal pkt_rx_data, pkt_tx_data: std_logic_vector(63 downto 0) := (others => '0');
+	signal pkt_rx_mod, pkt_tx_mod : std_logic_vector(2 downto 0) := (others => '0');
 begin
 	fifo_axi_mac_data : fifo	
 		generic map (DATA_WIDTH => 64, DATA_HEIGHT => 10) 
@@ -254,8 +291,8 @@ begin
 		generic map (DATA_WIDTH => 64, DATA_HEIGHT => 10)
 		port map (
 			rst	=> s_axi_aresetn,
-			clk_in  => s_axi_aclk,
-			clk_out => clk_156_25MHz,
+			clk_in  => clk_156_25MHz,
+			clk_out => s_axi_aclk,
 			data_in => data_mac_fifo,
 			data_out => data_fifo_axi,
 			strb_in => strb_data_mac_fifo,
@@ -268,8 +305,8 @@ begin
 		generic map (DATA_WIDTH => 14, DATA_HEIGHT => 10)
 		port map (
 			rst	=> s_axi_aresetn,
-			clk_in  => s_axi_aclk,
-			clk_out => clk_156_25MHz,
+			clk_in  => clk_156_25MHz,
+			clk_out => s_axi_aclk,
 			data_in => cnt_mac_fifo,
 			data_out => cnt_fifo_axi,
 			strb_in => strb_cnt_mac_fifo,
@@ -341,8 +378,8 @@ begin
 			axi_strb => slv_reg1_rd_strb,
 			cnt_in => cnt_fifo_axi,
 			cnt_out => slv_reg0_rd,
-			cnt_strb_in => strb_cnt_fifo_axi,
-			cnt_strb_out => slv_reg0_rd_strb
+			cnt_strb_in => slv_reg0_rd_strb,
+			cnt_strb_out => strb_cnt_fifo_axi
 		);
 		
 	AXI_to_regs_0 : AXI_to_regs 
@@ -391,4 +428,43 @@ begin
 			S_AXI_RVALID => s_axi_rvalid,
 			S_AXI_RREADY => s_axi_rready
 		);
+
+	xge_mac_0 : xge_mac
+		port map (
+			clk_156m25 => clk_156_25MHz,
+			clk_xgmii_rx => clk_156_25MHz,
+			clk_xgmii_tx => clk_156_25MHz,
+			pkt_rx_avail => pkt_rx_avail,
+			pkt_rx_data => pkt_rx_data,
+			pkt_rx_eop => pkt_rx_eop,
+			pkt_rx_err => pkt_rx_err,
+			pkt_rx_mod => pkt_rx_mod,
+			pkt_rx_ren => pkt_rx_ren,
+			pkt_rx_sop => pkt_rx_sop,
+			pkt_rx_val => pkt_rx_val,
+			pkt_tx_data => pkt_tx_data,
+			pkt_tx_eop => pkt_tx_eop,
+			pkt_tx_full => pkt_tx_full,
+			pkt_tx_mod => pkt_tx_mod,
+			pkt_tx_sop => pkt_tx_sop,
+			pkt_tx_val => pkt_tx_val,
+			reset_156m25_n => rst_clk_156_25MHz,
+			reset_xgmii_rx_n => rst_clk_156_25MHz,
+			reset_xgmii_tx_n => rst_clk_156_25MHz,
+			wb_ack_o => open,
+			wb_adr_i =>  (others => '0'),
+			wb_clk_i => clk_20MHz,
+			wb_cyc_i => '0',
+			wb_dat_i => (others => '0'),
+			wb_dat_o => open,
+			wb_int_o => open,
+			wb_rst_i => rst_clk_20MHz,
+			wb_stb_i => '0',
+			wb_we_i => '0',
+			xgmii_rxc => xgmii_rxc,
+			xgmii_rxd => xgmii_rxd,
+			xgmii_txc => xgmii_txc,
+			xgmii_txd => xgmii_txd
+		);
+
 end xgbe_arch;

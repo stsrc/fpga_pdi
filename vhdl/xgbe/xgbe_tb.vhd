@@ -19,6 +19,9 @@ architecture STRUCTURE of tb is
 	port (
 		clk_156_25MHz	: in std_logic;
 		rst_clk_156_25MHz : in std_logic;
+		clk_20MHz	: in std_logic;
+		rst_clk_20MHz	: in std_logic;
+
 		interrupt	: out std_logic;
 
 		s_axi_aclk	: in std_logic;
@@ -43,43 +46,36 @@ architecture STRUCTURE of tb is
 		s_axi_rvalid	: out std_logic;
 		s_axi_rready	: in std_logic;
 
-		pkt_tx_data : out std_logic_vector(63 downto 0);
-		pkt_tx_val : out std_logic;
-		pkt_tx_sop : out std_logic;
-		pkt_tx_eop : out std_logic;
-		pkt_tx_mod : out std_logic_vector(2 downto 0);
-		pkt_tx_full : in std_logic;
-	        pkt_rx_data  : in  std_logic_vector(63 downto 0);
-	        pkt_rx_ren   : out std_logic;
-	        pkt_rx_avail : in  std_logic;
-	        pkt_rx_eop   : in  std_logic;
-	        pkt_rx_val   : in  std_logic;
-	        pkt_rx_sop   : in  std_logic;
-	        pkt_rx_mod   : in  std_logic_vector(2 downto 0);
-	        pkt_rx_err   : in  std_logic
+		xgmii_rxc 	: in std_logic_vector(7 downto 0);
+		xgmii_rxd 	: in std_logic_vector(63 downto 0);
+		xgmii_txc 	: out std_logic_vector(7 downto 0);
+		xgmii_txd 	: out std_logic_vector(63 downto 0)
 	);
 end component xgbe;
 
-  signal pkt_tx_eop, pkt_tx_sop, pkt_tx_val, pkt_tx_full : std_logic := '0';
-  signal pkt_tx_data : std_logic_vector(63 downto 0) := (others => '0');
-  signal pkt_tx_mod : std_logic_vector(2 downto 0) := (others => '0');
-  signal clk_156_25MHz, rst_clk_156_25MHz : std_logic := '0';
-  signal interrupt, pkt_rx_avail, pkt_rx_eop, pkt_rx_err, pkt_rx_ren, pkt_rx_sop, pkt_rx_val : std_logic := '0';
+  signal clk_156_25MHz, clk_20MHz, rst_clk_156_25MHz, rst_clk_20MHz : std_logic := '0';
+  signal interrupt : std_logic := '0';
   signal s_axi_aclk, s_axi_aresetn, s_axi_arready, s_axi_arvalid, s_axi_awready, s_axi_awvalid : std_logic := '0';
   signal s_axi_bready, s_axi_bvalid, s_axi_rready, s_axi_rvalid, s_axi_wready, s_axi_wvalid : std_logic := '0';
-  signal pkt_rx_data : std_logic_vector(63 downto 0) := (others => '0');
   signal s_axi_rdata, s_axi_wdata : std_logic_vector(31 downto 0) := (others => '0');
   signal s_axi_araddr, s_axi_awaddr, s_axi_wstrb : std_logic_vector(3 downto 0) := (others => '0');
-  signal pkt_rx_mod, s_axi_arprot, s_axi_awprot : std_logic_vector(2 downto 0) := (others => '0');
+  signal s_axi_arprot, s_axi_awprot : std_logic_vector(2 downto 0) := (others => '0');
   signal s_axi_bresp, s_axi_rresp : std_logic_vector(1 downto 0) := (others => '0');
-  
+  signal xgmii_rxc, xgmii_txc 	: std_logic_vector(7 downto 0);
+	signal xgmii_rxd, xgmii_txd : std_logic_vector(63 downto 0);
+
   signal ReadIt, SendIt : std_logic := '0';
 begin
+	xgmii_rxc <= xgmii_txc;
+	xgmii_rxd <= xgmii_txd;
 
 block_design_i: xgbe
      port map (
       clk_156_25MHz => clk_156_25MHz,
       rst_clk_156_25MHz => rst_clk_156_25MHz,
+	clk_20MHz => clk_20MHz,
+	rst_clk_20MHz => rst_clk_20MHz,
+
       interrupt => interrupt,
 
       s_axi_aclk => s_axi_aclk,
@@ -103,32 +99,47 @@ block_design_i: xgbe
       s_axi_wready => s_axi_wready,
       s_axi_wstrb(3 downto 0) => s_axi_wstrb(3 downto 0),
       s_axi_wvalid => s_axi_wvalid,
-      pkt_tx_data(63 downto 0) => pkt_tx_data(63 downto 0),
-      pkt_tx_eop => pkt_tx_eop,
-      pkt_tx_full => pkt_tx_full,
-      pkt_tx_mod(2 downto 0) => pkt_tx_mod(2 downto 0),
-      pkt_tx_sop => pkt_tx_sop,
-      pkt_tx_val => pkt_tx_val,
-      pkt_rx_avail => pkt_rx_avail,
-      pkt_rx_data(63 downto 0) => pkt_rx_data(63 downto 0),
-      pkt_rx_eop => pkt_rx_eop,
-      pkt_rx_err => pkt_rx_err,
-      pkt_rx_mod(2 downto 0) => pkt_rx_mod(2 downto 0),
-      pkt_rx_ren => pkt_rx_ren,
-      pkt_rx_sop => pkt_rx_sop,
-      pkt_rx_val => pkt_rx_val
+
+	xgmii_rxc => xgmii_rxc,
+	xgmii_rxd => xgmii_rxd,
+	xgmii_txc => xgmii_txc,
+	xgmii_txd => xgmii_txd
     );
 
     
 process begin
     s_axi_aclk <= '0';
-    clk_156_25MHz <= '0';
     wait for 5 ns;
     s_axi_aclk <= '1';
-    clk_156_25MHz <= '1';
     wait for 5 ns;
 end process;
  
+process begin
+	clk_156_25MHz <= '1';
+	wait for 3.2 ns;
+	clk_156_25MHz <= '0';
+	wait for 3.2 ns;
+end process;
+
+process begin
+	clk_20MHz <= '1';
+	wait for 25 ns;
+	clk_20MHz <= '0';
+	wait for 25 ns;
+end process;
+
+process begin
+	s_axi_aresetn <= '0';
+	rst_clk_156_25MHz <= '0';
+	rst_clk_20MHz <= '0';
+	wait for 6.4 ns;
+	rst_clk_156_25MHz <= '1';
+	wait for 3.6 ns;
+	s_axi_aresetn <= '1';
+	wait for 40 ns;
+	rst_clk_20MHz <= '1';
+	wait;
+end process;
 
 send : process
  begin
@@ -172,11 +183,8 @@ send : process
 tb : process
 begin
  
-    s_axi_aresetn <= '0';
-    rst_clk_156_25MHz <= '0';
-    wait for 10 ns;
-    s_axi_aresetn <= '1';
-    rst_clk_156_25MHz <= '1';
+	wait until rst_clk_20MHz = '1';
+	wait for 30 ns;
     
     for i in 0 to 8 loop
 	   s_axi_awaddr<="0100";
@@ -207,26 +215,6 @@ begin
 	wait until s_axi_bvalid = '0';  --axi write finished
     s_axi_wstrb<=b"0000";
     
-    wait for 200 ns;
-    
-    pkt_rx_avail <= '1';
-    wait for 10 ns;
-    pkt_rx_sop <= '1';
-    pkt_rx_val <= '1';
-    pkt_rx_data <= x"fffffff1fffffff0";
-    wait for 10 ns;
-    pkt_rx_sop <= '0';
-    pkt_rx_data <= x"fffffff3fffffff2";
-    wait for 10 ns;
-    pkt_rx_eop <= '1';
-    pkt_rx_data <= x"fffffff5fffffff4";
-    pkt_rx_mod <= std_logic_vector(to_unsigned(1, 3));
-    wait for 10 ns;
-    pkt_rx_eop <= '0';
-    pkt_rx_val <= '0';
-    pkt_rx_avail <= '0';
-    wait for 10 ns; 
-    
     wait until interrupt = '1';
     
     s_axi_araddr<="0000";
@@ -235,8 +223,9 @@ begin
        readit<='0';                --clear "start read" flag
     wait until s_axi_rready = '1';
     wait until s_axi_rready = '0';    --axi_data should be equal to 17
-        s_axi_araddr<="0100";
-   for i in 0 to 5 loop
+    
+        s_axi_araddr<="0100";    
+   for i in 0 to 17 loop
         readit<='1';                --start axi read from slave
         wait for 1 ns; 
        readit<='0';                --clear "start read" flag
