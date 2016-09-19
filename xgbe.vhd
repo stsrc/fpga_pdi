@@ -2,11 +2,11 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity top is 
+entity xgbe is 
 begin
 	generic (
-		C_S00_AXI_DATA_WIDTH	: integer	:= 32;
-		C_S00_AXI_ADDR_WIDTH	: integer	:= 4
+		C_S_AXI_DATA_WIDTH	: integer	:= 32;
+		C_S_AXI_ADDR_WIDTH	: integer	:= 4
 	);
 	port (
 		clk_156_25MHz	: in std_logic;
@@ -35,24 +35,24 @@ begin
 		s_axi_rvalid	: out std_logic;
 		s_axi_rready	: in std_logic
 
-		pkt_tx_data : out std_logic_vector(63 downto 0);
-		pkt_tx_val : out std_logic;
-		pkt_tx_sop : out std_logic;
-		pkt_tx_eop : out std_logic;
-		pkt_tx_mod : out std_logic_vector(2 downto 0);
-		pkt_tx_full : in std_logic;
-	        pkt_rx_data  : in  std_logic_vector(63 downto 0);
-	        pkt_rx_ren   : out std_logic;
-	        pkt_rx_avail : in  std_logic;
-	        pkt_rx_eop   : in  std_logic;
-	        pkt_rx_val   : in  std_logic;
-	        pkt_rx_sop   : in  std_logic;
-	        pkt_rx_mod   : in  std_logic_vector(2 downto 0);
-	        pkt_rx_err   : in  std_logic
+		pkt_tx_data	: out std_logic_vector(63 downto 0);
+		pkt_tx_val	: out std_logic;
+		pkt_tx_sop	: out std_logic;
+		pkt_tx_eop	: out std_logic;
+		pkt_tx_mod	: out std_logic_vector(2 downto 0);
+		pkt_tx_full	: in std_logic;
+	        pkt_rx_data	: in  std_logic_vector(63 downto 0);
+	        pkt_rx_ren	: out std_logic;
+	        pkt_rx_avail	: in  std_logic;
+	        pkt_rx_eop	: in  std_logic;
+	        pkt_rx_val	: in  std_logic;
+	        pkt_rx_sop	: in  std_logic;
+	        pkt_rx_mod	: in  std_logic_vector(2 downto 0);
+	        pkt_rx_err	: in  std_logic
 	);
-end top;
+end xgbe;
 
-architecture top_arch of top is 
+architecture xgbe_arch of xgbe is 
 
 component fifo is
 	generic (
@@ -75,8 +75,8 @@ end component fifo;
 
 component AXI_to_regs is
 	generic (
-		C_S00_AXI_DATA_WIDTH	: integer	:= 32;
-		C_S00_AXI_ADDR_WIDTH	: integer	:= 4
+		C_S_AXI_DATA_WIDTH	: integer	:= 32;
+		C_S_AXI_ADDR_WIDTH	: integer	:= 4
 	);
 	port (
 		interrupt : out std_logic;
@@ -121,7 +121,6 @@ component AXI_to_regs is
 		S_AXI_RRESP	: out std_logic_vector(1 downto 0);
 		S_AXI_RVALID	: out std_logic;
 		S_AXI_RREADY	: in std_logic
-
 	);
 end component;
 
@@ -224,125 +223,172 @@ end component;
 	signal fifo_drop : std_logic := '0';
 
 begin
-	fifo_axi_mac_data : fifo	generic map (DATA_WIDTH => 64, DATA_HEIGHT => 10) 
-					port map (
-					rst     => s_axi_aresetn,  
-					clk_in  => s_axi_aclk,
-					clk_out => clk_156_25MHz,
-					data_in => data_axi_fifo,
-					data_out => data_fifo_mac,
-					strb_in => strb_data_axi_fifo,
-					strb_out => strb_data_fifo_mac,
-					drop_in => '0',
-					interrupt_in => interrupt_axi_fifo,
-					interrupt_out => interrupt_fifo_mac
-				);
-	fifo_axi_mac_cnt : fifo		generic map (DATA_WIDTH = 14, DATA_HEIGHT => 10)
-					port map (
-					rst	=> s_axi_aresetn,
-					clk_in	=> s_axi_aclk,
-					clk_out => clk_156_25MHz,
-					data_in => cnt_axi_fifo,
-					data_out => cnt_fifo_mac,
-					strb_in => strb_cnt_axi_fifo,
-					strb_out => strb_cnt_fifo_mac,
-					drop_in => '0',
-					interrupt_in => '0',
-					interrupt_out => open
-				);
-
-	fifo_mac_axi_data : fifo	generic map (DATA_WIDTH => 64, DATA_HEIGHT => 10)
-					port map (
-					rst	=> s_axi_aresetn,
-					clk_in  => s_axi_aclk,
-					clk_out => clk_156_25MHz,
-					data_in => data_mac_fifo,
-					data_out => data_fifo_axi,
-					strb_in => strb_data_mac_fifo,
-					strb_out => strb_data_fifo_axi,
-					drop_in => fifo_drop,
-					interrupt_in => interrupt_mac_fifo,
-					interrupt_out => interrupt_fifo_axi
-				);
-
-	fifo_mac_axi_cnt : fifo		generic map (DATA_WIDTH => 14, DATA_HEIGHT => 10)
-					port map (
-					rst	=> s_axi_aresetn,
-					clk_in  => s_axi_aclk,
-					clk_out => clk_156_25MHz,
-					data_in => cnt_mac_fifo,
-					data_out => cnt_fifo_axi,
-					strb_in => strb_cnt_mac_fifo,
-					strb_out => strb_cnt_fifo_axi,
-					drop_in => '0',
-					interrupt_in => '0',
-					interrupt_out => open
-				);
+	fifo_axi_mac_data : fifo	
+		generic map (DATA_WIDTH => 64, DATA_HEIGHT => 10) 
+		port map (
+			rst     => s_axi_aresetn,  
+			clk_in  => s_axi_aclk,
+			clk_out => clk_156_25MHz,
+			data_in => data_axi_fifo,
+			data_out => data_fifo_mac,
+			strb_in => strb_data_axi_fifo,
+			strb_out => strb_data_fifo_mac,
+			drop_in => '0',
+			interrupt_in => interrupt_axi_fifo,
+			interrupt_out => interrupt_fifo_mac
+		);
+	fifo_axi_mac_cnt : fifo		
+		generic map (DATA_WIDTH = 14, DATA_HEIGHT => 10)
+		port map (
+			rst	=> s_axi_aresetn,
+			clk_in	=> s_axi_aclk,
+			clk_out => clk_156_25MHz,
+			data_in => cnt_axi_fifo,
+			data_out => cnt_fifo_mac,
+			strb_in => strb_cnt_axi_fifo,
+			strb_out => strb_cnt_fifo_mac,
+			drop_in => '0',
+			interrupt_in => '0',
+			interrupt_out => open
+		);
+	fifo_mac_axi_data : fifo	
+		generic map (DATA_WIDTH => 64, DATA_HEIGHT => 10)
+		port map (
+			rst	=> s_axi_aresetn,
+			clk_in  => s_axi_aclk,
+			clk_out => clk_156_25MHz,
+			data_in => data_mac_fifo,
+			data_out => data_fifo_axi,
+			strb_in => strb_data_mac_fifo,
+			strb_out => strb_data_fifo_axi,
+			drop_in => fifo_drop,
+			interrupt_in => interrupt_mac_fifo,
+			interrupt_out => interrupt_fifo_axi
+		);
+	fifo_mac_axi_cnt : fifo		
+		generic map (DATA_WIDTH => 14, DATA_HEIGHT => 10)
+		port map (
+			rst	=> s_axi_aresetn,
+			clk_in  => s_axi_aclk,
+			clk_out => clk_156_25MHz,
+			data_in => cnt_mac_fifo,
+			data_out => cnt_fifo_axi,
+			strb_in => strb_cnt_mac_fifo,
+			strb_out => strb_cnt_fifo_axi,
+			drop_in => '0',
+			interrupt_in => '0',
+			interrupt_out => open
+		);
 
 	fsm_axi_to_fifo_0 : fsm_axi_to_fifo
-					port map (
-					clk => s_axi_aclk,
-					rst => s_axi_aresetn,
-					axi_strb => slv_reg1_wr_strb, 
-					axi_data => slv_reg1_wr,
-					fifo_data => data_axi_fifo, 
-					fifo_strb => strb_data_axi_fifo, 
-					cnt_axi   => slv_reg0_wr,
-					cnt_fifo  => cnt_axi_fifo,
-					cnt_axi_strb => slv_reg0_wr_strb,
-					packet_strtb => interrupt_axi_fifo,
-					cnt_fifo_strb => strb_cnt_axi_fifo
-				);
+		port map (
+			clk => s_axi_aclk,
+			rst => s_axi_aresetn,
+			axi_strb => slv_reg1_wr_strb, 
+			axi_data => slv_reg1_wr,
+			fifo_data => data_axi_fifo, 
+			fifo_strb => strb_data_axi_fifo, 
+			cnt_axi   => slv_reg0_wr,
+			cnt_fifo  => cnt_axi_fifo,
+			cnt_axi_strb => slv_reg0_wr_strb,
+			packet_strtb => interrupt_axi_fifo,
+			cnt_fifo_strb => strb_cnt_axi_fifo
+		);
 
 	fsm_fifo_to_mac_0 : fsm_fifo_to_mac 
-					port map (
-					clk => clk_156_25MHz,
-					rst => rst_clk_156_25MHz,
-					pkt_tx_data => pkt_tx_data,
-					pkt_tx_val => pkt_tx_val,
-					pkt_tx_sop => pkt_tx_sop,
-					pkt_tx_eop => pkt_tx_eop,
-					pkt_tx_mod => pkt_tx_mod,
-					pkt_tx_full => pkt_tx_full,
-					packet_strb => interrupt_fifo_mac,
-					fifo_data => data_fifo_mac,
-					fifo_cnt => cnt_fifo_mac,
-					fifo_data_strb => strb_data_fifo_mac,
-					fifo_cnt_strb => strb_cnt_fifo_mac
-	);
+		port map (
+			clk => clk_156_25MHz,
+			rst => rst_clk_156_25MHz,
+			pkt_tx_data => pkt_tx_data,
+			pkt_tx_val => pkt_tx_val,
+			pkt_tx_sop => pkt_tx_sop,
+			pkt_tx_eop => pkt_tx_eop,
+			pkt_tx_mod => pkt_tx_mod,
+			pkt_tx_full => pkt_tx_full,
+			packet_strb => interrupt_fifo_mac,
+			fifo_data => data_fifo_mac,
+			fifo_cnt => cnt_fifo_mac,
+			fifo_data_strb => strb_data_fifo_mac,
+			fifo_cnt_strb => strb_cnt_fifo_mac
+		);
 
 	fsm_mac_to_fifo_0 : fsm 
-					port map (
-					clk => clk_156_25MHz,
-					rst => rst_clk_156_25MHz,
-					fifo_data => data_mac_fifo,
-					fifo_cnt => cnt_mac_fifo,
-					fifo_cnt_strb => strb_cnt_mac_fifo,
-					fifo_strb => strb_data_mac_fifo,
-					fifo_drop => fifo_drop,
-					eop_strb => interrupt_mac_fifo,
-					pkt_rx_data => pkt_rx_data,
-					pkt_rx_ren => pkt_rx_ren,
-					pkt_rx_avail => pkt_rx_avail,
-					pkt_rx_eop => pkt_rx_eop,
-					pkt_rx_val => pkt_rx_val,
-					pkt_rx_sop => pkt_rx_sop,
-					pkt_rx_mod => pkt_rx_mod,
-					pkt_rx_err => pkt_rx_err
-				);
+		port map (
+			clk => clk_156_25MHz,
+			rst => rst_clk_156_25MHz,
+			fifo_data => data_mac_fifo,
+			fifo_cnt => cnt_mac_fifo,
+			fifo_cnt_strb => strb_cnt_mac_fifo,
+			fifo_strb => strb_data_mac_fifo,
+			fifo_drop => fifo_drop,
+			eop_strb => interrupt_mac_fifo,
+			pkt_rx_data => pkt_rx_data,
+			pkt_rx_ren => pkt_rx_ren,
+			pkt_rx_avail => pkt_rx_avail,
+			pkt_rx_eop => pkt_rx_eop,
+			pkt_rx_val => pkt_rx_val,
+			pkt_rx_sop => pkt_rx_sop,
+			pkt_rx_mod => pkt_rx_mod,
+			pkt_rx_err => pkt_rx_err
+		);
 
 	fsm_fifo_to_axi_0 : fsm_fifo_to_axi_rx
-					port map (
-					clk => s_axi_aclk,
-					rst => s_axi_aresetn,
-					fifo_out => data_fifo_axi,
-					fifo_strb => strb_data_fifo_axi,
-					axi_in => slv_reg1_rd,
-					axi_strb => slv_reg1_rd_strb,
-					cnt_in => cnt_fifo_axi,
-					cnt_out => slv_reg0_rd,
-					cnt_strb_in => strb_cnt_fifo_axi,
-					cnt_strb_out => slv_reg0_rd_strb
-				);
-
-end arch_top;
+		port map (
+			clk => s_axi_aclk,
+			rst => s_axi_aresetn,
+			fifo_out => data_fifo_axi,
+			fifo_strb => strb_data_fifo_axi,
+			axi_in => slv_reg1_rd,
+			axi_strb => slv_reg1_rd_strb,
+			cnt_in => cnt_fifo_axi,
+			cnt_out => slv_reg0_rd,
+			cnt_strb_in => strb_cnt_fifo_axi,
+			cnt_strb_out => slv_reg0_rd_strb
+		);
+	AXI_to_regs_0 : AXI_to_regs 
+		generic map (
+			C_S_AXI_DATA_WIDTH => C_S_AXI_DATA_WIDTH,
+			C_S_AXI_ADDR_WIDTH => C_S_AXI_ADDR_WIDTH
+		);
+		port map (
+			interrupt => interrupt,
+			interrupt_in => interrupt_in,
+			slv_reg0_rd => slv_reg0_rd,
+			slv_reg0_wr => slv_reg0_wr,
+			slv_reg1_rd => slv_reg1_rd,
+			slv_reg1_wr => slv_reg1_wr,
+			slv_reg2_rd => slv_reg2_rd,
+			slv_reg2_wr => slv_reg2_wr,
+			slv_reg3_rd => slv_reg3_rd,
+			slv_reg3_wr => slv_reg3_wr,
+			slv_reg0_rd_strb => slv_reg0_rd_strb,
+			slv_reg1_rd_strb => slv_reg1_rd_strb,
+			slv_reg2_rd_strb => slv_reg2_rd_strb,
+			slv_reg3_rd_strb => slv_reg3_rd_strb,
+			slv_reg0_wr_strb => slv_reg0_wr_strb,
+			slv_reg1_wr_strb => slv_reg1_wr_strb,
+			slv_reg2_wr_strb => slv_reg2_wr_strb,
+			slv_reg3_wr_strb => slv_reg3_wr_strb,
+			S_AXI_ACLK => s_axi_aclk,
+			S_AXI_ARESETN => s_axi_aresetn,
+			S_AXI_AWADDR => s_axi_awaddr,
+			S_AXI_AWPROT => s_axi_awprot,
+			S_AXI_AWVALID => s_axi_awvalid,
+			S_AXI_AWREADY => s_axi_awready,
+			S_AXI_WDATA => s_axi_wdata,
+			S_AXI_WSTRB => s_axi_wstrb,
+			S_AXI_WVALID => s_axi_wvalid,
+			S_AXI_WREADY => s_axi_wready,
+			S_AXI_BRESP => s_axi_bresp,
+			S_AXI_BVALID => s_axi_bvalid,
+			S_AXI_BREADY => s_axi_bready
+			S_AXI_ARADDR => s_axi_araddr,
+			S_AXI_ARPROT => s_axi_arprot,
+			S_AXI_ARVALID => s_axi_arvalid,
+			S_AXI_ARREADY => s_axi_arready,
+			S_AXI_RDATA => s_axi_rdata,
+			S_AXI_RRESP => s_axi_rresp,
+			S_AXI_RVALID => s_axi_rvalid,
+			S_AXI_RREADY => s_axi_rready
+		);
+end xgbe_arch;
