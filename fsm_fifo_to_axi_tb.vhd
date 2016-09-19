@@ -31,12 +31,12 @@ use IEEE.NUMERIC_STD.ALL;
 --library UNISIM;
 --use UNISIM.VComponents.all;
 
-entity fsm_fifo_to_axi_rx_tb is
+entity fsm_fifo_to_axi_tb is
 --  Port ( );
-end fsm_fifo_to_axi_rx_tb;
+end fsm_fifo_to_axi_tb;
 
-architecture Behavioral of fsm_fifo_to_axi_rx_tb is
-component fsm_fifo_to_axi_rx is
+architecture Behavioral of fsm_fifo_to_axi_tb is
+component fsm_fifo_to_axi is
     port (
     clk     : in std_logic;
     rst     : in std_logic;
@@ -59,7 +59,7 @@ signal axi_in, cnt_out : std_logic_vector(31 downto 0) := (others => '0');
 signal cnt_in : std_logic_vector(13 downto 0);
 
 begin
-fsm1 : fsm_fifo_to_axi_rx port map 
+fsm1 : fsm_fifo_to_axi port map 
 (clk => clk, rst => rst, fifo_out => fifo_out, fifo_strb => fifo_strb,
 axi_in => axi_in, axi_strb => axi_strb, cnt_in => cnt_in, cnt_out => cnt_out,
 cnt_strb_in => cnt_strb_in, cnt_strb_out => cnt_strb_out);

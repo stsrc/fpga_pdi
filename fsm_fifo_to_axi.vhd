@@ -31,7 +31,7 @@ use IEEE.NUMERIC_STD.ALL;
 --library UNISIM;
 --use UNISIM.VComponents.all;
 
-entity fsm_fifo_to_axi_rx is
+entity fsm_fifo_to_axi is
     port (
     clk     : in std_logic;
     rst     : in std_logic;
@@ -46,9 +46,9 @@ entity fsm_fifo_to_axi_rx is
     cnt_strb_in : in std_logic;
     cnt_strb_out : out std_logic
     );
-end fsm_fifo_to_axi_rx;
+end fsm_fifo_to_axi;
 
-architecture Behavioral of fsm_fifo_to_axi_rx is
+architecture Behavioral of fsm_fifo_to_axi is
    
 signal state, state_tmp : std_logic := '0';
 

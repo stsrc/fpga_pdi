@@ -3,7 +3,6 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity xgbe is 
-begin
 	generic (
 		C_S_AXI_DATA_WIDTH	: integer	:= 32;
 		C_S_AXI_ADDR_WIDTH	: integer	:= 4
@@ -33,7 +32,7 @@ begin
 		s_axi_rdata	: out std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
 		s_axi_rresp	: out std_logic_vector(1 downto 0);
 		s_axi_rvalid	: out std_logic;
-		s_axi_rready	: in std_logic
+		s_axi_rready	: in std_logic;
 
 		pkt_tx_data	: out std_logic_vector(63 downto 0);
 		pkt_tx_val	: out std_logic;
@@ -160,7 +159,7 @@ component fsm_fifo_to_mac is
 	);
 end component;
 
-component fsm is
+component fsm_mac_to_fifo is
 	port (
 		clk          : in  std_logic;	
 		rst          : in  std_logic;
@@ -181,7 +180,7 @@ component fsm is
        );
 end component;
 
-component fsm_fifo_to_axi_rx is
+component fsm_fifo_to_axi is
 	port (
 		clk     : in std_logic;
 		rst     : in std_logic;
@@ -238,7 +237,7 @@ begin
 			interrupt_out => interrupt_fifo_mac
 		);
 	fifo_axi_mac_cnt : fifo		
-		generic map (DATA_WIDTH = 14, DATA_HEIGHT => 10)
+		generic map (DATA_WIDTH => 14, DATA_HEIGHT => 10)
 		port map (
 			rst	=> s_axi_aresetn,
 			clk_in	=> s_axi_aclk,
@@ -291,7 +290,7 @@ begin
 			cnt_axi   => slv_reg0_wr,
 			cnt_fifo  => cnt_axi_fifo,
 			cnt_axi_strb => slv_reg0_wr_strb,
-			packet_strtb => interrupt_axi_fifo,
+			packet_strb => interrupt_axi_fifo,
 			cnt_fifo_strb => strb_cnt_axi_fifo
 		);
 
@@ -312,7 +311,7 @@ begin
 			fifo_cnt_strb => strb_cnt_fifo_mac
 		);
 
-	fsm_mac_to_fifo_0 : fsm 
+	fsm_mac_to_fifo_0 : fsm_mac_to_fifo
 		port map (
 			clk => clk_156_25MHz,
 			rst => rst_clk_156_25MHz,
@@ -332,7 +331,7 @@ begin
 			pkt_rx_err => pkt_rx_err
 		);
 
-	fsm_fifo_to_axi_0 : fsm_fifo_to_axi_rx
+	fsm_fifo_to_axi_0 : fsm_fifo_to_axi
 		port map (
 			clk => s_axi_aclk,
 			rst => s_axi_aresetn,
@@ -345,14 +344,15 @@ begin
 			cnt_strb_in => strb_cnt_fifo_axi,
 			cnt_strb_out => slv_reg0_rd_strb
 		);
+		
 	AXI_to_regs_0 : AXI_to_regs 
 		generic map (
 			C_S_AXI_DATA_WIDTH => C_S_AXI_DATA_WIDTH,
 			C_S_AXI_ADDR_WIDTH => C_S_AXI_ADDR_WIDTH
-		);
+		)
 		port map (
 			interrupt => interrupt,
-			interrupt_in => interrupt_in,
+			interrupt_in => interrupt_fifo_axi,
 			slv_reg0_rd => slv_reg0_rd,
 			slv_reg0_wr => slv_reg0_wr,
 			slv_reg1_rd => slv_reg1_rd,
@@ -381,7 +381,7 @@ begin
 			S_AXI_WREADY => s_axi_wready,
 			S_AXI_BRESP => s_axi_bresp,
 			S_AXI_BVALID => s_axi_bvalid,
-			S_AXI_BREADY => s_axi_bready
+			S_AXI_BREADY => s_axi_bready,
 			S_AXI_ARADDR => s_axi_araddr,
 			S_AXI_ARPROT => s_axi_arprot,
 			S_AXI_ARVALID => s_axi_arvalid,

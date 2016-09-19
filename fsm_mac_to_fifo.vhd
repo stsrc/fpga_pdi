@@ -24,7 +24,7 @@ use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 
 
-entity fsm is
+entity fsm_mac_to_fifo is
     
     port (
         clk          : in  std_logic;
@@ -44,9 +44,9 @@ entity fsm is
         pkt_rx_mod   : in  std_logic_vector(2 downto 0);
         pkt_rx_err   : in  std_logic
        );
-end fsm;
+end fsm_mac_to_fifo;
 
-architecture Behavioral of fsm is
+architecture Behavioral of fsm_mac_to_fifo is
    signal state, tmp_state : unsigned(1 downto 0) := (others => '0');
    signal cnt, cnt_temp : unsigned(13 downto 0) := (others => '0');
   

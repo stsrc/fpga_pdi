@@ -51,9 +51,9 @@ entity AXI_to_regs is
 		S_AXI_RVALID	: out std_logic;
 		S_AXI_RREADY	: in std_logic
 	);
-end AXI_to_regs_S00_AXI;
+end AXI_to_regs;
 
-architecture arch_AXI_to_regs_S00_AXI of AXI_to_regs_S00_AXI is
+architecture arch_AXI_to_regs of AXI_to_regs is
 
 	-- AXI4LITE signals
 	signal axi_awaddr	: std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
@@ -384,4 +384,4 @@ begin
             interrupt <= interrupt_in;
         end if;
     end process;
-end arch_AXI_to_regs_S00_AXI;
+end arch_AXI_to_regs;

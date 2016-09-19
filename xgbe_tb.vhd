@@ -12,7 +12,6 @@ end tb;
 architecture STRUCTURE of tb is
 
 	component xgbe is 
-begin
 	generic (
 		C_S_AXI_DATA_WIDTH	: integer	:= 32;
 		C_S_AXI_ADDR_WIDTH	: integer	:= 4
@@ -42,7 +41,7 @@ begin
 		s_axi_rdata	: out std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
 		s_axi_rresp	: out std_logic_vector(1 downto 0);
 		s_axi_rvalid	: out std_logic;
-		s_axi_rready	: in std_logic
+		s_axi_rready	: in std_logic;
 
 		pkt_tx_data : out std_logic_vector(63 downto 0);
 		pkt_tx_val : out std_logic;
@@ -103,9 +102,7 @@ block_design_i: xgbe
       s_axi_wdata(31 downto 0) => s_axi_wdata(31 downto 0),
       s_axi_wready => s_axi_wready,
       s_axi_wstrb(3 downto 0) => s_axi_wstrb(3 downto 0),
-      s_axi_wvalid => s_axi_wvalid
-
-
+      s_axi_wvalid => s_axi_wvalid,
       pkt_tx_data(63 downto 0) => pkt_tx_data(63 downto 0),
       pkt_tx_eop => pkt_tx_eop,
       pkt_tx_full => pkt_tx_full,
@@ -119,17 +116,16 @@ block_design_i: xgbe
       pkt_rx_mod(2 downto 0) => pkt_rx_mod(2 downto 0),
       pkt_rx_ren => pkt_rx_ren,
       pkt_rx_sop => pkt_rx_sop,
-      pkt_rx_val => pkt_rx_val,
-
+      pkt_rx_val => pkt_rx_val
     );
 
     
 process begin
     s_axi_aclk <= '0';
-    clk_mac <= '0';
+    clk_156_25MHz <= '0';
     wait for 5 ns;
     s_axi_aclk <= '1';
-    clk_mac <= '1';
+    clk_156_25MHz <= '1';
     wait for 5 ns;
 end process;
  
@@ -177,8 +173,10 @@ tb : process
 begin
  
     s_axi_aresetn <= '0';
+    rst_clk_156_25MHz <= '0';
     wait for 10 ns;
     s_axi_aresetn <= '1';
+    rst_clk_156_25MHz <= '1';
     
     for i in 0 to 8 loop
 	   s_axi_awaddr<="0100";
@@ -215,13 +213,13 @@ begin
     wait for 10 ns;
     pkt_rx_sop <= '1';
     pkt_rx_val <= '1';
-    pkt_rx_data <= "1000000010000000100000001000000000000001000000010000000100000001";
+    pkt_rx_data <= x"fffffff1fffffff0";
     wait for 10 ns;
     pkt_rx_sop <= '0';
-    pkt_rx_data <= "1100000011000000110000001100000000000011000000110000001100000011";
+    pkt_rx_data <= x"fffffff3fffffff2";
     wait for 10 ns;
     pkt_rx_eop <= '1';
-    pkt_rx_data <= "1110000011100000111000001110000000000111000001110000011100000111";
+    pkt_rx_data <= x"fffffff5fffffff4";
     pkt_rx_mod <= std_logic_vector(to_unsigned(1, 3));
     wait for 10 ns;
     pkt_rx_eop <= '0';

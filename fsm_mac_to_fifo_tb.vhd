@@ -37,7 +37,7 @@ entity fsm_tb is
 end fsm_tb;
 
 architecture Behavioral of fsm_tb is
-component fsm is
+component fsm_mac_to_fifo is
     
     port (
         clk          : in  std_logic;
@@ -66,7 +66,7 @@ signal fifo_cnt  : std_logic_vector(13 downto 0) := (others => '0');
 signal pkt_rx_mod : std_logic_vector(2 downto 0) := (others => '0');
 
 begin
-fsm_1 : fsm port map (clk => clk, rst => rst, fifo_data => fifo_data, fifo_cnt => fifo_cnt, fifo_cnt_strb =>
+fsm_1 : fsm_mac_to_fifo port map (clk => clk, rst => rst, fifo_data => fifo_data, fifo_cnt => fifo_cnt, fifo_cnt_strb =>
 fifo_cnt_strb, fifo_strb => fifo_strb, fifo_drop => fifo_drop, eop_strb => eop_strb, pkt_rx_data => pkt_rx_data,
 pkt_rx_ren => pkt_rx_ren, pkt_rx_avail => pkt_rx_avail, pkt_rx_eop => pkt_rx_eop, pkt_rx_val => pkt_rx_val,
 pkt_rx_sop => pkt_rx_sop, pkt_rx_mod => pkt_rx_mod, pkt_rx_err => pkt_rx_err);
