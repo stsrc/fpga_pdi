@@ -331,7 +331,7 @@ static int pdi_remove(struct platform_device *pdev)
 //will dissapear. Futhermore, it won't compile (look at line 715).
 
 static const struct of_device_id pdi_of_match[] = {
-	{ .compatible = "xlnx,xgbe-compilation-wrapper-1.0", },
+	{ .compatible = "xlnx,xgbe-1.0", },
 	{}
 };
 

@@ -37,10 +37,10 @@ entity xgbe is
 		s_axi_rvalid		: out std_logic;
 		s_axi_rready		: in std_logic;
 
-		xgmii_rxc 		: in std_logic_vector(7 downto 0);
-		xgmii_rxd 		: in std_logic_vector(63 downto 0);
-		xgmii_txc 		: out std_logic_vector(7 downto 0);
-		xgmii_txd 		: out std_logic_vector(63 downto 0)
+		rxp 		: in std_logic;
+		rxn 		: in std_logic;
+		txp 		: out std_logic;
+		txn 		: out std_logic
 	);
 end xgbe;
 
@@ -229,6 +229,59 @@ component fsm_fifo_to_axi is
 	);
 
 end component;
+
+component ten_gig_eth_pcs_pma_0 is
+  port (
+      dclk               : in  std_logic;
+      rxrecclk_out       : out std_logic;
+      refclk_p           : in  std_logic;
+      refclk_n           : in  std_logic;
+      sim_speedup_control: in  std_logic;
+      coreclk_out        : out std_logic;
+      qplloutclk_out     : out std_logic;
+      qplloutrefclk_out  : out std_logic;
+      qplllock_out       : out std_logic;
+      txusrclk_out       : out std_logic;
+      txusrclk2_out      : out std_logic;
+      areset_datapathclk_out  : out std_logic;
+      gttxreset_out      : out std_logic;
+      gtrxreset_out      : out std_logic;
+      txuserrdy_out      : out std_logic;
+      reset_counter_done_out : out std_logic;
+      reset              : in  std_logic;
+      xgmii_txd        : in  std_logic_vector(63 downto 0);
+      xgmii_txc        : in  std_logic_vector(7 downto 0);
+      xgmii_rxd        : out std_logic_vector(63 downto 0);
+      xgmii_rxc        : out std_logic_vector(7 downto 0);
+      txp              : out std_logic;
+      txn              : out std_logic;
+      rxp              : in  std_logic;
+      rxn              : in  std_logic;
+      configuration_vector : in  std_logic_vector(535 downto 0);
+      status_vector        : out std_logic_vector(447 downto 0);
+      core_status      : out std_logic_vector(7 downto 0);
+      resetdone_out    : out std_logic;
+      signal_detect    : in  std_logic;
+      tx_fault         : in  std_logic;
+      drp_req          : out std_logic;
+      drp_gnt          : in  std_logic;
+      drp_den_o        : out std_logic;
+      drp_dwe_o        : out std_logic;
+      drp_daddr_o      : out std_logic_vector(15 downto 0);
+      drp_di_o         : out std_logic_vector(15 downto 0);
+      drp_drdy_i       : in  std_logic;
+      drp_drpdo_i      : in  std_logic_vector(15 downto 0);
+      drp_den_i        : in  std_logic;
+      drp_dwe_i        : in  std_logic;
+      drp_daddr_i      : in  std_logic_vector(15 downto 0);
+      drp_di_i         : in  std_logic_vector(15 downto 0);
+      drp_drdy_o       : out std_logic;
+      drp_drpdo_o      : out std_logic_vector(15 downto 0);
+      pma_pmd_type     : in std_logic_vector(2 downto 0);
+      tx_disable       : out std_logic
+);
+end component ten_gig_eth_pcs_pma_0;
+
 	signal slv_reg0_rd_strb, slv_reg1_rd_strb, slv_reg2_rd_strb, slv_reg3_rd_strb : std_logic := '0';
 	signal slv_reg0_wr_strb, slv_reg1_wr_strb, slv_reg2_wr_strb, slv_reg3_wr_strb : std_logic := '0';
 	signal interrupt_axi_fifo, interrupt_fifo_mac : std_logic := '0';
@@ -245,8 +298,10 @@ end component;
 	
 	signal data_axi_fifo, data_fifo_mac : std_logic_vector(63 downto 0);
 	signal data_mac_fifo, data_fifo_axi : std_logic_vector(63 downto 0);
-	signal cnt_axi_fifo, cnt_fifo_mac : std_logic_vector(13 downto 0);
-	signal cnt_mac_fifo, cnt_fifo_axi : std_logic_vector(13 downto 0);
+	signal xgmii_rxd, xgmii_txd	    : std_logic_vector(63 downto 0);
+	signal xgmii_rxc, xgmii_txc	    : std_logic_vector(7 downto 0);
+	signal cnt_axi_fifo, cnt_fifo_mac   : std_logic_vector(13 downto 0);
+	signal cnt_mac_fifo, cnt_fifo_axi   : std_logic_vector(13 downto 0);
 	signal strb_data_axi_fifo, strb_cnt_axi_fifo : std_logic := '0';
 	signal strb_data_fifo_mac, strb_cnt_fifo_mac : std_logic := '0';
 	signal strb_data_mac_fifo, strb_cnt_mac_fifo : std_logic := '0';
@@ -258,7 +313,21 @@ end component;
 	signal pkt_rx_val, pkt_tx_eop, pkt_tx_full, pkt_tx_sop, pkt_tx_val : std_logic := '0';
 	signal pkt_rx_data, pkt_tx_data: std_logic_vector(63 downto 0) := (others => '0');
 	signal pkt_rx_mod, pkt_tx_mod : std_logic_vector(2 downto 0) := (others => '0');
+
+	signal drp_req, drp_gnt, drp_den_o, drp_dwe_o, drp_drdy_o, drp_den_i, drp_dwe_i, drp_drdy_i : std_logic := '0';
+	signal drp_daddr_o, drp_di_o, drp_drpdo_o, drp_daddr_i, drp_di_i, drp_drpdo_i : std_logic_vector(15 downto 0);
+	signal configuration_vector : std_logic_vector(535 downto 0) := (others => '0');
+	signal clk_156_25MHz_n, ten_gig_xilinx_rst, resetdone_out, coreclock : std_logic := '0';
+	signal core_status : std_logic_vector(7 downto 0) := (others => '0');
+	signal status_vector : std_logic_vector(447 downto 0) := (others => '0');
+
+	signal xgmii_txd_reg, xgmii_rxd_int : std_logic_vector(63 downto 0);
+	signal xgmii_txc_reg, xgmii_rxc_int : std_logic_vector(7 downto 0);
+
 begin
+    clk_156_25MHz_n <= not(clk_156_25MHz);
+    ten_gig_xilinx_rst <= not(rst_clk_20MHz);
+    
 	fifo_axi_mac_data : fifo	
 		generic map (DATA_WIDTH => 64, DATA_HEIGHT => 10) 
 		port map (
@@ -466,5 +535,74 @@ begin
 			xgmii_txc => xgmii_txc,
 			xgmii_txd => xgmii_txd
 		);
+	
+	ten_gig_eth_pcs_pma_0_0 : ten_gig_eth_pcs_pma_0
+                port map (
+                    xgmii_txd => xgmii_txd_reg,
+                    xgmii_txc => xgmii_txc_reg,
+                    xgmii_rxd => xgmii_rxd_int,
+                    xgmii_rxc => xgmii_rxc_int,
+                    txp => txp,
+                    txn => txn,
+                    rxp => rxp,
+                    rxn => rxn,
+                       signal_detect => '1',
+                    tx_fault => '0',
+                    tx_disable => open,
+                    dclk => s_axi_aclk,
+                    rxrecclk_out => open,
+                    refclk_p => clk_156_25MHz,
+                    refclk_n => clk_156_25MHz_n,
+                    sim_speedup_control => '0',
+                    coreclk_out => coreclock,
+                    qplloutclk_out => open,
+                    qplloutrefclk_out => open,
+                    qplllock_out    => open,
+                    txusrclk_out    => open,
+                    txusrclk2_out     => open,
+                    areset_datapathclk_out => open,
+                    gttxreset_out    => open,
+                    gtrxreset_out    => open,
+                    txuserrdy_out    => open,
+                    reset_counter_done_out => open,
+                    reset        => ten_gig_xilinx_rst, 
+                    configuration_vector => configuration_vector,
+                    status_vector    => status_vector,
+                    core_status => core_status,
+                    resetdone_out => resetdone_out,
+                    drp_req => drp_req,
+                    drp_gnt => drp_gnt,
+                    drp_den_o => drp_den_o,
+                    drp_dwe_o => drp_dwe_o,
+                    drp_daddr_o => drp_daddr_o,
+                    drp_di_o => drp_di_o,
+                    drp_drdy_o => drp_drdy_o,
+                    drp_drpdo_o => drp_drpdo_o,
+                    drp_den_i => drp_den_i,
+                    drp_dwe_i => drp_dwe_i,
+                    drp_daddr_i => drp_daddr_i,
+                    drp_di_i => drp_di_i,
+                    drp_drdy_i => drp_drdy_i,
+                    drp_drpdo_i => drp_drpdo_i,
+                    pma_pmd_type => "111"
+                ); 
 
+	drp_gnt 	<= drp_req;
+	drp_den_i 	<= drp_den_o;
+	drp_dwe_i 	<= drp_dwe_o;
+	drp_daddr_i 	<= drp_daddr_o;
+	drp_di_i    	<= drp_di_o;
+	drp_drdy_i 	<= drp_drdy_o;
+	drp_drpdo_i 	<= drp_drpdo_o;
+	
+	configuration_vector(399 downto 384) <= x"4C4B";
+
+	process (coreclock) begin
+	if (rising_edge(coreclock)) then
+		xgmii_txd_reg <= xgmii_txd;
+		xgmii_txc_reg <= xgmii_txc;
+		xgmii_rxd     <= (others => '0');
+		xgmii_rxc     <= (others => '0');
+	end if;	
+	end process;
 end xgbe_arch;

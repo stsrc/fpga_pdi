@@ -46,10 +46,10 @@ architecture STRUCTURE of tb is
 		s_axi_rvalid	: out std_logic;
 		s_axi_rready	: in std_logic;
 
-		xgmii_rxc 	: in std_logic_vector(7 downto 0);
-		xgmii_rxd 	: in std_logic_vector(63 downto 0);
-		xgmii_txc 	: out std_logic_vector(7 downto 0);
-		xgmii_txd 	: out std_logic_vector(63 downto 0)
+		rxp 		: in std_logic;
+		rxn 		: in std_logic;
+		txp 		: out std_logic;
+		txn 		: out std_logic
 	);
 end component xgbe;
 
@@ -61,13 +61,13 @@ end component xgbe;
   signal s_axi_araddr, s_axi_awaddr, s_axi_wstrb : std_logic_vector(3 downto 0) := (others => '0');
   signal s_axi_arprot, s_axi_awprot : std_logic_vector(2 downto 0) := (others => '0');
   signal s_axi_bresp, s_axi_rresp : std_logic_vector(1 downto 0) := (others => '0');
-  signal xgmii_rxc, xgmii_txc 	: std_logic_vector(7 downto 0);
-	signal xgmii_rxd, xgmii_txd : std_logic_vector(63 downto 0);
+  
+  signal rxn, rxp : std_logic;
+  signal txn, txp : std_logic;
 
   signal ReadIt, SendIt : std_logic := '0';
 begin
-	xgmii_rxc <= xgmii_txc;
-	xgmii_rxd <= xgmii_txd;
+
 
 block_design_i: xgbe
      port map (
@@ -100,13 +100,12 @@ block_design_i: xgbe
       s_axi_wstrb(3 downto 0) => s_axi_wstrb(3 downto 0),
       s_axi_wvalid => s_axi_wvalid,
 
-	xgmii_rxc => xgmii_rxc,
-	xgmii_rxd => xgmii_rxd,
-	xgmii_txc => xgmii_txc,
-	xgmii_txd => xgmii_txd
-    );
+	rxp => rxp,
+	txp => txp,
+	rxn => rxn,
+	txn => txn
+);
 
-    
 process begin
     s_axi_aclk <= '0';
     wait for 5 ns;
@@ -119,6 +118,15 @@ process begin
 	wait for 3.2 ns;
 	clk_156_25MHz <= '0';
 	wait for 3.2 ns;
+end process;
+
+process begin
+    rxp <= '1';
+    rxn <= '0';
+    wait for 6.4 ns;
+    rxp <= '0';
+    rxn <= '1';
+    wait for 6.4 ns;
 end process;
 
 process begin
@@ -184,6 +192,7 @@ tb : process
 begin
  
 	wait until rst_clk_20MHz = '1';
+	wait;
 for j in 0 to 9 loop
 	wait for 10 ns;
 

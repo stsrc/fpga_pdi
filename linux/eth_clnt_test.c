@@ -13,7 +13,7 @@
 
 
 void generate_msg(char *buf) {
-	for (int i = 0; i < 64; i++)
+	for (int i = 0; i < 65; i++)
 		buf[i] = i;
 }
 
@@ -61,7 +61,7 @@ int main(void) {
 		return rt;
 	}
 	printf("client has connected socket to server.\n");
-	rt = send(sockfd, buf, 64, 0);
+	rt = send(sockfd, buf, 65, 0);
 	
 	if (rt < 0) 
 		perror("send");

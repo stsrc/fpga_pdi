@@ -333,7 +333,7 @@ static int pdi_remove(struct platform_device *pdev)
 
 //TODO WARNING ABOUT PROBLEMS WITH DEVICE DETECTION (ALREADY IN USE ETC.)
 static const struct of_device_id pdi_of_match[] = {
-	{ .compatible = "xlnx,xgbe-compilation-wrapper-1.1", },
+	{ .compatible = "xlnx,xgbe-1.1", },
 	{}
 };
 
