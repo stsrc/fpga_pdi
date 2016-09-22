@@ -53,6 +53,13 @@ component xgbe_pcs_pma is
 	);
 end component;
 
+  signal in_a_frame : std_logic := '0';
+
+  -- Lock FSM states
+  constant LOCK_INIT : integer := 0;
+  constant RESET_CNT : integer := 1;
+  constant TEST_SH_ST: integer := 2;
+
   signal coreclk_out : std_logic := '0';
   signal core_status : std_logic_vector(7 downto 0) := (others => '0');
   signal sim_speedup_control, reset, resetdone : std_logic := '0';
@@ -67,6 +74,22 @@ end component;
   signal s_axi_bresp, s_axi_rresp : std_logic_vector(1 downto 0) := (others => '0');
 
   signal rxp, rxn, txp, txn : std_logic := '0';
+
+  signal test_sh : std_logic := '0';
+  signal slip : std_logic := '0';
+  signal BLSTATE : integer := 0;
+  signal next_blstate : integer := 0;
+  signal RxD : std_logic_vector(65 downto 0);
+  signal RxD_aligned : std_logic_vector(65 downto 0);
+  signal nbits : integer := 0;
+  signal sh_cnt : integer := 0;
+  signal sh_invalid_cnt : integer := 0;
+
+  signal DeScrambler_Register : std_logic_vector(57 downto 0) :=  "00" & x"00000000000003";
+  signal RXD_input : std_logic_vector(63 downto 0) := x"0000000000000000";
+  signal RX_Sync_header : std_logic_vector(1 downto 0) := "01";
+  signal DeScr_wire : std_logic_vector(63 downto 0);
+  signal DeScr_RXD : std_logic_vector(65 downto 0) := "00" & x"0000000000000079";
 
   signal TxEnc : std_logic_vector(65 downto 0) := (others => '0');
   signal d0 : std_logic_vector(31 downto 0) := (others => '0');
@@ -89,6 +112,8 @@ end component;
 
   signal bitclk : std_logic;
   signal block_lock : std_logic := '0';
+
+  signal ReadIt, SendIt : std_logic := '0';
 
   constant BITPERIOD : time := 98 ps;
   constant PERIODCORECLK : time := 66*98 ps; 
@@ -450,22 +475,19 @@ begin
 
   begin
 
+    
     -- Give the core and TB time to get block_lock on incoming data...
     while (core_status(0) /= '1' or block_lock /= '1') loop
       rx_stimulus_send_idle;
     end loop;
-
+    for i in 0 to 500 loop
+    rx_stimulus_send_idle;
+    end loop;
     rx_stimulus_send_frame(frame_data(0));
     rx_stimulus_send_idle;
-    rx_stimulus_send_idle;
-    rx_stimulus_send_frame(frame_data(1));
-    rx_stimulus_send_idle;
-    rx_stimulus_send_idle;
-    rx_stimulus_send_frame(frame_data(2));
-    rx_stimulus_send_idle;
-    rx_stimulus_send_idle;
-    rx_stimulus_send_frame(frame_data(3));
-    while(true) loop rx_stimulus_send_idle; end loop;
+    for i in 0 to 500 loop
+        rx_stimulus_send_idle;
+    end loop;
     wait;
   end process p_rx_stimulus;
 
@@ -641,7 +663,394 @@ begin
     end if;
   end process p_rx_serialize;
 
+  -- Fill RxD with 66 bits...
+  p_tx_serial_capture : process (bitclk)
+  begin
+    if(rising_edge(bitclk)) then
+      if(slip = '0') then
+      -- Just grab next 66 bits
+        RxD(64 downto 0) <= RxD(65 downto 1);
+        RxD(65) <= txp;
+        if(nbits < 65) then
+          nbits <= nbits + 1;
+          test_sh <= '0';
+        else
+          nbits <= 0;
+          test_sh <= '1';
+        end if;
+      else -- SLIP!!
+      -- Just grab single bit
+        RxD(64 downto 0) <= RxD(65 downto 1);
+        RxD(65) <= txp;
+        test_sh <= '1';
+        nbits <= 0;
+      end if;
+    end if;
+  end process p_tx_serial_capture;
 
+
+  -- Implement the block lock state machine on serial TX...
+  p_tx_block_lock : process (BLSTATE, test_sh, RxD)
+  begin
+
+    case (BLSTATE) is
+      when LOCK_INIT =>
+        block_lock <= '0';
+        next_blstate <= RESET_CNT;
+        slip <= '0';
+        sh_cnt <= 0;
+        sh_invalid_cnt <= 0;
+      when RESET_CNT =>
+        slip <= '0';
+        if(test_sh = '1') then
+          next_blstate <= TEST_SH_ST;
+        else
+          next_blstate <= RESET_CNT;
+        end if;
+      when TEST_SH_ST =>
+        slip <= '0';
+        next_blstate <= TEST_SH_ST;
+        if(test_sh = '1' and (RxD(0) /= RxD(1))) then -- Good sync header candidate
+          sh_cnt <= sh_cnt + 1; -- Immediate update!
+          if(sh_cnt < 64) then
+            next_blstate <= TEST_SH_ST;
+          elsif(sh_cnt = 64 and sh_invalid_cnt > 0) then
+            next_blstate <= RESET_CNT;
+            sh_cnt <= 0;
+            sh_invalid_cnt <= 0;
+          elsif(sh_cnt = 64 and sh_invalid_cnt = 0) then
+            block_lock <= '1';
+            next_blstate <= RESET_CNT;
+            sh_cnt <= 0;
+            sh_invalid_cnt <= 0;
+          end if;
+        elsif(test_sh = '1') then -- Bad sync header
+          sh_cnt <= sh_cnt + 1;
+          sh_invalid_cnt <= sh_invalid_cnt + 1;
+          if(sh_cnt = 64 and sh_invalid_cnt < 16 and block_lock = '1') then
+            next_blstate <= RESET_CNT;
+            sh_cnt <= 0;
+            sh_invalid_cnt <= 0;
+          elsif(sh_cnt < 64 and sh_invalid_cnt < 16
+                  and test_sh = '1' and block_lock = '1') then
+            next_blstate <= TEST_SH_ST;
+          elsif(sh_invalid_cnt = 16 or block_lock = '0') then
+            block_lock <= '0';
+            slip <= '1';
+            sh_cnt <= 0;
+            sh_invalid_cnt <= 0;
+            next_blstate <= RESET_CNT;
+          end if;
+        end if;
+      when others =>
+        block_lock <= '0';
+        next_blstate <= RESET_CNT;
+        slip <= '0';
+        sh_cnt <= 0;
+        sh_invalid_cnt <= 0;
+    end case;
+  end process p_tx_block_lock;
+
+  -- Implement the block lock state machine on serial TX
+  -- And capture the aligned 66 bit words....
+  p_tx_block_lock_next_blstate : process (bitclk)
+  begin
+    if(rising_edge(bitclk)) then
+      if(reset = '1' or resetdone = '0') then
+        BLSTATE <= LOCK_INIT;
+      else
+        BLSTATE <= next_blstate;
+      end if;
+      if(test_sh = '1' and block_lock = '1') then
+        RxD_aligned <= RxD;
+      end if;
+    end if;
+  end process p_tx_block_lock_next_blstate;
+
+  -- Descramble the TX serial data
+
+  DeScr_wire(0) <= RXD_input(0) xor DeScrambler_Register(38) xor DeScrambler_Register(57);
+  DeScr_wire(1) <= RXD_input(1) xor DeScrambler_Register(37) xor DeScrambler_Register(56);
+  DeScr_wire(2) <= RXD_input(2) xor DeScrambler_Register(36) xor DeScrambler_Register(55);
+  DeScr_wire(3) <= RXD_input(3) xor DeScrambler_Register(35) xor DeScrambler_Register(54);
+  DeScr_wire(4) <= RXD_input(4) xor DeScrambler_Register(34) xor DeScrambler_Register(53);
+  DeScr_wire(5) <= RXD_input(5) xor DeScrambler_Register(33) xor DeScrambler_Register(52);
+  DeScr_wire(6) <= RXD_input(6) xor DeScrambler_Register(32) xor DeScrambler_Register(51);
+  DeScr_wire(7) <= RXD_input(7) xor DeScrambler_Register(31) xor DeScrambler_Register(50);
+
+  DeScr_wire(8) <= RXD_input(8) xor DeScrambler_Register(30) xor DeScrambler_Register(49);
+  DeScr_wire(9) <= RXD_input(9) xor DeScrambler_Register(29) xor DeScrambler_Register(48);
+  DeScr_wire(10) <= RXD_input(10) xor DeScrambler_Register(28) xor DeScrambler_Register(47);
+  DeScr_wire(11) <= RXD_input(11) xor DeScrambler_Register(27) xor DeScrambler_Register(46);
+  DeScr_wire(12) <= RXD_input(12) xor DeScrambler_Register(26) xor DeScrambler_Register(45);
+  DeScr_wire(13) <= RXD_input(13) xor DeScrambler_Register(25) xor DeScrambler_Register(44);
+  DeScr_wire(14) <= RXD_input(14) xor DeScrambler_Register(24) xor DeScrambler_Register(43);
+  DeScr_wire(15) <= RXD_input(15) xor DeScrambler_Register(23) xor DeScrambler_Register(42);
+
+  DeScr_wire(16) <= RXD_input(16) xor DeScrambler_Register(22) xor DeScrambler_Register(41);
+  DeScr_wire(17) <= RXD_input(17) xor DeScrambler_Register(21) xor DeScrambler_Register(40);
+  DeScr_wire(18) <= RXD_input(18) xor DeScrambler_Register(20) xor DeScrambler_Register(39);
+  DeScr_wire(19) <= RXD_input(19) xor DeScrambler_Register(19) xor DeScrambler_Register(38);
+  DeScr_wire(20) <= RXD_input(20) xor DeScrambler_Register(18) xor DeScrambler_Register(37);
+  DeScr_wire(21) <= RXD_input(21) xor DeScrambler_Register(17) xor DeScrambler_Register(36);
+  DeScr_wire(22) <= RXD_input(22) xor DeScrambler_Register(16) xor DeScrambler_Register(35);
+  DeScr_wire(23) <= RXD_input(23) xor DeScrambler_Register(15) xor DeScrambler_Register(34);
+
+  DeScr_wire(24) <= RXD_input(24) xor DeScrambler_Register(14) xor DeScrambler_Register(33);
+  DeScr_wire(25) <= RXD_input(25) xor DeScrambler_Register(13) xor DeScrambler_Register(32);
+  DeScr_wire(26) <= RXD_input(26) xor DeScrambler_Register(12) xor DeScrambler_Register(31);
+  DeScr_wire(27) <= RXD_input(27) xor DeScrambler_Register(11) xor DeScrambler_Register(30);
+  DeScr_wire(28) <= RXD_input(28) xor DeScrambler_Register(10) xor DeScrambler_Register(29);
+  DeScr_wire(29) <= RXD_input(29) xor DeScrambler_Register(9) xor DeScrambler_Register(28);
+  DeScr_wire(30) <= RXD_input(30) xor DeScrambler_Register(8) xor DeScrambler_Register(27);
+  DeScr_wire(31) <= RXD_input(31) xor DeScrambler_Register(7) xor DeScrambler_Register(26);
+
+  DeScr_wire(32) <= RXD_input(32) xor DeScrambler_Register(6) xor DeScrambler_Register(25);
+  DeScr_wire(33) <= RXD_input(33) xor DeScrambler_Register(5) xor DeScrambler_Register(24);
+  DeScr_wire(34) <= RXD_input(34) xor DeScrambler_Register(4) xor DeScrambler_Register(23);
+  DeScr_wire(35) <= RXD_input(35) xor DeScrambler_Register(3) xor DeScrambler_Register(22);
+  DeScr_wire(36) <= RXD_input(36) xor DeScrambler_Register(2) xor DeScrambler_Register(21);
+  DeScr_wire(37) <= RXD_input(37) xor DeScrambler_Register(1) xor DeScrambler_Register(20);
+  DeScr_wire(38) <= RXD_input(38) xor DeScrambler_Register(0) xor DeScrambler_Register(19);
+
+  DeScr_wire(39) <= RXD_input(39) xor RXD_input(0) xor DeScrambler_Register(18);
+  DeScr_wire(40) <= RXD_input(40) xor RXD_input(1) xor DeScrambler_Register(17);
+  DeScr_wire(41) <= RXD_input(41) xor RXD_input(2) xor DeScrambler_Register(16);
+  DeScr_wire(42) <= RXD_input(42) xor RXD_input(3) xor DeScrambler_Register(15);
+  DeScr_wire(43) <= RXD_input(43) xor RXD_input(4) xor DeScrambler_Register(14);
+  DeScr_wire(44) <= RXD_input(44) xor RXD_input(5) xor DeScrambler_Register(13);
+  DeScr_wire(45) <= RXD_input(45) xor RXD_input(6) xor DeScrambler_Register(12);
+  DeScr_wire(46) <= RXD_input(46) xor RXD_input(7) xor DeScrambler_Register(11);
+  DeScr_wire(47) <= RXD_input(47) xor RXD_input(8) xor DeScrambler_Register(10);
+
+  DeScr_wire(48) <= RXD_input(48) xor RXD_input(9) xor DeScrambler_Register(9);
+  DeScr_wire(49) <= RXD_input(49) xor RXD_input(10) xor DeScrambler_Register(8);
+  DeScr_wire(50) <= RXD_input(50) xor RXD_input(11) xor DeScrambler_Register(7);
+  DeScr_wire(51) <= RXD_input(51) xor RXD_input(12) xor DeScrambler_Register(6);
+  DeScr_wire(52) <= RXD_input(52) xor RXD_input(13) xor DeScrambler_Register(5);
+  DeScr_wire(53) <= RXD_input(53) xor RXD_input(14) xor DeScrambler_Register(4);
+  DeScr_wire(54) <= RXD_input(54) xor RXD_input(15) xor DeScrambler_Register(3);
+
+  DeScr_wire(55) <= RXD_input(55) xor RXD_input(16) xor DeScrambler_Register(2);
+  DeScr_wire(56) <= RXD_input(56) xor RXD_input(17) xor DeScrambler_Register(1);
+  DeScr_wire(57) <= RXD_input(57) xor RXD_input(18) xor DeScrambler_Register(0);
+  DeScr_wire(58) <= RXD_input(58) xor RXD_input(19) xor RXD_input(0);
+  DeScr_wire(59) <= RXD_input(59) xor RXD_input(20) xor RXD_input(1);
+  DeScr_wire(60) <= RXD_input(60) xor RXD_input(21) xor RXD_input(2);
+  DeScr_wire(61) <= RXD_input(61) xor RXD_input(22) xor RXD_input(3);
+  DeScr_wire(62) <= RXD_input(62) xor RXD_input(23) xor RXD_input(4);
+  DeScr_wire(63) <= RXD_input(63) xor RXD_input(24) xor RXD_input(5);
+
+  -- Synchronous part of descrambler
+  p_descramble : process (coreclk_out)
+  begin
+    if(rising_edge(coreclk_out)) then
+      RXD_input(63 downto 0) <= RxD_aligned(65 downto 2);
+      RX_Sync_header <= RxD_aligned(1 downto 0);
+      DeScr_RXD(65 downto 0) <= DeScr_wire(63 downto 0) & RX_Sync_header(1 downto 0);
+
+      DeScrambler_Register(57) <= RXD_input(6);
+      DeScrambler_Register(56) <= RXD_input(7);
+      DeScrambler_Register(55) <= RXD_input(8);
+      DeScrambler_Register(54) <= RXD_input(9);
+      DeScrambler_Register(53) <= RXD_input(10);
+      DeScrambler_Register(52) <= RXD_input(11);
+      DeScrambler_Register(51) <= RXD_input(12);
+      DeScrambler_Register(50) <= RXD_input(13);
+
+      DeScrambler_Register(49) <= RXD_input(14);
+      DeScrambler_Register(48) <= RXD_input(15);
+      DeScrambler_Register(47) <= RXD_input(16);
+      DeScrambler_Register(46) <= RXD_input(17);
+      DeScrambler_Register(45) <= RXD_input(18);
+      DeScrambler_Register(44) <= RXD_input(19);
+      DeScrambler_Register(43) <= RXD_input(20);
+      DeScrambler_Register(42) <= RXD_input(21);
+
+      DeScrambler_Register(41) <= RXD_input(22);
+      DeScrambler_Register(40) <= RXD_input(23);
+      DeScrambler_Register(39) <= RXD_input(24);
+      DeScrambler_Register(38) <= RXD_input(25);
+      DeScrambler_Register(37) <= RXD_input(26);
+      DeScrambler_Register(36) <= RXD_input(27);
+      DeScrambler_Register(35) <= RXD_input(28);
+      DeScrambler_Register(34) <= RXD_input(29);
+
+      DeScrambler_Register(33) <= RXD_input(30);
+      DeScrambler_Register(32) <= RXD_input(31);
+      DeScrambler_Register(31) <= RXD_input(32);
+      DeScrambler_Register(30) <= RXD_input(33);
+      DeScrambler_Register(29) <= RXD_input(34);
+      DeScrambler_Register(28) <= RXD_input(35);
+      DeScrambler_Register(27) <= RXD_input(36);
+      DeScrambler_Register(26) <= RXD_input(37);
+
+      DeScrambler_Register(25) <= RXD_input(38);
+      DeScrambler_Register(24) <= RXD_input(39);
+      DeScrambler_Register(23) <= RXD_input(40);
+      DeScrambler_Register(22) <= RXD_input(41);
+      DeScrambler_Register(21) <= RXD_input(42);
+      DeScrambler_Register(20) <= RXD_input(43);
+      DeScrambler_Register(19) <= RXD_input(44);
+      DeScrambler_Register(18) <= RXD_input(45);
+
+      DeScrambler_Register(17) <= RXD_input(46);
+      DeScrambler_Register(16) <= RXD_input(47);
+      DeScrambler_Register(15) <= RXD_input(48);
+      DeScrambler_Register(14) <= RXD_input(49);
+      DeScrambler_Register(13) <= RXD_input(50);
+      DeScrambler_Register(12) <= RXD_input(51);
+      DeScrambler_Register(11) <= RXD_input(52);
+      DeScrambler_Register(10) <= RXD_input(53);
+
+      DeScrambler_Register(9) <= RXD_input(54);
+      DeScrambler_Register(8) <= RXD_input(55);
+      DeScrambler_Register(7) <= RXD_input(56);
+      DeScrambler_Register(6) <= RXD_input(57);
+      DeScrambler_Register(5) <= RXD_input(58);
+      DeScrambler_Register(4) <= RXD_input(59);
+      DeScrambler_Register(3) <= RXD_input(60);
+      DeScrambler_Register(2) <= RXD_input(61);
+      DeScrambler_Register(1) <= RXD_input(62);
+      DeScrambler_Register(0) <= RXD_input(63);
+    end if;
+  end process p_descramble;
+
+send : process
+ begin
+    s_axi_awvalid<='0';
+    s_axi_wvalid<='0';
+    s_axi_bready<='0';
+    loop
+        wait until sendit = '1';
+        wait until s_axi_aclk= '0';
+            s_axi_awvalid<='1';
+            s_axi_wvalid<='1';
+        wait until (s_axi_awready and s_axi_wready) = '1';  --client ready to read address/data        
+            s_axi_bready<='1';
+        wait until s_axi_bvalid = '1';  -- write result valid
+            assert s_axi_bresp = "00" report "axi data not written" severity failure;
+            s_axi_awvalid<='0';
+            s_axi_wvalid<='0';
+            s_axi_bready<='1';
+        wait until s_axi_bvalid = '0';  -- all finished
+            s_axi_bready<='0';
+    end loop;
+ end process send;
+
+ read : process
+  begin
+    s_axi_arvalid<='0';
+    s_axi_rready<='0';
+     loop
+         wait until readit = '1';
+         wait until s_axi_aclk= '0';
+             s_axi_arvalid<='1';
+            wait until (s_axi_rvalid) = '1';  --client provided data (removed and s_axi_arready???)
+            s_axi_rready<='1';
+            s_axi_arvalid <= '0';
+            assert s_axi_rresp = "00" report "axi data not written" severity failure;
+            wait until (s_axi_rvalid) = '0';
+            s_axi_rready<='0';
+     end loop;
+  end process read;
+
+	working_process : process
+	begin
+		wait until resetdone = '1'; 
+		wait until block_lock = '1';
+	for j in 0 to 9 loop
+		s_axi_awaddr<="0100";
+        	s_axi_wdata<=x"00000100";
+	        s_axi_wstrb<=b"1111";
+ 	        sendit<='1';                --start axi write to slave
+	        wait for 1 ns; 
+	        sendit<='0'; --clear start send flag
+		wait until s_axi_bvalid = '1';
+		wait until s_axi_bvalid = '0';  --axi write finished
+	       	s_axi_wstrb<=b"0000";
+
+		s_axi_awaddr<="0100";
+		s_axi_wdata<=x"00010010";
+		s_axi_wstrb<=b"1111";
+        sendit<='1';                --start axi write to slave
+        wait for 1 ns; 
+        sendit<='0'; --clear start send flag
+	   wait until s_axi_bvalid = '1';
+	   wait until s_axi_bvalid = '0';  --axi write finished
+        s_axi_wstrb<=b"0000";  
+
+	   s_axi_awaddr<="0100";
+        s_axi_wdata<=x"94000002";
+        s_axi_wstrb<=b"1111";
+        sendit<='1';                --start axi write to slave
+        wait for 1 ns; 
+        sendit<='0'; --clear start send flag
+	    wait until s_axi_bvalid = '1';
+	    wait until s_axi_bvalid = '0';  --axi write finished
+        s_axi_wstrb<=b"0000";
+
+	    s_axi_awaddr<="0100";
+        s_axi_wdata<=x"88b50001";
+        s_axi_wstrb<=b"1111";
+        sendit<='1';                --start axi write to slave
+        wait for 1 ns; 
+        sendit<='0'; --clear start send flag
+	   wait until s_axi_bvalid = '1';
+	   wait until s_axi_bvalid = '0';  --axi write finished
+        s_axi_wstrb<=b"0000";
+	 
+    for i in 0 to 7 loop
+	   s_axi_awaddr<="0100";
+        s_axi_wdata<=x"ffffff00" or std_logic_vector(to_unsigned(i, 32) + to_unsigned(j, 32));
+        s_axi_wstrb<=b"1111";
+        sendit<='1';                --start axi write to slave
+        wait for 1 ns; 
+        sendit<='0'; --clear start send flag
+	    wait until s_axi_bvalid = '1';
+	    wait until s_axi_bvalid = '0';  --axi write finished
+        s_axi_wstrb<=b"0000";
+
+	    s_axi_awaddr<="0100";
+        s_axi_wdata<=x"f0000000" or std_logic_vector(to_unsigned(i, 32) + to_unsigned(j,32));
+        s_axi_wstrb<=b"1111";
+        sendit<='1';                --start axi write to slave
+        wait for 1 ns; 
+        sendit<='0'; --clear start send flag
+	   wait until s_axi_bvalid = '1';
+	   wait until s_axi_bvalid = '0';  --axi write finished
+        s_axi_wstrb<=b"0000";
+    end loop;
+
+	s_axi_awaddr<="0000";
+    s_axi_wdata<=x"00000040";
+    s_axi_wstrb<=b"1111";
+    sendit<='1';                --start axi write to slave
+    wait for 1 ns; 
+    sendit<='0'; --clear start send flag
+	wait until s_axi_bvalid = '1';
+	wait until s_axi_bvalid = '0';  --axi write finished
+    s_axi_wstrb<=b"0000";
+    
+    wait until interrupt = '1';
+    wait;    
+    s_axi_araddr<="0000";
+        readit<='1';                --start axi read from slave
+        wait for 1 ns; 
+       readit<='0';                --clear "start read" flag
+    wait until s_axi_rready = '1';
+    wait until s_axi_rready = '0';    --axi_data should be equal to 17
+    
+        s_axi_araddr<="0100";    
+   for i in 0 to 15 loop
+        readit<='1';                --start axi read from slave
+        wait for 1 ns; 
+       readit<='0';                --clear "start read" flag
+    wait until s_axi_rready = '1';    --axi_data should be equal to 10000000...
+    wait until s_axi_rready = '0';
+    end loop;
+    end loop; 
+    end process;
 
 
 end xgbe_pcs_pma_tb_arch;

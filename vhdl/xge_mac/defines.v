@@ -123,7 +123,7 @@
 
 // Changed system packet interface to big endian (12/12/2009)
 // Comment out to use legacy mode
-//`define BIGENDIAN
+`define BIGENDIAN
 
 // MAX FRAME SIZE
 // Frames received with longer lenght will be marked as "errored" and the pkt_rx_err
