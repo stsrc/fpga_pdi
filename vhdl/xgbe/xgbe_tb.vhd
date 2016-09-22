@@ -45,11 +45,11 @@ architecture STRUCTURE of tb is
 		s_axi_rresp	: out std_logic_vector(1 downto 0);
 		s_axi_rvalid	: out std_logic;
 		s_axi_rready	: in std_logic;
-
-		rxp 		: in std_logic;
-		rxn 		: in std_logic;
-		txp 		: out std_logic;
-		txn 		: out std_logic
+		xgmii_rxc : in STD_LOGIC_VECTOR (7 downto 0);
+		xgmii_rxd : in STD_LOGIC_VECTOR (63 downto 0);
+		xgmii_txc : out STD_LOGIC_VECTOR (7 downto 0);
+		xgmii_txd : out STD_LOGIC_VECTOR (63 downto 0)
+		
 	);
 end component xgbe;
 
@@ -62,19 +62,21 @@ end component xgbe;
   signal s_axi_arprot, s_axi_awprot : std_logic_vector(2 downto 0) := (others => '0');
   signal s_axi_bresp, s_axi_rresp : std_logic_vector(1 downto 0) := (others => '0');
   
-  signal rxn, rxp : std_logic;
-  signal txn, txp : std_logic;
+  signal xgmii_rxd, xgmii_txd : std_logic_vector(63 downto 0) := (others => '0');
+  signal xgmii_rxc, xgmii_txc : std_logic_vector(7 downto 0) := (others => '0');
 
   signal ReadIt, SendIt : std_logic := '0';
 begin
 
+xgmii_rxd <= xgmii_txd;
+xgmii_rxc <= xgmii_txc;
 
 block_design_i: xgbe
      port map (
-      clk_156_25MHz => clk_156_25MHz,
-      rst_clk_156_25MHz => rst_clk_156_25MHz,
-	clk_20MHz => clk_20MHz,
-	rst_clk_20MHz => rst_clk_20MHz,
+       clk_156_25MHz => clk_156_25MHz,
+       rst_clk_156_25MHz => rst_clk_156_25MHz,
+	   clk_20MHz => clk_20MHz,
+	   rst_clk_20MHz => rst_clk_20MHz,
 
       interrupt => interrupt,
 
@@ -99,11 +101,10 @@ block_design_i: xgbe
       s_axi_wready => s_axi_wready,
       s_axi_wstrb(3 downto 0) => s_axi_wstrb(3 downto 0),
       s_axi_wvalid => s_axi_wvalid,
-
-	rxp => rxp,
-	txp => txp,
-	rxn => rxn,
-	txn => txn
+      xgmii_rxd => xgmii_rxd,
+      xgmii_txd => xgmii_txd,
+      xgmii_rxc => xgmii_rxc,
+      xgmii_txc => xgmii_txc
 );
 
 process begin
@@ -118,15 +119,6 @@ process begin
 	wait for 3.2 ns;
 	clk_156_25MHz <= '0';
 	wait for 3.2 ns;
-end process;
-
-process begin
-    rxp <= '1';
-    rxn <= '0';
-    wait for 6.4 ns;
-    rxp <= '0';
-    rxn <= '1';
-    wait for 6.4 ns;
 end process;
 
 process begin
@@ -192,7 +184,6 @@ tb : process
 begin
  
 	wait until rst_clk_20MHz = '1';
-	wait;
 for j in 0 to 9 loop
 	wait for 10 ns;
 
