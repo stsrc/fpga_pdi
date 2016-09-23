@@ -4,13 +4,17 @@ use ieee.numeric_std.all;
 
 entity xgbe_pcs_pma is
 	port (
-		clk_156_25MHz		: in std_logic;
-		rst_clk_156_25MHz 	: in std_logic;
+		clk_156_25MHz_p		: in std_logic;
+		clk_156_25MHz_n     : in std_logic;
+		rstn_clk_156_25MHz 	: in std_logic;
+		
 		clk_20MHz		: in std_logic;
-		rst_clk_20MHz		: in std_logic;
+		rstn_clk_20MHz	: in std_logic;
+    
+ 	       clk_100MHz : in std_logic;
+        	rstn_clk_100MHz : in std_logic;
 
 		interrupt		: out std_logic;
-
 		s_axi_aclk		: in std_logic;
 		s_axi_aresetn		: in std_logic;
 		s_axi_awaddr		: in std_logic_vector(3 downto 0);
@@ -32,14 +36,16 @@ entity xgbe_pcs_pma is
 		s_axi_rresp		: out std_logic_vector(1 downto 0);
 		s_axi_rvalid		: out std_logic;
 		s_axi_rready		: in std_logic;
+
 		rxp 			: in std_logic;
 		rxn 			: in std_logic;
 		txp 			: out std_logic;
 		txn 			: out std_logic;
+		
+ 	       	reset           	: in std_logic;
 		coreclk_out		: out std_logic;
 		core_status		: out std_logic_vector(7 downto 0);
 		sim_speedup_control	: in std_logic;
-		reset			: in std_logic;
 		resetdone		: out std_logic	
 	);
 end xgbe_pcs_pma;
@@ -132,6 +138,15 @@ component xgbe_0 IS
   );
 END component;
 
+component reset_gen_0 IS
+  PORT (
+    clk : IN STD_LOGIC;
+    asynchr_rst_n : IN STD_LOGIC;
+    locked : IN STD_LOGIC;
+    rst_out_n : OUT STD_LOGIC;
+    rst_out_p : OUT STD_LOGIC
+  );
+END component;
 
 signal xgmii_rxc, xgmii_txc : std_logic_vector(7 downto 0);
 signal xgmii_rxd, xgmii_txd : std_logic_vector(63 downto 0);
@@ -140,10 +155,14 @@ signal xgmii_rxd, xgmii_txd : std_logic_vector(63 downto 0);
 signal dclk, rxrecclk_out, refclk_p, refclk_n : std_logic := '0';
 signal qplloutclk_out, qplloutrefclk_out, qplllock_out : std_logic := '0';
 --signal coreclk_out, sim_speedup_control : std_logic := '0';
+signal coreclk_out_s: std_logic := '0';
 signal txusrclk_out, txusrclk2_out, areset_datapathclk_out : std_logic := '0';
 signal gttxreset_out, gtrxreset_out, txuserrdy_out, reset_counter_done_out : std_logic := '0';
 signal signal_detect, tx_fault, tx_disable : std_logic := '0';
 --signal reset, resetdone : std_logic := '0';
+
+signal rstn_coreclk, rstp_coreclk : std_logic := '0';
+
 signal drp_req, drp_gnt, drp_den_o, drp_dwe_o, drp_drdy_i : std_logic := '0';
 signal drp_den_i, drp_dwe_i, drp_drdy_o : std_logic := '0';
 
@@ -158,16 +177,14 @@ signal status_vector : std_logic_vector(447 downto 0);
 
 
 begin
-
-	dclk <= s_axi_aclk;
-	refclk_p <= clk_156_25MHz;
-	refclk_n <= not(refclk_p);
-
+    coreclk_out <= coreclk_out_s;
+	dclk <= clk_100MHz;
+	refclk_p <= clk_156_25MHz_p;
+	refclk_n <= clk_156_25MHz_n;
 	signal_detect <= '1';
 	tx_fault <= '0';
 	configuration_vector(399 downto 384) <= x"4C4B";
 	pma_pmd_type <= "111";
-
 	drp_gnt <= drp_req;
 	drp_den_i <= drp_den_o;
 	drp_dwe_i <= drp_dwe_o;
@@ -178,10 +195,10 @@ begin
 
 	xgbe_0_0 : xgbe_0
 	port map (
-		clk_156_25MHz => clk_156_25MHz,
-		rst_clk_156_25MHz => rst_clk_156_25MHz,
+		clk_156_25MHz => coreclk_out_s,
+		rst_clk_156_25MHz => rstn_coreclk,
 		clk_20MHz => clk_20MHz,
-		rst_clk_20MHz => rst_clk_20MHz,
+		rst_clk_20MHz => rstn_clk_20MHz,
 		interrupt => interrupt,
 		s_axi_aclk => s_axi_aclk,
 		s_axi_aresetn => s_axi_aresetn,
@@ -217,7 +234,7 @@ begin
 		refclk_p => refclk_p,
 		refclk_n => refclk_n,
 		sim_speedup_control => sim_speedup_control,
-		coreclk_out => coreclk_out,
+		coreclk_out => coreclk_out_s,
 		qplloutclk_out => qplloutclk_out,
 		qplloutrefclk_out => qplloutrefclk_out,
 		qplllock_out => qplllock_out,
@@ -260,5 +277,13 @@ begin
 		pma_pmd_type => pma_pmd_type,
 		tx_disable => tx_disable
 	);
-		
+
+	reset_gen_0_0 : reset_gen_0
+	port map (
+		clk => coreclk_out_s,
+		asynchr_rst_n => rstn_clk_156_25MHz,
+		locked => '1',
+		rst_out_n => rstn_coreclk,
+		rst_out_p => rstp_coreclk
+	);
 end;

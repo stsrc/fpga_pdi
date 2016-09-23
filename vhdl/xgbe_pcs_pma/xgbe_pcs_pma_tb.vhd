@@ -13,13 +13,17 @@ architecture xgbe_pcs_pma_tb_arch of xgbe_pcs_pma_tb is
 
 component xgbe_pcs_pma is
 	port (
-		clk_156_25MHz		: in std_logic;
-		rst_clk_156_25MHz 	: in std_logic;
-		clk_20MHz		: in std_logic;
-		rst_clk_20MHz		: in std_logic;
+		clk_156_25MHz_p		: in std_logic;
+        clk_156_25MHz_n     : in std_logic;
+        rstn_clk_156_25MHz     : in std_logic;
+    
+        clk_20MHz        : in std_logic;
+        rstn_clk_20MHz    : in std_logic;
 
+        clk_100MHz : in std_logic;
+        rstn_clk_100MHz : in std_logic;
+    
 		interrupt		: out std_logic;
-
 		s_axi_aclk		: in std_logic;
 		s_axi_aresetn		: in std_logic;
 		s_axi_awaddr		: in std_logic_vector(3 downto 0);
@@ -45,10 +49,10 @@ component xgbe_pcs_pma is
 		rxn 			: in std_logic;
 		txp 			: out std_logic;
 		txn 			: out std_logic;
-		coreclk_out		: out std_logic;
+		reset           : in std_logic;
+			coreclk_out		: out std_logic;
 		core_status		: out std_logic_vector(7 downto 0);
 		sim_speedup_control	: in std_logic;
-		reset			: in std_logic;
 		resetdone		: out std_logic
 	);
 end component;
@@ -62,9 +66,9 @@ end component;
 
   signal coreclk_out : std_logic := '0';
   signal core_status : std_logic_vector(7 downto 0) := (others => '0');
-  signal sim_speedup_control, reset, resetdone : std_logic := '0';
+  signal sim_speedup_control, resetdone : std_logic := '0';
 
-  signal clk_156_25MHz, clk_20MHz, rst_clk_156_25MHz, rst_clk_20MHz : std_logic := '0';
+  signal clk_156_25MHz_p, clk_156_25MHz_n, clk_20MHz, reset, rstn_clk_156_25MHz, rstn_clk_20MHz : std_logic := '0';
   signal interrupt : std_logic := '0';
   signal s_axi_aclk, s_axi_aresetn, s_axi_arready, s_axi_arvalid, s_axi_awready, s_axi_awvalid : std_logic := '0';
   signal s_axi_bready, s_axi_bvalid, s_axi_rready, s_axi_rvalid, s_axi_wready, s_axi_wvalid : std_logic := '0';
@@ -278,10 +282,15 @@ end component;
 begin
 	xgbe_pcs_pma_0 : xgbe_pcs_pma
 	port map (
-		clk_156_25MHz => clk_156_25MHz,
-		rst_clk_156_25MHz => rst_clk_156_25MHz,
+		clk_156_25MHz_p => clk_156_25MHz_p,
+		clk_156_25MHz_n => clk_156_25MHz_n,
+		rstn_clk_156_25MHz => rstn_clk_156_25MHz,
 		clk_20MHz => clk_20MHz,
-		rst_clk_20MHz => rst_clk_20MHz,
+		rstn_clk_20MHz => rstn_clk_20MHz,
+		
+		clk_100MHz => s_axi_aclk,
+        rstn_clk_100MHz => s_axi_aresetn,
+
 		interrupt => interrupt,
 		s_axi_aclk => s_axi_aclk,
       		s_axi_araddr(3 downto 0) => s_axi_araddr(3 downto 0),
@@ -308,10 +317,11 @@ begin
 		rxn => rxn,
 		txp => txp,
 		txn => txn,
-		coreclk_out => coreclk_out,
+        reset => reset,
+        coreclk_out => coreclk_out,
 		core_status => core_status,
 		sim_speedup_control => sim_speedup_control,
-		reset => reset,
+
 		resetdone => resetdone
 	);
 
@@ -319,18 +329,18 @@ begin
   reset_proc : process
   begin
     reset <= '0';
-    rst_clk_156_25MHz <= '1';
-    rst_clk_20MHz <= '1';
+    rstn_clk_156_25MHz <= '1';
+    rstn_clk_20MHz <= '1';
     s_axi_aresetn <= '1';
     wait for 100 ns;
     reset <= '1';
-    rst_clk_156_25MHz <= '0';
-    rst_clk_20MHz <= '0';
+    rstn_clk_156_25MHz <= '0';
+    rstn_clk_20MHz <= '0';
     s_axi_aresetn <= '0';
     wait for 100 ns;
     reset <= '0';
-    rst_clk_156_25MHz <= '1';
-    rst_clk_20MHz <= '1';
+    rstn_clk_156_25MHz <= '1';
+    rstn_clk_20MHz <= '1';
     s_axi_aresetn <= '1';
     wait until coreclk_out = '1';
     sim_speedup_control <= '1';
@@ -340,9 +350,11 @@ begin
   -- Generate the 156.25MHz
   gen_refclk : process
   begin
-    clk_156_25MHz <= '0';
+    clk_156_25MHz_p <= '0';
+    clk_156_25MHz_n <= '1';
     wait for PERIODCORECLK/2;
-    clk_156_25MHz <= '1';
+    clk_156_25MHz_p <= '1';
+    clk_156_25MHz_n <= '0';
     wait for PERIODCORECLK/2;
   end process gen_refclk;
 
@@ -756,7 +768,7 @@ begin
   p_tx_block_lock_next_blstate : process (bitclk)
   begin
     if(rising_edge(bitclk)) then
-      if(reset = '1' or resetdone = '0') then
+      if(resetdone = '0') then
         BLSTATE <= LOCK_INIT;
       else
         BLSTATE <= next_blstate;
@@ -1033,20 +1045,20 @@ send : process
     s_axi_wstrb<=b"0000";
     
     wait until interrupt = '1';
-    wait;    
+      
     s_axi_araddr<="0000";
         readit<='1';                --start axi read from slave
         wait for 1 ns; 
        readit<='0';                --clear "start read" flag
     wait until s_axi_rready = '1';
-    wait until s_axi_rready = '0';    --axi_data should be equal to 17
+    wait until s_axi_rready = '0';    --axi_data should be equal to 64
     
         s_axi_araddr<="0100";    
    for i in 0 to 15 loop
         readit<='1';                --start axi read from slave
         wait for 1 ns; 
        readit<='0';                --clear "start read" flag
-    wait until s_axi_rready = '1';    --axi_data should be equal to 10000000...
+    wait until s_axi_rready = '1';    --axi_data should be equal to 00000000...
     wait until s_axi_rready = '0';
     end loop;
     end loop; 
