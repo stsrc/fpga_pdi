@@ -37,9 +37,11 @@ entity xgbe is
 		s_axi_rvalid		: out std_logic;
 		s_axi_rready		: in std_logic;
 		xgmii_rxc : in STD_LOGIC_VECTOR ( 7 downto 0 );
-        xgmii_rxd : in STD_LOGIC_VECTOR ( 63 downto 0 );
-        xgmii_txc : out STD_LOGIC_VECTOR ( 7 downto 0 );
-        xgmii_txd : out STD_LOGIC_VECTOR ( 63 downto 0 )
+        	xgmii_rxd : in STD_LOGIC_VECTOR ( 63 downto 0 );
+        	xgmii_txc : out STD_LOGIC_VECTOR ( 7 downto 0 );
+        	xgmii_txd : out STD_LOGIC_VECTOR ( 63 downto 0 );
+		xgmii_tx_clk : in std_logic;
+		xgmii_rx_clk : in std_logic
 	);
 end xgbe;
 
@@ -436,8 +438,8 @@ begin
 	xge_mac_0 : xge_mac
 		port map (
 			clk_156m25 => clk_156_25MHz,
-			clk_xgmii_rx => clk_156_25MHz,
-			clk_xgmii_tx => clk_156_25MHz,
+			clk_xgmii_rx => xgmii_rx_clk,
+			clk_xgmii_tx => xgmii_tx_clk,
 			pkt_rx_avail => pkt_rx_avail,
 			pkt_rx_data => pkt_rx_data,
 			pkt_rx_eop => pkt_rx_eop,

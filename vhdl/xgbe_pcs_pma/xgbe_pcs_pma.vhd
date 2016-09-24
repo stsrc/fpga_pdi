@@ -2,17 +2,17 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
+library unisim;
+use unisim.vcomponents.all;
+
 entity xgbe_pcs_pma is
 	port (
 		clk_156_25MHz_p		: in std_logic;
 		clk_156_25MHz_n     : in std_logic;
 		rstn_clk_156_25MHz 	: in std_logic;
-		
-		clk_20MHz		: in std_logic;
-		rstn_clk_20MHz	: in std_logic;
     
- 	       clk_100MHz : in std_logic;
-        	rstn_clk_100MHz : in std_logic;
+ 	    clk_100MHz : in std_logic;
+        rstn_clk_100MHz : in std_logic;
 
 		interrupt		: out std_logic;
 		s_axi_aclk		: in std_logic;
@@ -42,7 +42,6 @@ entity xgbe_pcs_pma is
 		txp 			: out std_logic;
 		txn 			: out std_logic;
 		
- 	       	reset           	: in std_logic;
 		coreclk_out		: out std_logic;
 		core_status		: out std_logic_vector(7 downto 0);
 		sim_speedup_control	: in std_logic;
@@ -134,32 +133,34 @@ component xgbe_0 IS
     xgmii_rxc : IN STD_LOGIC_VECTOR(7 DOWNTO 0);
     xgmii_rxd : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
     xgmii_txc : OUT STD_LOGIC_VECTOR(7 DOWNTO 0);
-    xgmii_txd : OUT STD_LOGIC_VECTOR(63 DOWNTO 0)
+    xgmii_txd : OUT STD_LOGIC_VECTOR(63 DOWNTO 0);
+    xgmii_tx_clk : IN STD_LOGIC;
+    xgmii_rx_clk : IN STD_LOGIC
   );
 END component;
 
 component reset_gen_0 IS
   PORT (
     clk : IN STD_LOGIC;
-    asynchr_rst_n : IN STD_LOGIC;
+    asynchr_rst : IN STD_LOGIC;
     locked : IN STD_LOGIC;
     rst_out_n : OUT STD_LOGIC;
     rst_out_p : OUT STD_LOGIC
   );
 END component;
 
-signal xgmii_rxc, xgmii_txc : std_logic_vector(7 downto 0);
-signal xgmii_rxd, xgmii_txd : std_logic_vector(63 downto 0);
+signal xgmii_rxc, xgmii_rxc_reg, xgmii_txc, xgmii_txc_reg : std_logic_vector(7 downto 0);
+signal xgmii_rxd, xgmii_rxd_reg, xgmii_txd, xgmii_txd_reg : std_logic_vector(63 downto 0);
+signal xgmii_rx_clk, xgmii_tx_clk : std_logic := '0';
 
-
-signal dclk, rxrecclk_out, refclk_p, refclk_n : std_logic := '0';
+signal dclk, dclk_buf, rxrecclk_out, refclk_p, refclk_n : std_logic := '0';
 signal qplloutclk_out, qplloutrefclk_out, qplllock_out : std_logic := '0';
 --signal coreclk_out, sim_speedup_control : std_logic := '0';
 signal coreclk_out_s: std_logic := '0';
 signal txusrclk_out, txusrclk2_out, areset_datapathclk_out : std_logic := '0';
 signal gttxreset_out, gtrxreset_out, txuserrdy_out, reset_counter_done_out : std_logic := '0';
 signal signal_detect, tx_fault, tx_disable : std_logic := '0';
---signal reset, resetdone : std_logic := '0';
+signal reset : std_logic := '0';
 
 signal rstn_coreclk, rstp_coreclk : std_logic := '0';
 
@@ -177,6 +178,7 @@ signal status_vector : std_logic_vector(447 downto 0);
 
 
 begin
+    xgmii_tx_clk <= coreclk_out_s;
     coreclk_out <= coreclk_out_s;
 	dclk <= clk_100MHz;
 	refclk_p <= clk_156_25MHz_p;
@@ -192,13 +194,14 @@ begin
 	drp_di_i <= drp_di_o;
 	drp_drdy_i <= drp_drdy_o;
 	drp_drpdo_i <= drp_drpdo_o;
+	reset <= not(rstn_clk_156_25MHz);
 
 	xgbe_0_0 : xgbe_0
 	port map (
 		clk_156_25MHz => coreclk_out_s,
 		rst_clk_156_25MHz => rstn_coreclk,
-		clk_20MHz => clk_20MHz,
-		rst_clk_20MHz => rstn_clk_20MHz,
+		clk_20MHz => clk_100MHz,
+		rst_clk_20MHz => rstn_clk_100MHz,
 		interrupt => interrupt,
 		s_axi_aclk => s_axi_aclk,
 		s_axi_aresetn => s_axi_aresetn,
@@ -221,15 +224,17 @@ begin
 		s_axi_rresp   => s_axi_rresp,
 		s_axi_rvalid  => s_axi_rvalid,
 		s_axi_rready  => s_axi_rready,
-		xgmii_rxc     => xgmii_rxc,
-		xgmii_rxd     => xgmii_rxd,
+		xgmii_rxc     => xgmii_rxc_reg,
+		xgmii_rxd     => xgmii_rxd_reg,
 		xgmii_txc     => xgmii_txc,
-		xgmii_txd     => xgmii_txd
+		xgmii_txd     => xgmii_txd,
+		xgmii_tx_clk  => xgmii_tx_clk,
+		xgmii_rx_clk  => xgmii_rx_clk
 	);	
 	
 	ten_gig_eth_pcs_pma_0_0 : ten_gig_eth_pcs_pma_0
 	port map (
-		dclk => dclk,
+		dclk => dclk_buf,
 		rxrecclk_out => rxrecclk_out,
 		refclk_p => refclk_p,
 		refclk_n => refclk_n,
@@ -246,8 +251,8 @@ begin
 		txuserrdy_out => txuserrdy_out,
 		reset_counter_done_out => reset_counter_done_out,
 		reset => reset,
-		xgmii_txd => xgmii_txd,
-		xgmii_txc => xgmii_txc,
+		xgmii_txd => xgmii_txd_reg,
+		xgmii_txc => xgmii_txc_reg,
 		xgmii_rxd => xgmii_rxd,
 		xgmii_rxc => xgmii_rxc,
 		txp => txp,
@@ -281,9 +286,26 @@ begin
 	reset_gen_0_0 : reset_gen_0
 	port map (
 		clk => coreclk_out_s,
-		asynchr_rst_n => rstn_clk_156_25MHz,
+		asynchr_rst => rstn_clk_156_25MHz,
 		locked => '1',
 		rst_out_n => rstn_coreclk,
 		rst_out_p => rstp_coreclk
+	);
+	--xgmii is registered, because ten gig eth pcs pma documentation states, that it improves placing.
+	process (coreclk_out_s) begin
+	if (rising_edge(coreclk_out_s)) then
+	       xgmii_txc_reg <= xgmii_txc;
+	       xgmii_rxc_reg <= xgmii_rxc;
+	       xgmii_txd_reg <= xgmii_txd;
+	       xgmii_rxd_reg <= xgmii_rxd;
+	end if;
+	end process;
+    
+    xgmii_rx_clk <= coreclk_out_s;
+	
+	dclk_bufg_i : BUFG
+	port map (
+		I => dclk,
+		O => dclk_buf
 	);
 end;

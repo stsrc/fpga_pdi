@@ -17,11 +17,8 @@ component xgbe_pcs_pma is
         clk_156_25MHz_n     : in std_logic;
         rstn_clk_156_25MHz     : in std_logic;
     
-        clk_20MHz        : in std_logic;
-        rstn_clk_20MHz    : in std_logic;
-
-        clk_100MHz : in std_logic;
-        rstn_clk_100MHz : in std_logic;
+        clk_100MHz        : in std_logic;
+        rstn_clk_100MHz    : in std_logic;
     
 		interrupt		: out std_logic;
 		s_axi_aclk		: in std_logic;
@@ -49,8 +46,7 @@ component xgbe_pcs_pma is
 		rxn 			: in std_logic;
 		txp 			: out std_logic;
 		txn 			: out std_logic;
-		reset           : in std_logic;
-			coreclk_out		: out std_logic;
+		coreclk_out		: out std_logic;
 		core_status		: out std_logic_vector(7 downto 0);
 		sim_speedup_control	: in std_logic;
 		resetdone		: out std_logic
@@ -68,7 +64,7 @@ end component;
   signal core_status : std_logic_vector(7 downto 0) := (others => '0');
   signal sim_speedup_control, resetdone : std_logic := '0';
 
-  signal clk_156_25MHz_p, clk_156_25MHz_n, clk_20MHz, reset, rstn_clk_156_25MHz, rstn_clk_20MHz : std_logic := '0';
+  signal clk_156_25MHz_p, clk_156_25MHz_n, rstn_clk_156_25MHz : std_logic := '0';
   signal interrupt : std_logic := '0';
   signal s_axi_aclk, s_axi_aresetn, s_axi_arready, s_axi_arvalid, s_axi_awready, s_axi_awvalid : std_logic := '0';
   signal s_axi_bready, s_axi_bvalid, s_axi_rready, s_axi_rvalid, s_axi_wready, s_axi_wvalid : std_logic := '0';
@@ -285,8 +281,6 @@ begin
 		clk_156_25MHz_p => clk_156_25MHz_p,
 		clk_156_25MHz_n => clk_156_25MHz_n,
 		rstn_clk_156_25MHz => rstn_clk_156_25MHz,
-		clk_20MHz => clk_20MHz,
-		rstn_clk_20MHz => rstn_clk_20MHz,
 		
 		clk_100MHz => s_axi_aclk,
         rstn_clk_100MHz => s_axi_aresetn,
@@ -317,8 +311,8 @@ begin
 		rxn => rxn,
 		txp => txp,
 		txn => txn,
-        reset => reset,
-        coreclk_out => coreclk_out,
+    
+		coreclk_out => coreclk_out,
 		core_status => core_status,
 		sim_speedup_control => sim_speedup_control,
 
@@ -328,20 +322,16 @@ begin
   -- Generate the resets.
   reset_proc : process
   begin
-    reset <= '0';
     rstn_clk_156_25MHz <= '1';
-    rstn_clk_20MHz <= '1';
     s_axi_aresetn <= '1';
     wait for 100 ns;
-    reset <= '1';
     rstn_clk_156_25MHz <= '0';
-    rstn_clk_20MHz <= '0';
     s_axi_aresetn <= '0';
-    wait for 100 ns;
-    reset <= '0';
+    wait for 6.4 ns;
     rstn_clk_156_25MHz <= '1';
-    rstn_clk_20MHz <= '1';
+    wait for 3.6 ns;
     s_axi_aresetn <= '1';
+    wait for 40 ns;
     wait until coreclk_out = '1';
     sim_speedup_control <= '1';
     wait;
@@ -381,13 +371,6 @@ begin
 	wait for 5 ns;
   end process gen_s_axi_aclk;
 
-  gen_20MHz : process
-  begin
-	clk_20MHz <= '0';
-	wait for 25 ns;
-	clk_20MHz <= '1';
-	wait for 25 ns;
-  end process gen_20MHz;
 
   p_rx_stimulus : process
 

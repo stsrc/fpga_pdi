@@ -48,11 +48,13 @@ architecture STRUCTURE of tb is
 		xgmii_rxc : in STD_LOGIC_VECTOR (7 downto 0);
 		xgmii_rxd : in STD_LOGIC_VECTOR (63 downto 0);
 		xgmii_txc : out STD_LOGIC_VECTOR (7 downto 0);
-		xgmii_txd : out STD_LOGIC_VECTOR (63 downto 0)
-		
+		xgmii_txd : out STD_LOGIC_VECTOR (63 downto 0);
+		xgmii_tx_clk : in std_logic;
+		xgmii_rx_clk : in std_logic			
 	);
 end component xgbe;
 
+  signal xgmii_tx_clk, xgmii_rx_clk : std_logic := '0';
   signal clk_156_25MHz, clk_20MHz, rst_clk_156_25MHz, rst_clk_20MHz : std_logic := '0';
   signal interrupt : std_logic := '0';
   signal s_axi_aclk, s_axi_aresetn, s_axi_arready, s_axi_arvalid, s_axi_awready, s_axi_awvalid : std_logic := '0';
@@ -101,8 +103,30 @@ block_design_i: xgbe
       xgmii_rxd => xgmii_rxd,
       xgmii_txd => xgmii_txd,
       xgmii_rxc => xgmii_rxc,
-      xgmii_txc => xgmii_txc
+      xgmii_txc => xgmii_txc,
+      xgmii_tx_clk => xgmii_tx_clk,
+      xgmii_rx_clk => xgmii_rx_clk
 );
+
+process begin
+	wait for 1 ns;
+	while true loop
+		xgmii_tx_clk <= '0';
+		wait for 3.2 ns;
+		xgmii_tx_clk <= '1';
+		wait for 3.2 ns;
+	end loop;
+end process;
+
+process begin
+	wait for 1.3 ns;
+	while true loop
+		xgmii_rx_clk <= '1';
+		wait for 3.2 ns;
+		xgmii_rx_clk <= '0';
+		wait for 3.2 ns;
+	end loop;
+end process;
 
 process begin
     s_axi_aclk <= '0';
