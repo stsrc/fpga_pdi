@@ -11,6 +11,8 @@ else
 
 default:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules
-	$(CROSS_COMPILE)gcc eth_srv_test.c -o eth_srv_test
-	$(CROSS_COMPILE)gcc eth_clnt_test.c -o eth_clnt_test
+	$(CROSS_COMPILE)gcc eth_srv_mb.c -o eth_srv_mb
+	$(CROSS_COMPILE)gcc eth_clnt_mb.c -o eth_clnt_mb
+	gcc eth_srv_x86.c -o eth_srv_x86
+	gcc eth_clnt_x86.c -o eth_clnt_x86
 endif

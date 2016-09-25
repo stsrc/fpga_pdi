@@ -5,7 +5,7 @@
 #include <sys/types.h>
 #include <net/if.h>
 
-#define SERVER "192.168.0.0"
+#define SERVER "10.0.0.3"
 #define BUFLEN 512
 #define PORT 8888
 

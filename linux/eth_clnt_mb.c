@@ -6,8 +6,8 @@
 #include <net/if.h>
 #include <unistd.h>
 
-#define SERVER "192.168.0.0"
-#define CLIENT "192.168.0.1"
+#define SERVER "10.0.0.2"
+#define CLIENT "10.0.0.3"
 #define BUFLEN 512
 #define PORT 8888
 
@@ -44,7 +44,7 @@ int main(void) {
 	}
 
 	struct ifreq ifr;
-	snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "eth1");
+	snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "eth0");
 	if (setsockopt(sockfd, SOL_SOCKET, SO_BINDTODEVICE, (void *)&ifr, sizeof(ifr)) < 0) {
 		perror("setsockopt");
 		return -1;

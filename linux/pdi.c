@@ -332,7 +332,7 @@ static int pdi_remove(struct platform_device *pdev)
 
 //TODO DETECTION OF ALREADY USED DEVICE, ETC!
 static const struct of_device_id pdi_of_match[] = {
-	{ .compatible = "xlnx,xgbe-1.0", },
+	{ .compatible = "xlnx,xgbe-pcs-pma-1.0", },
 	{}
 };
 
