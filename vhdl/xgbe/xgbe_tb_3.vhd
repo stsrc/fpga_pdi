@@ -111,9 +111,9 @@ block_design_i: xgbe
 process begin
 	wait for 1 ns;
 	while true loop
-		xgmii_rx_clk <= '0';
+		xgmii_tx_clk <= '0';
 		wait for 3.2 ns;
-		xgmii_rx_clk <= '1';
+		xgmii_tx_clk <= '1';
 		wait for 3.2 ns;
 	end loop;
 end process;
@@ -205,6 +205,17 @@ tb : process
 begin
 
     wait until rst_clk_20MHz = '1';
+
+ 	s_axi_awaddr<="1000";
+        s_axi_wdata<=x"00000001";
+        s_axi_wstrb<=b"1111";
+        sendit<='1';                --start axi write to slave
+        wait for 1 ns; 
+        sendit<='0'; --clear start send flag
+	wait until s_axi_bvalid = '1';
+	wait until s_axi_bvalid = '0';  --axi write finished
+        s_axi_wstrb<=b"0000";
+
     wait for 50 ns;
     for i in 0 to 15 loop
 	   s_axi_awaddr<="0100";

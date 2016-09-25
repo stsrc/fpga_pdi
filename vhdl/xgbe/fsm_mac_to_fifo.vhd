@@ -29,6 +29,7 @@ entity fsm_mac_to_fifo is
     port (
         clk          : in  std_logic;
         rst          : in  std_logic;
+	    en_rcv	     : in  std_logic;
         fifo_data     : out std_logic_vector(63 downto 0);
         fifo_cnt      : out std_logic_vector(13 downto 0);
         fifo_cnt_strb : out std_logic;
@@ -65,7 +66,8 @@ begin
     end if;
     end process;
     
-    process(state, cnt, pkt_rx_mod, pkt_rx_avail, pkt_rx_val, pkt_rx_eop, pkt_rx_data, pkt_rx_err) begin
+    process(state, cnt, en_rcv, pkt_rx_mod, pkt_rx_avail, pkt_rx_val, 
+        pkt_rx_eop, pkt_rx_data, pkt_rx_err) begin
     tmp_state <= "00";
     pkt_rx_ren <= '0';
     fifo_strb <= '0';
@@ -76,7 +78,7 @@ begin
     fifo_drop <= '0';
     case state is
     when "00" =>
-        if (pkt_rx_avail = '1') then
+        if (pkt_rx_avail = '1' and en_rcv = '1') then
            pkt_rx_ren <= '1';
            tmp_state <= "01";
         end if;

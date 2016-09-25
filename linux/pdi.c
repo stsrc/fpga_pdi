@@ -283,7 +283,7 @@ static int pdi_init_ethernet(struct platform_device *pdev)
 	pdi_netdev->irq = pdi_irq;
 	pdi_netdev->base_addr = pdi_iomem->start;
 
-	pdi_netdev->flags = IFF_POINTOPOINT | IFF_NOARP;
+	pdi_netdev->flags = IFF_POINTOPOINT;
 	memset(pdi_netdev->dev_addr, DEVICE_MAC_BYTE, ETH_ALEN);
 	
 	pdi_netdev->netdev_ops = &pdi_netdev_ops;

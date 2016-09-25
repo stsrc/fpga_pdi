@@ -206,12 +206,23 @@ send : process
       
 tb : process
 begin
- 
+
 	wait until rst_clk_20MHz = '1';
+
+ 	s_axi_awaddr<="1000";
+        s_axi_wdata<=x"00000001";
+        s_axi_wstrb<=b"1111";
+        sendit<='1';                --start axi write to slave
+        wait for 1 ns; 
+        sendit<='0'; --clear start send flag
+	wait until s_axi_bvalid = '1';
+	wait until s_axi_bvalid = '0';  --axi write finished
+        s_axi_wstrb<=b"0000";
+
 for j in 0 to 9 loop
 	wait for 10 ns;
 
- 	   s_axi_awaddr<="0100";
+ 	s_axi_awaddr<="0100";
         s_axi_wdata<=x"00000100";
         s_axi_wstrb<=b"1111";
         sendit<='1';                --start axi write to slave

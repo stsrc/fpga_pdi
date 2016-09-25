@@ -203,6 +203,16 @@ send : process
       
 tb : process
 begin
+
+ 	s_axi_awaddr<="1000";
+        s_axi_wdata<=x"00000001";
+        s_axi_wstrb<=b"1111";
+        sendit<='1';                --start axi write to slave
+        wait for 1 ns; 
+        sendit<='0'; --clear start send flag
+	wait until s_axi_bvalid = '1';
+	wait until s_axi_bvalid = '0';  --axi write finished
+        s_axi_wstrb<=b"0000";
  
 for j in 0 to 9 loop
 	xgmii_rxd <= x"0707070707070707";
@@ -239,7 +249,7 @@ for j in 0 to 9 loop
     wait until s_axi_rready = '0';    --axi_data should be equal to 17
     
         s_axi_araddr<="0100";    
-   for i in 0 to 21 loop
+   for i in 0 to 15 loop
         readit<='1';                --start axi read from slave
         wait for 1 ns; 
        readit<='0';                --clear "start read" flag

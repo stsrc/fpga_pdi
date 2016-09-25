@@ -203,12 +203,12 @@ send : process
       
 tb : process
 begin
- 
-for j in 0 to 9 loop
+
+	wait until rst_clk_20MHz = '1';
+
+for j in 0 to 1500 loop
 	xgmii_rxd <= x"0707070707070707";
 	xgmii_rxc <= x"ff";
-	wait for 10 ns;
-
 	wait until rising_edge(clk_156_25MHz);
 	xgmii_rxd <= x"d5555555555555fb";
 	xgmii_rxc <= x"01";
@@ -248,6 +248,19 @@ for j in 0 to 9 loop
 	wait until rising_edge(clk_156_25MHz);
 	xgmii_rxd <= x"0707070707070707";
 	xgmii_rxc <= x"ff";
+	wait until rising_edge(clk_156_25MHz);
+	end loop;
+    
+    s_axi_awaddr<="1000";
+    s_axi_wdata<=x"00000001";
+    s_axi_wstrb<=b"1111";
+    sendit<='1';                --start axi write to slave
+    wait for 1 ns; 
+    sendit<='0'; --clear start send flag
+    wait until s_axi_bvalid = '1';
+    wait until s_axi_bvalid = '0';  --axi write finished
+    s_axi_wstrb<=b"0000";
+    
     wait until interrupt = '1';
 
     s_axi_araddr<="0000";
@@ -308,7 +321,7 @@ for j in 0 to 9 loop
 	 
     for i in 0 to 8 loop
 	   s_axi_awaddr<="0100";
-        s_axi_wdata<=x"ffffff00" or std_logic_vector(to_unsigned(i, 32) + to_unsigned(j, 32));
+        s_axi_wdata<=x"ffffff00" or std_logic_vector(to_unsigned(i, 32));
         s_axi_wstrb<=b"1111";
         sendit<='1';                --start axi write to slave
         wait for 1 ns; 
@@ -318,7 +331,7 @@ for j in 0 to 9 loop
         s_axi_wstrb<=b"0000";
 
 	    s_axi_awaddr<="0100";
-        s_axi_wdata<=x"f0000000" or std_logic_vector(to_unsigned(i, 32) + to_unsigned(j, 32));
+        s_axi_wdata<=x"f0000000" or std_logic_vector(to_unsigned(i, 32));
         s_axi_wstrb<=b"1111";
         sendit<='1';                --start axi write to slave
         wait for 1 ns; 
@@ -338,7 +351,6 @@ for j in 0 to 9 loop
 	wait until s_axi_bvalid = '0';  --axi write finished
     s_axi_wstrb<=b"0000";
     
-end loop;
 end process tb;   
      
 end structure;

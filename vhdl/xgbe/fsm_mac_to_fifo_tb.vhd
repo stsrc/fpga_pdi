@@ -42,6 +42,7 @@ component fsm_mac_to_fifo is
     port (
         clk          : in  std_logic;
         rst          : in  std_logic;
+	    en_rcv	     : in std_logic;
         fifo_data     : out std_logic_vector(63 downto 0);
         fifo_cnt      : out std_logic_vector(13 downto 0);
         fifo_cnt_strb : out std_logic;
@@ -59,17 +60,21 @@ component fsm_mac_to_fifo is
        );
 end component;
 
-signal clk, rst, fifo_cnt_strb, fifo_strb, fifo_drop, eop_strb, pkt_rx_ren, pkt_rx_avail, pkt_rx_eop, pkt_rx_val, pkt_rx_sop,
-pkt_rx_err : std_logic := '0';
+signal clk, rst, fifo_cnt_strb, fifo_strb, fifo_drop, eop_strb, pkt_rx_ren : std_logic := '0';
+signal en_rcv, pkt_rx_avail, pkt_rx_eop, pkt_rx_val, pkt_rx_sop : std_logic := '0';
+signal pkt_rx_err: std_logic := '0';
 signal fifo_data, pkt_rx_data : std_logic_vector(63 downto 0) := (others => '0');
 signal fifo_cnt  : std_logic_vector(13 downto 0) := (others => '0');
 signal pkt_rx_mod : std_logic_vector(2 downto 0) := (others => '0');
 
 begin
-fsm_1 : fsm_mac_to_fifo port map (clk => clk, rst => rst, fifo_data => fifo_data, fifo_cnt => fifo_cnt, fifo_cnt_strb =>
-fifo_cnt_strb, fifo_strb => fifo_strb, fifo_drop => fifo_drop, eop_strb => eop_strb, pkt_rx_data => pkt_rx_data,
-pkt_rx_ren => pkt_rx_ren, pkt_rx_avail => pkt_rx_avail, pkt_rx_eop => pkt_rx_eop, pkt_rx_val => pkt_rx_val,
-pkt_rx_sop => pkt_rx_sop, pkt_rx_mod => pkt_rx_mod, pkt_rx_err => pkt_rx_err);
+fsm_1 : fsm_mac_to_fifo port map (
+clk => clk, rst => rst, en_rcv => en_rcv, fifo_data => fifo_data, 
+fifo_cnt => fifo_cnt, fifo_cnt_strb => fifo_cnt_strb, fifo_strb => fifo_strb, fifo_drop => fifo_drop,
+eop_strb => eop_strb, pkt_rx_data => pkt_rx_data, pkt_rx_ren => pkt_rx_ren, pkt_rx_avail => pkt_rx_avail,
+pkt_rx_eop => pkt_rx_eop, pkt_rx_val => pkt_rx_val, pkt_rx_sop => pkt_rx_sop, pkt_rx_mod => pkt_rx_mod,
+pkt_rx_err => pkt_rx_err
+);
 
 process begin
 clk <= '0';
@@ -86,12 +91,16 @@ wait;
 end process;
 
 process begin
+--en_rcv <= '1';
+en_rcv <= '0';
 wait for 6 ns;
 pkt_rx_avail <= '1';
+pkt_rx_data <= std_logic_vector(to_unsigned(101, 64));
+wait for 10 ns;
+en_rcv <= '1';
 wait for 10 ns;
 pkt_rx_sop <= '1';
 pkt_rx_val <= '1';
-pkt_rx_data <= std_logic_vector(to_unsigned(101, 64));
 wait for 10 ns;
 pkt_rx_sop <= '0';
 pkt_rx_avail <= '0';

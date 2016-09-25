@@ -86,6 +86,17 @@ component xge_mac is
 	);
 end component xge_mac;
 
+component signal_over_clocks is
+	port (
+		clk_in : in std_logic;
+		clk_in_resetn : in std_logic;
+		clk_out : in std_logic;
+		clk_out_resetn : in std_logic;
+		signal_in : in std_logic;
+		signal_out : out std_logic
+	);
+end component signal_over_clocks;
+
 component fifo is
 	generic (
 		DATA_WIDTH : integer := 64;
@@ -99,11 +110,23 @@ component fifo is
 		data_out	: out std_logic_vector(DATA_WIDTH - 1 downto 0);
 		strb_in		: in std_logic;
 		strb_out	: in std_logic;
-		drop_in		: in std_logic;
-		interrupt_in	: in std_logic;
-		interrupt_out	: out std_logic
+		drop_in		: in std_logic
 	);
 end component fifo;
+
+component control_register is
+	generic (
+		DATA_WIDTH : integer := 32
+	);
+
+	port (
+		clk 		: in std_logic;
+		clk_resetn 	: in std_logic;
+		reg_input 	: in std_logic_vector(DATA_WIDTH - 1 downto 0);
+		reg_strb 	: in std_logic;
+		rcv_en		: out std_logic
+	);
+end component control_register;
 
 component AXI_to_regs is
 	generic (
@@ -196,6 +219,7 @@ component fsm_mac_to_fifo is
 	port (
 		clk          : in  std_logic;	
 		rst          : in  std_logic;
+		en_rcv        : in std_logic;
 		fifo_data     : out std_logic_vector(63 downto 0);
 		fifo_cnt      : out std_logic_vector(13 downto 0);
 	        fifo_cnt_strb : out std_logic;
@@ -237,6 +261,8 @@ end component;
 	signal interrupt_axi_fifo, interrupt_fifo_mac : std_logic := '0';
 	signal interrupt_mac_fifo, interrupt_fifo_axi : std_logic := '0';
 	
+	signal en_rcv  : std_logic := '1';
+	
 	signal slv_reg0_rd	: std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
 	signal slv_reg0_wr	: std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
 	signal slv_reg1_rd	: std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
@@ -264,7 +290,17 @@ end component;
 
 begin
 
-    
+   	
+	int_fifo_axi_mac_data : signal_over_clocks
+		port map (
+			clk_in => s_axi_aclk,
+			clk_in_resetn => s_axi_aresetn,
+			clk_out => clk_156_25MHz,
+			clk_out_resetn => rst_clk_156_25MHz,
+			signal_in => interrupt_axi_fifo,
+			signal_out => interrupt_fifo_mac
+		);	 
+ 
 	fifo_axi_mac_data : fifo	
 		generic map (DATA_WIDTH => 64, DATA_HEIGHT => 10) 
 		port map (
@@ -275,10 +311,9 @@ begin
 			data_out => data_fifo_mac,
 			strb_in => strb_data_axi_fifo,
 			strb_out => strb_data_fifo_mac,
-			drop_in => '0',
-			interrupt_in => interrupt_axi_fifo,
-			interrupt_out => interrupt_fifo_mac
+			drop_in => '0'
 		);
+
 	fifo_axi_mac_cnt : fifo		
 		generic map (DATA_WIDTH => 14, DATA_HEIGHT => 10)
 		port map (
@@ -289,10 +324,19 @@ begin
 			data_out => cnt_fifo_mac,
 			strb_in => strb_cnt_axi_fifo,
 			strb_out => strb_cnt_fifo_mac,
-			drop_in => '0',
-			interrupt_in => '0',
-			interrupt_out => open
+			drop_in => '0'
 		);
+
+	int_fifo_mac_axi_data : signal_over_clocks
+		port map (
+			clk_in => clk_156_25MHz,
+			clk_in_resetn => rst_clk_156_25MHz,
+			clk_out => s_axi_aclk,
+			clk_out_resetn => s_axi_aresetn,
+			signal_in => interrupt_mac_fifo,
+			signal_out => interrupt_fifo_axi
+		);	 
+
 	fifo_mac_axi_data : fifo	
 		generic map (DATA_WIDTH => 64, DATA_HEIGHT => 10)
 		port map (
@@ -303,10 +347,9 @@ begin
 			data_out => data_fifo_axi,
 			strb_in => strb_data_mac_fifo,
 			strb_out => strb_data_fifo_axi,
-			drop_in => fifo_drop,
-			interrupt_in => interrupt_mac_fifo,
-			interrupt_out => interrupt_fifo_axi
+			drop_in => fifo_drop
 		);
+
 	fifo_mac_axi_cnt : fifo		
 		generic map (DATA_WIDTH => 14, DATA_HEIGHT => 10)
 		port map (
@@ -317,9 +360,7 @@ begin
 			data_out => cnt_fifo_axi,
 			strb_in => strb_cnt_mac_fifo,
 			strb_out => strb_cnt_fifo_axi,
-			drop_in => '0',
-			interrupt_in => '0',
-			interrupt_out => open
+			drop_in => '0'
 		);
 
 	fsm_axi_to_fifo_0 : fsm_axi_to_fifo
@@ -358,6 +399,7 @@ begin
 		port map (
 			clk => clk_156_25MHz,
 			rst => rst_clk_156_25MHz,
+			en_rcv => en_rcv,
 			fifo_data => data_mac_fifo,
 			fifo_cnt => cnt_mac_fifo,
 			fifo_cnt_strb => strb_cnt_mac_fifo,
@@ -387,6 +429,16 @@ begin
 			cnt_strb_in => slv_reg0_rd_strb,
 			cnt_strb_out => strb_cnt_fifo_axi
 		);
+	
+	control_register_0 : control_register
+	generic map (DATA_WIDTH => 32)
+	port map (
+			clk => s_axi_aclk,
+			clk_resetn => s_axi_aresetn,
+			reg_input => slv_reg2_wr,
+			reg_strb => slv_reg2_wr_strb,
+			rcv_en  => en_rcv
+	);
 		
 	AXI_to_regs_0 : AXI_to_regs 
 		generic map (
