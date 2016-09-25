@@ -317,6 +317,9 @@ static int pdi_probe(struct platform_device *pdev)
 	rt = pdi_init_ethernet(pdev);
 	if (rt)
 		return rt;
+	/* Enabling data reception on FPGA */
+	iowrite32(1, reg2);
+	wmb();
 	return 0;
 }
 
