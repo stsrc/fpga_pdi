@@ -8,43 +8,43 @@ use unisim.vcomponents.all;
 entity xgbe_pcs_pma is
 	port (
 		clk_156_25MHz_p		: in std_logic;
-		clk_156_25MHz_n     : in std_logic;
+		clk_156_25MHz_n     	: in std_logic;
 		rstn_clk_156_25MHz 	: in std_logic;
     
  	    clk_100MHz : in std_logic;
         rstn_clk_100MHz : in std_logic;
 
 		interrupt		: out std_logic;
-		s_axi_aclk		: in std_logic;
-		s_axi_aresetn		: in std_logic;
-		s_axi_awaddr		: in std_logic_vector(3 downto 0);
-		s_axi_awprot		: in std_logic_vector(2 downto 0);
-		s_axi_awvalid		: in std_logic;
+		s_axi_aclk		: in  std_logic;
+		s_axi_aresetn		: in  std_logic;
+		s_axi_awaddr		: in  std_logic_vector(3 downto 0);
+		s_axi_awprot		: in  std_logic_vector(2 downto 0);
+		s_axi_awvalid		: in  std_logic;
 		s_axi_awready		: out std_logic;
-		s_axi_wdata		: in std_logic_vector(31 downto 0);
-		s_axi_wstrb		: in std_logic_vector(3 downto 0);
-		s_axi_wvalid		: in std_logic;
+		s_axi_wdata		: in  std_logic_vector(31 downto 0);
+		s_axi_wstrb		: in  std_logic_vector(3 downto 0);
+		s_axi_wvalid		: in  std_logic;
 		s_axi_wready		: out std_logic;
 		s_axi_bresp		: out std_logic_vector(1 downto 0);
 		s_axi_bvalid		: out std_logic;
-		s_axi_bready		: in std_logic;
-		s_axi_araddr		: in std_logic_vector(3 downto 0);
-		s_axi_arprot		: in std_logic_vector(2 downto 0);
-		s_axi_arvalid		: in std_logic;
+		s_axi_bready		: in  std_logic;
+		s_axi_araddr		: in  std_logic_vector(3 downto 0);
+		s_axi_arprot		: in  std_logic_vector(2 downto 0);
+		s_axi_arvalid		: in  std_logic;
 		s_axi_arready		: out std_logic;
 		s_axi_rdata		: out std_logic_vector(31 downto 0);
 		s_axi_rresp		: out std_logic_vector(1 downto 0);
 		s_axi_rvalid		: out std_logic;
-		s_axi_rready		: in std_logic;
+		s_axi_rready		: in  std_logic;
 
-		rxp 			: in std_logic;
-		rxn 			: in std_logic;
+		rxp 			: in  std_logic;
+		rxn 			: in  std_logic;
 		txp 			: out std_logic;
 		txn 			: out std_logic;
 		
 		coreclk_out		: out std_logic;
 		core_status		: out std_logic_vector(7 downto 0);
-		sim_speedup_control	: in std_logic;
+		sim_speedup_control	: in  std_logic;
 		resetdone		: out std_logic	
 	);
 end xgbe_pcs_pma;
@@ -52,10 +52,10 @@ end xgbe_pcs_pma;
 architecture xgbe_pcs_pma_arch of xgbe_pcs_pma is
 
 component ten_gig_eth_pcs_pma_0 is
-  port (
-      dclk               : in  std_logic;
-      rxrecclk_out       : out std_logic;
-      refclk_p           : in  std_logic;
+	port (
+		dclk               : in  std_logic;
+		rxrecclk_out       : out std_logic;
+		refclk_p           : in  std_logic;
       refclk_n           : in  std_logic;
       sim_speedup_control: in  std_logic := '0';
       coreclk_out    : out std_logic;
@@ -178,8 +178,9 @@ signal status_vector : std_logic_vector(447 downto 0);
 
 
 begin
-    xgmii_tx_clk <= coreclk_out_s;
-    coreclk_out <= coreclk_out_s;
+	xgmii_tx_clk <= coreclk_out_s;
+	xgmii_rx_clk <= coreclk_out_s;
+	coreclk_out <= coreclk_out_s;
 	dclk <= clk_100MHz;
 	refclk_p <= clk_156_25MHz_p;
 	refclk_n <= clk_156_25MHz_n;
@@ -293,16 +294,14 @@ begin
 	);
 	--xgmii is registered, because ten gig eth pcs pma documentation states, that it improves placing.
 	process (coreclk_out_s) begin
-	if (rising_edge(coreclk_out_s)) then
-	       xgmii_txc_reg <= xgmii_txc;
-	       xgmii_rxc_reg <= xgmii_rxc;
-	       xgmii_txd_reg <= xgmii_txd;
-	       xgmii_rxd_reg <= xgmii_rxd;
-	end if;
+		if (rising_edge(coreclk_out_s)) then
+		       xgmii_txc_reg <= xgmii_txc;
+		       xgmii_rxc_reg <= xgmii_rxc;
+		       xgmii_txd_reg <= xgmii_txd;
+		       xgmii_rxd_reg <= xgmii_rxd;
+		end if;
 	end process;
-    
-    xgmii_rx_clk <= coreclk_out_s;
-	
+   	
 	dclk_bufg_i : BUFG
 	port map (
 		I => dclk,

@@ -36,12 +36,13 @@ entity xgbe is
 		s_axi_rresp		: out std_logic_vector(1 downto 0);
 		s_axi_rvalid		: out std_logic;
 		s_axi_rready		: in std_logic;
-		xgmii_rxc : in STD_LOGIC_VECTOR ( 7 downto 0 );
-        	xgmii_rxd : in STD_LOGIC_VECTOR ( 63 downto 0 );
-        	xgmii_txc : out STD_LOGIC_VECTOR ( 7 downto 0 );
-        	xgmii_txd : out STD_LOGIC_VECTOR ( 63 downto 0 );
-		xgmii_tx_clk : in std_logic;
-		xgmii_rx_clk : in std_logic
+
+		xgmii_rxc 		: in std_logic_vector(7 downto 0);
+        	xgmii_rxd 		: in std_logic_vector(63 downto 0);
+        	xgmii_txc 		: out std_logic_vector(7 downto 0);
+        	xgmii_txd 		: out std_logic_vector(63 downto 0);
+		xgmii_tx_clk 		: in std_logic;
+		xgmii_rx_clk 		: in std_logic
 	);
 end xgbe;
 
@@ -49,51 +50,51 @@ architecture xgbe_arch of xgbe is
 
 component xge_mac is
 	port (
-		clk_156m25 : in STD_LOGIC;
-		clk_xgmii_rx : in STD_LOGIC;
-		clk_xgmii_tx : in STD_LOGIC;
-		pkt_rx_avail : out STD_LOGIC;
-		pkt_rx_data : out STD_LOGIC_VECTOR ( 63 downto 0 );
-		pkt_rx_eop : out STD_LOGIC;
-		pkt_rx_err : out STD_LOGIC;
-		pkt_rx_mod : out STD_LOGIC_VECTOR ( 2 downto 0 );
-		pkt_rx_ren : in STD_LOGIC;
-		pkt_rx_sop : out STD_LOGIC;
-		pkt_rx_val : out STD_LOGIC;
-		pkt_tx_data : in STD_LOGIC_VECTOR ( 63 downto 0 );
-		pkt_tx_eop : in STD_LOGIC;
-		pkt_tx_full : out STD_LOGIC;
-		pkt_tx_mod : in STD_LOGIC_VECTOR ( 2 downto 0 );
-		pkt_tx_sop : in STD_LOGIC;
-		pkt_tx_val : in STD_LOGIC;
-		reset_156m25_n : in STD_LOGIC;
-		reset_xgmii_rx_n : in STD_LOGIC;
-		reset_xgmii_tx_n : in STD_LOGIC;
-		wb_ack_o : out STD_LOGIC;
-		wb_adr_i : in STD_LOGIC_VECTOR ( 7 downto 0 );
-		wb_clk_i : in STD_LOGIC;
-		wb_cyc_i : in STD_LOGIC;
-		wb_dat_i : in STD_LOGIC_VECTOR ( 31 downto 0 );
-		wb_dat_o : out STD_LOGIC_VECTOR ( 31 downto 0 );
-		wb_int_o : out STD_LOGIC;
-		wb_rst_i : in STD_LOGIC;
-		wb_stb_i : in STD_LOGIC;
-		wb_we_i : in STD_LOGIC;
-		xgmii_rxc : in STD_LOGIC_VECTOR ( 7 downto 0 );
-		xgmii_rxd : in STD_LOGIC_VECTOR ( 63 downto 0 );
-		xgmii_txc : out STD_LOGIC_VECTOR ( 7 downto 0 );
-		xgmii_txd : out STD_LOGIC_VECTOR ( 63 downto 0 )
+		clk_156m25 	: in std_logic;
+		clk_xgmii_rx 	: in std_logic;
+		clk_xgmii_tx 	: in std_logic;
+		pkt_rx_avail 	: out std_logic;
+		pkt_rx_data 	: out std_logic_vector ( 63 downto 0 );
+		pkt_rx_eop 	: out std_logic;
+		pkt_rx_err 	: out std_logic;
+		pkt_rx_mod 	: out std_logic_vector ( 2 downto 0 );
+		pkt_rx_ren 	: in std_logic;
+		pkt_rx_sop 	: out std_logic;
+		pkt_rx_val 	: out std_logic;
+		pkt_tx_data 	: in std_logic_vector ( 63 downto 0 );
+		pkt_tx_eop 	: in std_logic;
+		pkt_tx_full 	: out std_logic;
+		pkt_tx_mod 	: in std_logic_vector ( 2 downto 0 );
+		pkt_tx_sop 	: in std_logic;
+		pkt_tx_val 	: in std_logic;
+		reset_156m25_n 	: in std_logic;
+		reset_xgmii_rx_n : in std_logic;
+		reset_xgmii_tx_n : in std_logic;
+		wb_ack_o 	: out std_logic;
+		wb_adr_i 	: in std_logic_vector ( 7 downto 0 );
+		wb_clk_i 	: in std_logic;
+		wb_cyc_i 	: in std_logic;
+		wb_dat_i 	: in std_logic_vector ( 31 downto 0 );
+		wb_dat_o 	: out std_logic_vector ( 31 downto 0 );
+		wb_int_o 	: out std_logic;
+		wb_rst_i 	: in std_logic;
+		wb_stb_i 	: in std_logic;
+		wb_we_i 	: in std_logic;
+		xgmii_rxc 	: in std_logic_vector ( 7 downto 0 );
+		xgmii_rxd 	: in std_logic_vector ( 63 downto 0 );
+		xgmii_txc 	: out std_logic_vector ( 7 downto 0 );
+		xgmii_txd 	: out std_logic_vector ( 63 downto 0 )
 	);
 end component xge_mac;
 
 component signal_over_clocks is
 	port (
-		clk_in : in std_logic;
-		clk_in_resetn : in std_logic;
-		clk_out : in std_logic;
-		clk_out_resetn : in std_logic;
-		signal_in : in std_logic;
-		signal_out : out std_logic
+		clk_in 		: in std_logic;
+		clk_in_resetn 	: in std_logic;
+		clk_out 	: in std_logic;
+		clk_out_resetn 	: in std_logic;
+		signal_in 	: in std_logic;
+		signal_out 	: out std_logic
 	);
 end component signal_over_clocks;
 
@@ -142,12 +143,12 @@ component AXI_to_regs is
 		slv_reg1_rd	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
 		slv_reg1_wr	: out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
 		slv_reg2_rd	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
-		slv_reg2_wr    : out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg2_wr     : out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
 		slv_reg3_rd	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
-		slv_reg3_wr    : out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg3_wr     : out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
         
 		slv_reg0_rd_strb   : out std_logic;
-		slv_reg1_rd_strb  : out std_logic;
+		slv_reg1_rd_strb   : out std_logic;
 		slv_reg2_rd_strb   : out std_logic;
 		slv_reg3_rd_strb   : out std_logic;
 		slv_reg0_wr_strb   : out std_logic;
@@ -181,76 +182,76 @@ end component;
 
 component fsm_axi_to_fifo is
 	port (
-		clk : in std_logic;
-		rst : in std_logic;
-		axi_strb    : in std_logic;
-		axi_data : in std_logic_vector(31 downto 0);
-		fifo_data : out std_logic_vector(63 downto 0);
-		fifo_strb : out std_logic;
+		clk 		: in std_logic;
+		rst 		: in std_logic;
+		axi_strb	: in std_logic;
+		axi_data 	: in std_logic_vector(31 downto 0);
+		fifo_data 	: out std_logic_vector(63 downto 0);
+		fifo_strb 	: out std_logic;
 
-		cnt_axi : in std_logic_vector(31 downto 0);
-		cnt_fifo : out std_logic_vector(13 downto 0);
-		cnt_axi_strb : in std_logic;
-		packet_strb : out std_logic;
-		cnt_fifo_strb : out std_logic
+		cnt_axi 	: in std_logic_vector(31 downto 0);
+		cnt_fifo 	: out std_logic_vector(13 downto 0);
+		cnt_axi_strb 	: in std_logic;
+		packet_strb 	: out std_logic;
+		cnt_fifo_strb 	: out std_logic
 	);
 end component;
 
 component fsm_fifo_to_mac is
 	port (
-		clk : in std_logic;
-		rst : in std_logic;
-		pkt_tx_data : out std_logic_vector(63 downto 0);
-		pkt_tx_val : out std_logic;
-		pkt_tx_sop : out std_logic;
-		pkt_tx_eop : out std_logic;
-		pkt_tx_mod : out std_logic_vector(2 downto 0);
-		pkt_tx_full : in std_logic;
+		clk 		: in std_logic;
+		rst 		: in std_logic;
+		pkt_tx_data 	: out std_logic_vector(63 downto 0);
+		pkt_tx_val 	: out std_logic;
+		pkt_tx_sop 	: out std_logic;
+		pkt_tx_eop 	: out std_logic;
+		pkt_tx_mod 	: out std_logic_vector(2 downto 0);
+		pkt_tx_full 	: in std_logic;
 	
-		packet_strb : in std_logic;
-		fifo_data : in std_logic_vector(63 downto 0);
-		fifo_cnt : in std_logic_vector(13 downto 0);
-		fifo_data_strb : out std_logic;
-		fifo_cnt_strb : out std_logic
+		packet_strb 	: in std_logic;
+		fifo_data 	: in std_logic_vector(63 downto 0);
+		fifo_cnt 	: in std_logic_vector(13 downto 0);
+		fifo_data_strb 	: out std_logic;
+		fifo_cnt_strb 	: out std_logic
 	);
 end component;
 
 component fsm_mac_to_fifo is
 	port (
-		clk          : in  std_logic;	
-		rst          : in  std_logic;
-		en_rcv        : in std_logic;
-		fifo_data     : out std_logic_vector(63 downto 0);
-		fifo_cnt      : out std_logic_vector(13 downto 0);
-	        fifo_cnt_strb : out std_logic;
-	        fifo_strb    : out std_logic;
-	        fifo_drop    : out std_logic;
-		eop_strb     : out std_logic;
-	        pkt_rx_data  : in  std_logic_vector(63 downto 0);
-	        pkt_rx_ren   : out std_logic;
-	        pkt_rx_avail : in  std_logic;
-	        pkt_rx_eop   : in  std_logic;
-	        pkt_rx_val   : in  std_logic;
-	        pkt_rx_sop   : in  std_logic;
-	        pkt_rx_mod   : in  std_logic_vector(2 downto 0);
-	        pkt_rx_err   : in  std_logic
+		clk 		: in  std_logic;	
+		rst 		: in  std_logic;
+		en_rcv 		: in std_logic;
+		fifo_data 	: out std_logic_vector(63 downto 0);
+		fifo_cnt 	: out std_logic_vector(13 downto 0);
+	        fifo_cnt_strb 	: out std_logic;
+	        fifo_strb 	: out std_logic;
+	        fifo_drop 	: out std_logic;
+		eop_strb 	: out std_logic;
+	        pkt_rx_data 	: in  std_logic_vector(63 downto 0);
+	        pkt_rx_ren 	: out std_logic;
+	        pkt_rx_avail 	: in  std_logic;
+	        pkt_rx_eop   	: in  std_logic;
+	        pkt_rx_val   	: in  std_logic;
+	        pkt_rx_sop   	: in  std_logic;
+	        pkt_rx_mod   	: in  std_logic_vector(2 downto 0);
+	        pkt_rx_err   	: in  std_logic
        );
 end component;
 
 component fsm_fifo_to_axi is
 	port (
-		clk     : in std_logic;
-		rst     : in std_logic;
+		clk     	: in std_logic;
+		rst     	: in std_logic;
     
-		fifo_out : in std_logic_vector(63 downto 0);
-		fifo_strb : out std_logic;
-		axi_in   : out std_logic_vector(31 downto 0);
-		axi_strb  : in std_logic;
+		fifo_out 	: in std_logic_vector(63 downto 0);
+		fifo_strb 	: out std_logic;
+		axi_in   	: out std_logic_vector(31 downto 0);
+		axi_strb  	: in std_logic;
     
-		cnt_in : in std_logic_vector(13 downto 0);
-		cnt_out : out std_logic_vector(31 downto 0);
-		cnt_strb_in : in std_logic;
-		cnt_strb_out : out std_logic
+		cnt_in 		: in std_logic_vector(13 downto 0);
+		cnt_out 	: out std_logic_vector(31 downto 0);
+		cnt_strb_in 	: in std_logic;
+		cnt_strb_out 	: out std_logic
 	);
 
 end component;
@@ -291,7 +292,7 @@ end component;
 begin
 
    	
-	int_fifo_axi_mac_data : signal_over_clocks
+	int_fifo_axi_mac : signal_over_clocks
 		port map (
 			clk_in => s_axi_aclk,
 			clk_in_resetn => s_axi_aresetn,
@@ -327,7 +328,7 @@ begin
 			drop_in => '0'
 		);
 
-	int_fifo_mac_axi_data : signal_over_clocks
+	int_fifo_mac_axi : signal_over_clocks
 		port map (
 			clk_in => clk_156_25MHz,
 			clk_in_resetn => rst_clk_156_25MHz,

@@ -270,86 +270,67 @@ for j in 0 to 1500 loop
     wait until s_axi_rready = '1';
     wait until s_axi_rready = '0';    --axi_data should be equal to 17
     
+    for i in 0 to 50 loop
         s_axi_araddr<="0100";    
-   for i in 0 to 21 loop
         readit<='1';                --start axi read from slave
         wait for 1 ns; 
        readit<='0';                --clear "start read" flag
     wait until s_axi_rready = '1';    --axi_data should be equal to 10000000...
     wait until s_axi_rready = '0';
     end loop; 
-
- 	   s_axi_awaddr<="0100";
-        s_axi_wdata<=x"00000100";
-        s_axi_wstrb<=b"1111";
-        sendit<='1';                --start axi write to slave
-        wait for 1 ns; 
-        sendit<='0'; --clear start send flag
-	    wait until s_axi_bvalid = '1';
-	    wait until s_axi_bvalid = '0';  --axi write finished
-        s_axi_wstrb<=b"0000";
-
-	    s_axi_awaddr<="0100";
-        s_axi_wdata<=x"00010010";
-        s_axi_wstrb<=b"1111";
-        sendit<='1';                --start axi write to slave
-        wait for 1 ns; 
-        sendit<='0'; --clear start send flag
-	   wait until s_axi_bvalid = '1';
-	   wait until s_axi_bvalid = '0';  --axi write finished
-        s_axi_wstrb<=b"0000";  
-
-	   s_axi_awaddr<="0100";
-        s_axi_wdata<=x"94000002";
-        s_axi_wstrb<=b"1111";
-        sendit<='1';                --start axi write to slave
-        wait for 1 ns; 
-        sendit<='0'; --clear start send flag
-	    wait until s_axi_bvalid = '1';
-	    wait until s_axi_bvalid = '0';  --axi write finished
-        s_axi_wstrb<=b"0000";
-
-	    s_axi_awaddr<="0100";
-        s_axi_wdata<=x"88b50001";
-        s_axi_wstrb<=b"1111";
-        sendit<='1';                --start axi write to slave
-        wait for 1 ns; 
-        sendit<='0'; --clear start send flag
-	   wait until s_axi_bvalid = '1';
-	   wait until s_axi_bvalid = '0';  --axi write finished
-        s_axi_wstrb<=b"0000";
-	 
-    for i in 0 to 8 loop
-	   s_axi_awaddr<="0100";
-        s_axi_wdata<=x"ffffff00" or std_logic_vector(to_unsigned(i, 32));
-        s_axi_wstrb<=b"1111";
-        sendit<='1';                --start axi write to slave
-        wait for 1 ns; 
-        sendit<='0'; --clear start send flag
-	    wait until s_axi_bvalid = '1';
-	    wait until s_axi_bvalid = '0';  --axi write finished
-        s_axi_wstrb<=b"0000";
-
-	    s_axi_awaddr<="0100";
-        s_axi_wdata<=x"f0000000" or std_logic_vector(to_unsigned(i, 32));
-        s_axi_wstrb<=b"1111";
-        sendit<='1';                --start axi write to slave
-        wait for 1 ns; 
-        sendit<='0'; --clear start send flag
-	   wait until s_axi_bvalid = '1';
-	   wait until s_axi_bvalid = '0';  --axi write finished
-        s_axi_wstrb<=b"0000";
-    end loop;
-
-	s_axi_awaddr<="0000";
-    s_axi_wdata<=x"00000051";
-    s_axi_wstrb<=b"1111";
-    sendit<='1';                --start axi write to slave
-    wait for 1 ns; 
-    sendit<='0'; --clear start send flag
-	wait until s_axi_bvalid = '1';
-	wait until s_axi_bvalid = '0';  --axi write finished
-    s_axi_wstrb<=b"0000";
+    
+     
+ xgmii_rxd <= x"0707070707070707";
+ xgmii_rxc <= x"ff";
+ wait until rising_edge(clk_156_25MHz);
+ xgmii_rxd <= x"d5555555555555fb";
+ xgmii_rxc <= x"01";
+ wait until rising_edge(clk_156_25MHz);
+ xgmii_rxd <= x"0001001000000100";
+ xgmii_rxc <= x"00";
+ wait until rising_edge(clk_156_25MHz);
+ xgmii_rxd <= x"88b5000194000002";
+ xgmii_rxc <= x"00";
+ wait until rising_edge(clk_156_25MHz);
+ xgmii_rxd <= x"f0000000ffffff00";
+ xgmii_rxc <= x"00";
+ wait until rising_edge(clk_156_25MHz);
+ xgmii_rxd <= x"f0000001ffffff01";
+ xgmii_rxc <= x"00";
+ wait until rising_edge(clk_156_25MHz);
+ xgmii_rxd <= x"f0000002ffffff02";
+ xgmii_rxc <= x"00";
+ wait until rising_edge(clk_156_25MHz);
+ xgmii_rxd <= x"f0000003ffffff03";
+ xgmii_rxc <= x"00";
+ wait until rising_edge(clk_156_25MHz);
+ xgmii_rxd <= x"f0000004ffffff04";
+ xgmii_rxc <= x"00";
+ wait until rising_edge(clk_156_25MHz);
+ xgmii_rxd <= x"f0000005ffffff05";
+ xgmii_rxc <= x"00";
+ wait until rising_edge(clk_156_25MHz);
+ xgmii_rxd <= x"f0000006ffffff06";
+ xgmii_rxc <= x"00";
+ wait until rising_edge(clk_156_25MHz);
+ xgmii_rxd <= x"f0000007ffffff07";
+ xgmii_rxc <= x"00";
+ wait until rising_edge(clk_156_25MHz);
+ xgmii_rxd <= x"0707fd79d45b7708";
+ xgmii_rxc <= x"e0";
+ wait until rising_edge(clk_156_25MHz);
+ xgmii_rxd <= x"0707070707070707";
+ xgmii_rxc <= x"ff";
+ wait until rising_edge(clk_156_25MHz);
+ 
+  for i in 0 to 50 loop
+  s_axi_araddr<="0100";    
+  readit<='1';                --start axi read from slave
+  wait for 1 ns; 
+  readit<='0';                --clear "start read" flag
+  wait until s_axi_rready = '1';    --axi_data should be equal to 10000000...
+  wait until s_axi_rready = '0';
+  end loop; 
     
 end process tb;   
      
