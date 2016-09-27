@@ -46,11 +46,10 @@ int main(void) {
 			perror("ecvfrom");
 			return -1;
 		}
+		printf("!!!!!!!!!!!!!!!test!!!!!!!!!!!!!!!\n");
+		printf("UDP SERVER: received packet from %s:%d\n\n", 
+		       inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
 
-		printf("UDP SERVER: received packet from %s:%d\nData:%s\n", 
-		       inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port),
-		       buf);
-		printf("Packet contains:\n");
 		
 		memset(buf, 0, BUFLEN);
 	}

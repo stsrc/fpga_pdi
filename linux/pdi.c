@@ -126,9 +126,9 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 	unsigned int data_in = 0;
 	unsigned int data_len = 0;
 	unsigned char roundoff = 0;
-
 	struct sk_buff *skb = NULL;
 	unsigned char *buf = NULL;
+	int ret;
 
 	pr_info("pdi_int_handler executed.\n");
 	data_len = ioread32(reg0);
@@ -143,7 +143,9 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 			"FPGA IN ERROR STATE\n");
 		return IRQ_HANDLED;
 	}
-	skb_reserve(skb, 2); /*Align IP on 16 byte boundaries */
+	/*Align IP on 16 byte boundaries */
+	skb_reserve(skb, 2);
+
 	buf = skb_put(skb, data_len);
 	skb->dev = pdi_netdev; 
 
@@ -153,7 +155,7 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 		data_len -= 4;
 		for (int i = 0; i < 4; i++) {
 			*buf = data_in & 0xff;
-			pr_info("PDI: received byte: 0x%x\n", *buf);
+			//pr_info("PDI: received byte: 0x%x\n", *buf);
 			buf++;
 			data_in = data_in >> 8;
 		}
@@ -164,19 +166,28 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 		rmb();
 		for (int i = 0; i < data_len; i++) {
 			*buf = data_in & 0xff;
-			pr_info("PDI: received byte: 0x%x\n", *buf);
+			//pr_info("PDI: received byte: 0x%x\n", *buf);
 			buf++;
 			data_in = data_in >> 8;
 		}
 	}
 
-	/* 4 bytes flushed from fifo */
+	/* 
+	 * 4 bytes flushed from FPGA fifo, because fifo's data width is 8 byte,
+	 * and AXI data width is 4 byte.
+	 */
 	if (roundoff <= 4) {
 		ioread32(reg1);
 		rmb();
 	}
+	skb->protocol = eth_type_trans(skb, pdi_netdev); 	
+	ret = netif_rx(skb);
 
-	netif_rx_ni(skb);
+	if (ret == NET_RX_SUCCESS)
+		pr_info("PDI: netif_rx returned NET_RX_SUCCESS.\n");
+	else
+		pr_info("PDI: netif_rx returned NET_RX_DROP.\n");
+
 	return IRQ_HANDLED;
 }
 

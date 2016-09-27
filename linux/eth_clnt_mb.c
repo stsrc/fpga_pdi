@@ -60,7 +60,7 @@ int main(void) {
 		perror("connect");
 		return rt;
 	}
-	printf("client has connected socket to server.\n");
+	printf("client has connected socket to the server.\n");
 	rt = send(sockfd, buf, 65, 0);
 	
 	if (rt < 0) 

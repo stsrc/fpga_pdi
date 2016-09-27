@@ -43,14 +43,11 @@ int main(void) {
 			      &slen);
 
 		if (rt == -1) {
-			perror("ecvfrom");
+			perror("recvfrom");
 			return -1;
 		}
-
-		printf("UDP SERVER: received packet from %s:%d\nData:%s\n", 
-		       inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port),
-		       buf);
-
-		memset(buf, 0, BUFLEN);
+		printf("!!!!!!!!!!!!!!!test!!!!!!!!!!!!!!!\n");
+		printf("UDP SERVER: received packet from %s:%d\n\n", 
+		       inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
 	}
 }
