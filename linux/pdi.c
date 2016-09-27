@@ -105,7 +105,7 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		/*TODO word generation */
 		for (int i = 0; i < 4; i++) {
 			data |=	*data_ptr << (8 * i);
-			pr_info("PDI: sent byte: 0x%x\n", *data_ptr);
+//			pr_info("PDI: sent byte: 0x%x\n", *data_ptr);
 			data_ptr++;
 		}
 		
