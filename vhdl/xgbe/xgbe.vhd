@@ -104,9 +104,10 @@ component fifo is
 		DATA_HEIGHT : integer := 10
 	);
 	port (
-		rst		: in std_logic;
 		clk_in		: in std_logic;
-		clk_out		: in std_logic;	
+		clk_in_resetn   : in std_logic;
+		clk_out		: in std_logic;
+		clk_out_resetn  : in std_logic;	
 		data_in		: in std_logic_vector(DATA_WIDTH - 1 downto 0);
 		data_out	: out std_logic_vector(DATA_WIDTH - 1 downto 0);
 		strb_in		: in std_logic;
@@ -304,10 +305,11 @@ begin
  
 	fifo_axi_mac_data : fifo	
 		generic map (DATA_WIDTH => 64, DATA_HEIGHT => 10) 
-		port map (
-			rst     => s_axi_aresetn,  
+		port map (  
 			clk_in  => s_axi_aclk,
+			clk_in_resetn => s_axi_aresetn,
 			clk_out => clk_156_25MHz,
+			clk_out_resetn => rst_clk_156_25MHz,
 			data_in => data_axi_fifo,
 			data_out => data_fifo_mac,
 			strb_in => strb_data_axi_fifo,
@@ -318,9 +320,10 @@ begin
 	fifo_axi_mac_cnt : fifo		
 		generic map (DATA_WIDTH => 14, DATA_HEIGHT => 10)
 		port map (
-			rst	=> s_axi_aresetn,
 			clk_in	=> s_axi_aclk,
+			clk_in_resetn => s_axi_aresetn,
 			clk_out => clk_156_25MHz,
+			clk_out_resetn => rst_clk_156_25MHz,
 			data_in => cnt_axi_fifo,
 			data_out => cnt_fifo_mac,
 			strb_in => strb_cnt_axi_fifo,
@@ -341,9 +344,10 @@ begin
 	fifo_mac_axi_data : fifo	
 		generic map (DATA_WIDTH => 64, DATA_HEIGHT => 10)
 		port map (
-			rst	=> s_axi_aresetn,
 			clk_in  => clk_156_25MHz,
+			clk_in_resetn => rst_clk_156_25MHz,
 			clk_out => s_axi_aclk,
+			clk_out_resetn	=> s_axi_aresetn,
 			data_in => data_mac_fifo,
 			data_out => data_fifo_axi,
 			strb_in => strb_data_mac_fifo,
@@ -354,9 +358,10 @@ begin
 	fifo_mac_axi_cnt : fifo		
 		generic map (DATA_WIDTH => 14, DATA_HEIGHT => 10)
 		port map (
-			rst	=> s_axi_aresetn,
 			clk_in  => clk_156_25MHz,
+			clk_in_resetn => rst_clk_156_25MHz,
 			clk_out => s_axi_aclk,
+			clk_out_resetn => s_axi_aresetn,
 			data_in => cnt_mac_fifo,
 			data_out => cnt_fifo_axi,
 			strb_in => strb_cnt_mac_fifo,
