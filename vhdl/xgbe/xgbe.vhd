@@ -240,20 +240,19 @@ end component;
 
 component fsm_fifo_to_axi is
 	port (
-		clk     	: in std_logic;
-		rst     	: in std_logic;
-    
-		fifo_out 	: in std_logic_vector(63 downto 0);
-		fifo_strb 	: out std_logic;
-		axi_in   	: out std_logic_vector(31 downto 0);
-		axi_strb  	: in std_logic;
-    
-		cnt_in 		: in std_logic_vector(13 downto 0);
-		cnt_out 	: out std_logic_vector(31 downto 0);
-		cnt_strb_in 	: in std_logic;
-		cnt_strb_out 	: out std_logic
+		clk	: in std_logic;
+		resetn	: in std_logic;
+	
+		data_from_fifo		: in std_logic_vector(63 downto 0);
+		data_from_fifo_strb	: out std_logic;
+		data_to_axi		: out std_logic_vector(31 downto 0);
+		data_to_axi_strb	: in std_logic;
+	
+		cnt_from_fifo		: in std_logic_vector(13 downto 0);
+		cnt_from_fifo_strb	: out std_logic;
+		cnt_to_axi		: out std_logic_vector(31 downto 0);
+		cnt_to_axi_strb		: in std_logic
 	);
-
 end component;
 
 
@@ -424,15 +423,15 @@ begin
 	fsm_fifo_to_axi_0 : fsm_fifo_to_axi
 		port map (
 			clk => s_axi_aclk,
-			rst => s_axi_aresetn,
-			fifo_out => data_fifo_axi,
-			fifo_strb => strb_data_fifo_axi,
-			axi_in => slv_reg1_rd,
-			axi_strb => slv_reg1_rd_strb,
-			cnt_in => cnt_fifo_axi,
-			cnt_out => slv_reg0_rd,
-			cnt_strb_in => slv_reg0_rd_strb,
-			cnt_strb_out => strb_cnt_fifo_axi
+			resetn => s_axi_aresetn,
+			data_from_fifo => data_fifo_axi,
+			data_from_fifo_strb => strb_data_fifo_axi,
+			data_to_axi => slv_reg1_rd,
+			data_to_axi_strb => slv_reg1_rd_strb,
+			cnt_from_fifo => cnt_fifo_axi,
+			cnt_from_fifo_strb => strb_cnt_fifo_axi,
+			cnt_to_axi => slv_reg0_rd,
+			cnt_to_axi_strb => slv_reg0_rd_strb
 		);
 	
 	control_register_0 : control_register
