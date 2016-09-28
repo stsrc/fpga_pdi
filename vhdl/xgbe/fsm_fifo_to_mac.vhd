@@ -22,27 +22,21 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
---use IEEE.NUMERIC_STD.ALL;
-
--- Uncomment the following library declaration if instantiating
--- any Xilinx leaf cells in this code.
---library UNISIM;
---use UNISIM.VComponents.all;
 
 entity fsm_fifo_to_mac is
 	port (
 	clk : in std_logic;
 	rst : in std_logic;
+	-- xge_mac tx ports
 	pkt_tx_data : out std_logic_vector(63 downto 0);
 	pkt_tx_val : out std_logic;
 	pkt_tx_sop : out std_logic;
 	pkt_tx_eop : out std_logic;
 	pkt_tx_mod : out std_logic_vector(2 downto 0);
 	pkt_tx_full : in std_logic;
-
+	-- port informs about new packet ready to transmi
 	packet_strb : in std_logic;
+	-- fifo output into the fsm/xge_mac
 	fifo_data : in std_logic_vector(63 downto 0);
 	fifo_cnt : in std_logic_vector(13 downto 0);
 	fifo_data_strb : out std_logic;
