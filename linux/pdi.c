@@ -1,3 +1,5 @@
+//TODO cpu_to_le32(xxx)!!!!
+
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/string.h>
@@ -81,13 +83,12 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	uint32_t data = 0;
 	const uint32_t len = skb->len;
-	/* to_add - padding bytes count. FPGA internals are 8 bytes aligned. */
+	/* to_add - padding bytes count. FPGA eth 'internals' are 8 bytes aligned. */
 	const unsigned int to_add = 8 - len % 8;
 	unsigned char *data_ptr = NULL;
 
 	if (to_add != 0) {		
-		if ((unsigned int)skb->end < (unsigned int)skb->tail + 
-		    to_add) {
+		if ((unsigned int)skb->end < (unsigned int)skb->tail + to_add) {
 			pr_info("PDI: FAILED TO ADD SPACE TO SKB!!!\n");
 			return NETDEV_TX_BUSY;
 		}
@@ -96,8 +97,6 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	
 	data_ptr = skb->data;
-
-	pr_info("PDI: data_ptr mod 4 = %d!!!\n", (unsigned int)data_ptr % 4);
 
 	for (int i = 0; i < skb->len / 4; i++) {
 		data = 0;
