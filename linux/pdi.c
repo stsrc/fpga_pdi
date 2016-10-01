@@ -154,7 +154,7 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 		data_len -= 4;
 		for (int i = 0; i < 4; i++) {
 			*buf = data_in & 0xff;
-			//pr_info("PDI: received byte: 0x%x\n", *buf);
+			pr_info("PDI: received byte: 0x%x\n", *buf);
 			buf++;
 			data_in = data_in >> 8;
 		}
@@ -165,7 +165,7 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 		rmb();
 		for (int i = 0; i < data_len; i++) {
 			*buf = data_in & 0xff;
-			//pr_info("PDI: received byte: 0x%x\n", *buf);
+			pr_info("PDI: received byte: 0x%x\n", *buf);
 			buf++;
 			data_in = data_in >> 8;
 		}
@@ -181,12 +181,6 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 	}
 	skb->protocol = eth_type_trans(skb, pdi_netdev); 	
 	ret = netif_rx(skb);
-
-	if (ret == NET_RX_SUCCESS)
-		pr_info("PDI: netif_rx returned NET_RX_SUCCESS.\n");
-	else
-		pr_info("PDI: netif_rx returned NET_RX_DROP.\n");
-
 	return IRQ_HANDLED;
 }
 
@@ -415,6 +409,11 @@ err:
 
 static void __exit pdi_exit(void)
 {
+
+	/*Disabling data reception on FPGA */
+	iowrite32(0, reg2);
+	wmb();
+
 	platform_driver_unregister(&pdi_platform_driver);
 
 	if (pdi_netdev) {

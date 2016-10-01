@@ -1,3 +1,13 @@
+-- Part of 10 gig eth design. Here is an ordinary AXI-XGMII converter.
+-- BURST AXI, DMA not implemented yet. 
+-- Data transmission: 
+-- 1. Write packets to the AXI reg1.
+-- 2. Write byte count to the AXI reg0. It starts packet transmission.
+-- Data reception:
+-- 1. Enable data reception by writing 1 to AXI reg2.
+-- 2. Wait for interrupt == 1.
+-- 3. Read bytes count from AXI reg0.
+-- 4. Read packet from AXI reg1.
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -10,7 +20,7 @@ entity xgbe is
 	port (
 		clk_156_25MHz		: in std_logic;
 		rst_clk_156_25MHz 	: in std_logic;
-		clk_20MHz		: in std_logic;
+		clk_20MHz	: in std_logic;
 		rst_clk_20MHz		: in std_logic;
 
 		interrupt		: out std_logic;
@@ -38,9 +48,9 @@ entity xgbe is
 		s_axi_rready		: in std_logic;
 
 		xgmii_rxc 		: in std_logic_vector(7 downto 0);
-        	xgmii_rxd 		: in std_logic_vector(63 downto 0);
-        	xgmii_txc 		: out std_logic_vector(7 downto 0);
-        	xgmii_txd 		: out std_logic_vector(63 downto 0);
+		xgmii_rxd 		: in std_logic_vector(63 downto 0);
+		xgmii_txc 		: out std_logic_vector(7 downto 0);
+		xgmii_txd 		: out std_logic_vector(63 downto 0);
 		xgmii_tx_clk 		: in std_logic;
 		xgmii_rx_clk 		: in std_logic
 	);
