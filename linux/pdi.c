@@ -1,4 +1,5 @@
 //TODO cpu_to_le32(xxx)!!!!
+//TODO more then one card!!!
 
 #include <linux/errno.h>
 #include <linux/types.h>
@@ -25,6 +26,8 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
+
+#include <linux/dma/xilinx_dma.h>
 
 #define DRIVER_NAME "pdi"
 #define DEVICE_MAC_BYTE 0xab
@@ -83,7 +86,10 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	uint32_t data = 0;
 	const uint32_t len = skb->len;
-	/* to_add - padding bytes count. FPGA eth 'internals' are 8 bytes aligned. */
+	/* 
+	 * to_add - padding bytes count. 
+	 * FPGA eth 'internals' are 8 bytes aligned. 
+	 */
 	const unsigned int to_add = 8 - len % 8;
 	unsigned char *data_ptr = NULL;
 
