@@ -214,10 +214,13 @@ begin
 	wait until s_axi_bvalid = '0';  --axi write finished
         s_axi_wstrb<=b"0000";
  
+ 	xgmii_rxd <= x"0707070707070707";
+    xgmii_rxc <= x"ff";
+    wait for 10 ns;
 for j in 0 to 9 loop
 	xgmii_rxd <= x"0707070707070707";
 	xgmii_rxc <= x"ff";
-	wait for 10 ns;
+	
 
     wait until rising_edge(clk_156_25MHz);
 	xgmii_rxd <= x"555555fb07070707";
@@ -239,6 +242,10 @@ for j in 0 to 9 loop
 	wait until rising_edge(clk_156_25MHz);
 	xgmii_rxd <= x"07070707070707fd";
 	xgmii_rxc <= x"ff";
+	
+	wait until rising_edge(clk_156_25MHz);
+    xgmii_rxd <= x"0707070707070707";
+    xgmii_rxc <= x"ff";
     wait until interrupt = '1';
 
     s_axi_araddr<="0000";

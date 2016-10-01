@@ -59,7 +59,7 @@ end component;
   constant LOCK_INIT : integer := 0;
   constant RESET_CNT : integer := 1;
   constant TEST_SH_ST: integer := 2;
-
+  signal send_my_packet : std_logic := '0';
   signal coreclk_out : std_logic := '0';
   signal core_status : std_logic_vector(7 downto 0) := (others => '0');
   signal sim_speedup_control, resetdone : std_logic := '0';
@@ -472,17 +472,16 @@ begin
 
     
     -- Give the core and TB time to get block_lock on incoming data...
-    while (core_status(0) /= '1' or block_lock /= '1') loop
+    while (send_my_packet /= '1') loop
       rx_stimulus_send_idle;
     end loop;
-    for i in 0 to 500 loop
-    rx_stimulus_send_idle;
-    end loop;
+ 
     rx_stimulus_send_frame(frame_data(0));
-    rx_stimulus_send_idle;
-    for i in 0 to 500 loop
+
+    while (true) loop
         rx_stimulus_send_idle;
     end loop;
+
     wait;
   end process p_rx_stimulus;
 
@@ -954,9 +953,7 @@ send : process
 	begin
 		wait until resetdone = '1'; 
 		wait until block_lock = '1';
-
-	wait until rst_clk_20MHz = '1';
-
+		
  	s_axi_awaddr<="1000";
         s_axi_wdata<=x"00000001";
         s_axi_wstrb<=b"1111";
@@ -1039,7 +1036,8 @@ send : process
 	wait until s_axi_bvalid = '1';
 	wait until s_axi_bvalid = '0';  --axi write finished
     s_axi_wstrb<=b"0000";
-    
+   
+    send_my_packet <= '1'; 
     wait until interrupt = '1';
       
     s_axi_araddr<="0000";
