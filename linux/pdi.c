@@ -1,6 +1,5 @@
 //TODO cpu_to_le32(xxx)!!!!
 //TODO more then one card!!!
-//TODO CLEANING!!!!!!!!!
 
 #include <linux/errno.h>
 #include <linux/types.h>
@@ -28,20 +27,12 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 
-#include "cdma.h"
+#include <linux/dma/xilinx_dma.h>
 
 #define DRIVER_NAME "pdi"
 #define DEVICE_MAC_BYTE 0xab
 
-#define PDI_DESC_CNT 100
-#define PDI_DMA_RING_SIZE sizeof(struct cdma_desc_hw)*PDI_DESC_CNT
-
-struct pdi_ring_info {
-	struct sk_buff *skb;
-	u32 len;
-	dma_addr_t skb_mapping;
-	dma_addr_t len_mapping;
-} __aligned(64);
+MODULE_LICENSE("GPL");
 
 static struct device *pdi_device = NULL;
 static struct cdev *pdi_cdev = NULL;
@@ -56,67 +47,6 @@ static void __iomem *reg0 = NULL;
 static void __iomem *reg1 = NULL;
 static void __iomem *reg2 = NULL;
 static void __iomem *reg3 = NULL;
-
-struct pdi {
-	struct cdma_desc_hw *tx_ring;
-	struct pdi_ring_info *tx_buffers;
-	struct platform_device *pdev;
-
-	dma_addr_t cdma_head;
-	dma_addr_t cdma_tail;
-	
-	u32 tx_desc_pos;
-};
-
-struct pdi pdi;
-
-static int pdi_init_dma_rings(struct platform_device *pdev)
-{
-	//TODO CLEANING!!!
-	struct cdma_desc_hw *temp;
-
-	pdi.tx_ring = dma_alloc_coherent(&pdi.pdev->dev, PDI_DMA_RING_SIZE, 
-					 &pdi.cdma_head, GFP_KERNEL);
-	if (!pdi.tx_ring)
-		return -ENOMEM;
-
-	memset(pdi.tx_ring, 0, PDI_DMA_RING_SIZE);
-
-	for (int i = 0; i < PDI_DESC_CNT; i++) {
-		temp = &pdi.tx_ring[i];
-		temp->next_desc = (u32)pdi.cdma_head;
-		temp->next_desc += sizeof(struct cdma_desc_hw);  		
-	}	
-	temp->next_desc = (u32)pdi.cdma_head;
-	
-	pdi.cdma_tail = pdi.cdma_head + (dma_addr_t)PDI_DMA_RING_SIZE;
-	return 0;
-}
-
-static int pdi_init_buffers(void)
-{
-	pdi.tx_buffers = kzalloc(sizeof(struct pdi_ring_info) * 
-				  (PDI_DESC_CNT / 2), GFP_KERNEL);
-	if (pdi.tx_buffers == NULL)
-		return -ENOMEM;
-
-	return 0;
-}
-
-static int pdi_init_dma(struct platform_device *pdev)
-{
-//TODO ERROR STATE!
-	int rt;
-	
-	rt = pdi_init_dma_rings(pdev);
-	if (rt)
-		return rt;	
-	rt = pdi_init_buffers();
-	if (rt)
-		return rt;
-
-	return 0;
-}
 
 static int pdi_open(struct inode *node, struct file *f)
 {
@@ -154,15 +84,14 @@ const struct file_operations pdi_fops = {
  */
 static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	const u32 len = skb->len;
-	u32 pos;
-	dma_addr_t skb_mapping, len_mapping;
-	
+	uint32_t data = 0;
+	const uint32_t len = skb->len;
 	/* 
 	 * to_add - padding bytes count. 
 	 * FPGA eth 'internals' are 8 bytes aligned. 
 	 */
 	const unsigned int to_add = 8 - len % 8;
+	unsigned char *data_ptr = NULL;
 
 	if (to_add != 0) {		
 		if ((unsigned int)skb->end < (unsigned int)skb->tail + to_add) {
@@ -173,46 +102,27 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		skb_put(skb, to_add);
 	}
 	
-	pos = pdi.tx_desc_pos;
+	data_ptr = skb->data;
 
-	skb_mapping = dma_map_single(&pdi.pdev->dev, skb->data, len, 
-				     DMA_TO_DEVICE);
-	if (dma_mapping_error(&pdi.pdev->dev, skb_mapping)) {
-		//TODO ON ERROR
-		pr_info("PDI: dma_mapping_error 1!\n");
-		return NETDEV_TX_BUSY;
+	for (int i = 0; i < skb->len / 4; i++) {
+		data = 0;
+
+		/*TODO word generation */
+		for (int i = 0; i < 4; i++) {
+			data |=	*data_ptr << (8 * i);
+//			pr_info("PDI: sent byte: 0x%x\n", *data_ptr);
+			data_ptr++;
+		}
+		
+
+		iowrite32(data, reg1);
+		wmb();
 	}
-	
-	len_mapping = dma_map_single(&pdi.pdev->dev, &pdi.tx_buffers[pos].len,
-				     sizeof(u32), DMA_TO_DEVICE);
-	if (dma_mapping_error(&pdi.pdev->dev, len_mapping)) {
-		//TODO ON ERROR
-		pr_info("PDI: dma_mapping_error!\n");
-		return NETDEV_TX_BUSY;
-	}
 
-	pdi.tx_ring[pos].src_addr = skb_mapping;
-	pdi.tx_ring[pos].dest_addr = 0x44A0004;
-	pdi.tx_ring[pos].control = skb->len;
+	iowrite32(len, reg0);
+	wmb();
 
-	pdi.tx_ring[pos + 1].src_addr = len_mapping;
-	pdi.tx_ring[pos + 1].dest_addr = 0x44A0000;
-	pdi.tx_ring[pos + 1].control = sizeof(u32);
-
-	pdi.tx_buffers[pos].skb = skb;
-	pdi.tx_buffers[pos].len = len;
-	pdi.tx_buffers[pos].skb_mapping = skb_mapping;	
-	pdi.tx_buffers[pos].len_mapping = len_mapping;
-
-	dma_sync_single_for_device(&pdi.pdev->dev, pdi.cdma_head, (pos + 1) 
-				 * sizeof(struct cdma_desc_hw), DMA_TO_DEVICE);
-
-	cdma_set_sg(pdi.cdma_head, pdi.cdma_head + 
-		    (pos + 1) * sizeof(struct cdma_desc_hw));
-
-	netdev_sent_queue(dev, skb->len);
-
-	pdi.tx_desc_pos += 2;
+	dev_kfree_skb(skb);
 	return NETDEV_TX_OK;
 }
 
@@ -379,13 +289,15 @@ static int pdi_init_ethernet(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	
+//TODO DO I NEED THIS?
 	pdi_netdev->irq = pdi_irq;
 	pdi_netdev->base_addr = pdi_iomem->start;
 
-	pdi_netdev->flags = IFF_POINTOPOINT | IFF_NOARP;
+	//pdi_netdev->flags = IFF_POINTOPOINT;
 	memset(pdi_netdev->dev_addr, DEVICE_MAC_BYTE, ETH_ALEN);
 	
 	pdi_netdev->netdev_ops = &pdi_netdev_ops;
+//TODO	pdi_netdev->header_ops = &pdi_header_ops;
 
 	rt = register_netdev(pdi_netdev);
 	
@@ -415,23 +327,14 @@ static int pdi_probe(struct platform_device *pdev)
 	rt = pdi_init_ethernet(pdev);
 	if (rt)
 		return rt;
-
-	rt = pdi_init_dma(pdev);
-	if (rt)
-		return rt;
-		
 	/* Enabling data reception on FPGA */
 	iowrite32(1, reg2);
 	wmb();
-
-	pdi.pdev = pdev;
-
 	return 0;
 }
 
 static int pdi_remove(struct platform_device *pdev)
 {
-	//TODO HERE!!!
 	return 0;
 }
 
