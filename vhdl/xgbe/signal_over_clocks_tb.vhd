@@ -33,16 +33,16 @@ port map (
 
 process begin
 	clk_in <= '1';
-	wait for 5 ns;
+	wait for 3.2 ns;
 	clk_in <= '0';
-	wait for 5 ns;
+	wait for 3.2 ns;
 end process;
 
 process begin
 	clk_out <= '0';
-	wait for 3.2 ns;
+	wait for 5 ns;
 	clk_out <= '1';
-	wait for 3.2 ns;
+	wait for 5 ns;
 end process;
 
 process begin
@@ -54,6 +54,10 @@ process begin
 	wait for 10 ns;
 	signal_in <= '1';
 	wait for 10 ns;
+	signal_in <= '0';
+	wait for 100 ns;
+	signal_in <= '1';
+	wait for 100 ns;
 	signal_in <= '0';
 	wait;
 end process;

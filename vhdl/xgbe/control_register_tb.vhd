@@ -16,12 +16,13 @@ component control_register is
 		clk_resetn 	: in std_logic;
 		reg_input 	: in std_logic_vector(DATA_WIDTH - 1 downto 0);
 		reg_strb 	: in std_logic;
-		rcv_en		: out std_logic
+		rcv_en		: out std_logic;
+		resetp		: out std_logic
 	);
 end component;
 
-signal clk, clk_resetn, reg_strb, rcv_en : std_logic := '0';
-signal reg_input : std_logic_vector(31 downto 0);
+signal clk, clk_resetn, reg_strb, rcv_en, resetp : std_logic := '0';
+signal reg_input : std_logic_vector(31 downto 0) := (others => '0');
 
 begin
 
@@ -32,7 +33,8 @@ port map (
 	clk_resetn => clk_resetn,
 	reg_input => reg_input,
 	reg_strb => reg_strb,
-	rcv_en => rcv_en
+	rcv_en => rcv_en,
+	resetp => resetp
 );
 
 process begin
@@ -47,15 +49,22 @@ process begin
 wait for 10 ns;
 	clk_resetn <= '1';
 wait for 20 ns;
-	reg_input <= x"00ff00ff";
+	reg_input <= x"00ff00fe";
 	reg_strb <= '1';
 wait for 10 ns;
 	reg_input <= x"ff00ff00";
 	reg_strb <= '0';
 wait for 10 ns;
+	reg_input <= x"00ff00ff";
 	reg_strb <= '1';
 wait for 10 ns;
 	reg_strb <= '0';
+wait for 10 ns;
+	reg_input <= x"00ff00fe";
+    reg_strb <= '1';
+wait for 10 ns;
+    reg_input <= x"ff00ff00";
+    reg_strb <= '0';
 wait;
 end process;
 

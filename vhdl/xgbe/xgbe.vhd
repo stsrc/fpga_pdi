@@ -4,7 +4,7 @@
 -- 1. Write packets to the AXI reg1.
 -- 2. Write byte count to the AXI reg0. It starts packet transmission.
 -- Data reception:
--- 1. Enable data reception by writing 1 to AXI reg2.
+-- 1. Enable data reception by writing 2 to AXI reg2.
 -- 2. Wait for interrupt == 1.
 -- 3. Read bytes count from AXI reg0.
 -- 4. Read packet from AXI reg1.
@@ -136,7 +136,8 @@ component control_register is
 		clk_resetn 	: in std_logic;
 		reg_input 	: in std_logic_vector(DATA_WIDTH - 1 downto 0);
 		reg_strb 	: in std_logic;
-		rcv_en		: out std_logic
+		rcv_en		: out std_logic;
+		resetp      : out std_logic
 	);
 end component control_register;
 
@@ -265,13 +266,26 @@ component fsm_fifo_to_axi is
 	);
 end component;
 
+component reset_con is
+	port (
+		clk		: in std_logic;
+		resetn_1	: in std_logic;
+		resetn_2	: in std_logic;
+		out_resetn	: out std_logic
+	);
+end component reset_con;
+
 
 	signal slv_reg0_rd_strb, slv_reg1_rd_strb, slv_reg2_rd_strb, slv_reg3_rd_strb : std_logic := '0';
 	signal slv_reg0_wr_strb, slv_reg1_wr_strb, slv_reg2_wr_strb, slv_reg3_wr_strb : std_logic := '0';
 	signal interrupt_axi_fifo, interrupt_fifo_mac : std_logic := '0';
 	signal interrupt_mac_fifo, interrupt_fifo_axi : std_logic := '0';
 	
-	signal en_rcv  : std_logic := '1';
+	signal en_rcv, resetp 			: std_logic := '0';
+	signal control_reg_100MHz_resetn 	: std_logic := '0';
+	signal control_reg_156_25MHz_resetn 	: std_logic := '0';
+	signal con_100MHz_resetn		: std_logic := '0';
+	signal con_156_25MHz_resetn		: std_logic := '0'; 
 	
 	signal slv_reg0_rd	: std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
 	signal slv_reg0_wr	: std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
@@ -299,14 +313,13 @@ end component;
 	signal pkt_rx_mod, pkt_tx_mod : std_logic_vector(2 downto 0) := (others => '0');
 
 begin
-
    	
 	int_fifo_axi_mac : signal_over_clocks
 		port map (
 			clk_in => s_axi_aclk,
-			clk_in_resetn => s_axi_aresetn,
+			clk_in_resetn => con_100MHz_resetn,
 			clk_out => clk_156_25MHz,
-			clk_out_resetn => rst_clk_156_25MHz,
+			clk_out_resetn => con_156_25MHz_resetn,
 			signal_in => interrupt_axi_fifo,
 			signal_out => interrupt_fifo_mac
 		);	 
@@ -315,9 +328,9 @@ begin
 		generic map (DATA_WIDTH => 64, DATA_HEIGHT => 10) 
 		port map (  
 			clk_in  => s_axi_aclk,
-			clk_in_resetn => s_axi_aresetn,
+			clk_in_resetn => con_100MHz_resetn,
 			clk_out => clk_156_25MHz,
-			clk_out_resetn => rst_clk_156_25MHz,
+			clk_out_resetn => con_156_25MHz_resetn,
 			data_in => data_axi_fifo,
 			data_out => data_fifo_mac,
 			strb_in => strb_data_axi_fifo,
@@ -329,9 +342,9 @@ begin
 		generic map (DATA_WIDTH => 14, DATA_HEIGHT => 10)
 		port map (
 			clk_in	=> s_axi_aclk,
-			clk_in_resetn => s_axi_aresetn,
+			clk_in_resetn => con_100MHz_resetn,
 			clk_out => clk_156_25MHz,
-			clk_out_resetn => rst_clk_156_25MHz,
+			clk_out_resetn => con_156_25MHz_resetn,
 			data_in => cnt_axi_fifo,
 			data_out => cnt_fifo_mac,
 			strb_in => strb_cnt_axi_fifo,
@@ -342,9 +355,9 @@ begin
 	int_fifo_mac_axi : signal_over_clocks
 		port map (
 			clk_in => clk_156_25MHz,
-			clk_in_resetn => rst_clk_156_25MHz,
+			clk_in_resetn => con_156_25MHz_resetn,
 			clk_out => s_axi_aclk,
-			clk_out_resetn => s_axi_aresetn,
+			clk_out_resetn => con_100MHz_resetn,
 			signal_in => interrupt_mac_fifo,
 			signal_out => interrupt_fifo_axi
 		);	 
@@ -353,9 +366,9 @@ begin
 		generic map (DATA_WIDTH => 64, DATA_HEIGHT => 10)
 		port map (
 			clk_in  => clk_156_25MHz,
-			clk_in_resetn => rst_clk_156_25MHz,
+			clk_in_resetn => con_156_25MHz_resetn,
 			clk_out => s_axi_aclk,
-			clk_out_resetn	=> s_axi_aresetn,
+			clk_out_resetn	=> con_100MHz_resetn,
 			data_in => data_mac_fifo,
 			data_out => data_fifo_axi,
 			strb_in => strb_data_mac_fifo,
@@ -367,9 +380,9 @@ begin
 		generic map (DATA_WIDTH => 14, DATA_HEIGHT => 10)
 		port map (
 			clk_in  => clk_156_25MHz,
-			clk_in_resetn => rst_clk_156_25MHz,
+			clk_in_resetn => con_156_25MHz_resetn,
 			clk_out => s_axi_aclk,
-			clk_out_resetn => s_axi_aresetn,
+			clk_out_resetn => con_100MHz_resetn,
 			data_in => cnt_mac_fifo,
 			data_out => cnt_fifo_axi,
 			strb_in => strb_cnt_mac_fifo,
@@ -380,7 +393,7 @@ begin
 	fsm_axi_to_fifo_0 : fsm_axi_to_fifo
 		port map (
 			clk => s_axi_aclk,
-			resetn => s_axi_aresetn,
+			resetn => con_100MHz_resetn,
 			data_from_axi => slv_reg1_wr,
 			data_from_axi_strb => slv_reg1_wr_strb, 
 			data_to_fifo => data_axi_fifo, 
@@ -395,7 +408,7 @@ begin
 	fsm_fifo_to_mac_0 : fsm_fifo_to_mac 
 		port map (
 			clk => clk_156_25MHz,
-			rst => rst_clk_156_25MHz,
+			rst => con_156_25MHz_resetn,
 			pkt_tx_data => pkt_tx_data,
 			pkt_tx_val => pkt_tx_val,
 			pkt_tx_sop => pkt_tx_sop,
@@ -412,7 +425,7 @@ begin
 	fsm_mac_to_fifo_0 : fsm_mac_to_fifo
 		port map (
 			clk => clk_156_25MHz,
-			rst => rst_clk_156_25MHz,
+			rst => con_156_25MHz_resetn,
 			en_rcv => en_rcv,
 			fifo_data => data_mac_fifo,
 			fifo_cnt => cnt_mac_fifo,
@@ -433,7 +446,7 @@ begin
 	fsm_fifo_to_axi_0 : fsm_fifo_to_axi
 		port map (
 			clk => s_axi_aclk,
-			resetn => s_axi_aresetn,
+			resetn => con_100MHz_resetn,
 			data_from_fifo => data_fifo_axi,
 			data_from_fifo_strb => strb_data_fifo_axi,
 			data_to_axi => slv_reg1_rd,
@@ -446,14 +459,43 @@ begin
 	
 	control_register_0 : control_register
 	generic map (DATA_WIDTH => 32)
-	port map (
+		port map (
 			clk => s_axi_aclk,
-			clk_resetn => s_axi_aresetn,
+			clk_resetn => con_100MHz_resetn,
 			reg_input => slv_reg2_wr,
 			reg_strb => slv_reg2_wr_strb,
-			rcv_en  => en_rcv
-	);
+			rcv_en  => en_rcv,
+			resetp => resetp	
+		);
 		
+	control_reg_100MHz_resetn <= not(resetp);
+
+	reset_con_100MHz : reset_con
+		port map (
+			clk => s_axi_aclk,
+			resetn_1 => control_reg_100MHz_resetn,
+			resetn_2 => s_axi_aresetn,
+			out_resetn => con_100MHz_resetn
+		);
+
+	softreset_intra_clk : signal_over_clocks
+		port map (
+			clk_in => s_axi_aclk,
+			clk_in_resetn => '1',
+			clk_out => clk_156_25MHz,
+			clk_out_resetn => '1',
+			signal_in => con_100MHz_resetn,
+			signal_out => control_reg_156_25MHz_resetn
+		);	 
+
+	reset_con_156_25MHz : reset_con
+		port map (
+			clk => clk_156_25MHz,
+			resetn_1 => rst_clk_156_25MHz,
+			resetn_2 => control_reg_156_25MHz_resetn,
+			out_resetn => con_156_25MHz_resetn
+		);
+
 	AXI_to_regs_0 : AXI_to_regs 
 		generic map (
 			C_S_AXI_DATA_WIDTH => C_S_AXI_DATA_WIDTH,
@@ -479,7 +521,7 @@ begin
 			slv_reg2_wr_strb => slv_reg2_wr_strb,
 			slv_reg3_wr_strb => slv_reg3_wr_strb,
 			S_AXI_ACLK => s_axi_aclk,
-			S_AXI_ARESETN => s_axi_aresetn,
+			S_AXI_ARESETN => con_100MHz_resetn,
 			S_AXI_AWADDR => s_axi_awaddr,
 			S_AXI_AWPROT => s_axi_awprot,
 			S_AXI_AWVALID => s_axi_awvalid,
@@ -520,9 +562,9 @@ begin
 			pkt_tx_mod => pkt_tx_mod,
 			pkt_tx_sop => pkt_tx_sop,
 			pkt_tx_val => pkt_tx_val,
-			reset_156m25_n => rst_clk_156_25MHz,
-			reset_xgmii_rx_n => rst_clk_156_25MHz,
-			reset_xgmii_tx_n => rst_clk_156_25MHz,
+			reset_156m25_n => con_156_25MHz_resetn,
+			reset_xgmii_rx_n => con_156_25MHz_resetn,
+			reset_xgmii_tx_n => con_156_25MHz_resetn,
 			wb_ack_o => open,
 			wb_adr_i =>  (others => '0'),
 			wb_clk_i => clk_20MHz,

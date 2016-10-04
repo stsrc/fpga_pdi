@@ -12,7 +12,8 @@ entity control_register is
 		clk_resetn 	: in std_logic;
 		reg_input 	: in std_logic_vector(DATA_WIDTH - 1 downto 0);
 		reg_strb 	: in std_logic;
-		rcv_en		: out std_logic
+		rcv_en		: out std_logic;
+		resetp		: out std_logic
 	);
 end control_register;
 
@@ -20,7 +21,8 @@ architecture control_register_arch of control_register is
 signal reg, reg_tmp : std_logic_vector(DATA_WIDTH - 1 downto 0);
 begin
 
-	rcv_en <= reg(0);
+	rcv_en <= reg(1);
+	resetp <= reg(0);
 
 	process (clk) begin
 		if (rising_edge(clk)) then
@@ -36,6 +38,8 @@ begin
 		reg_tmp <= reg;
 		if (reg_strb = '1') then
 			reg_tmp <= reg_input;
+		else
+			reg_tmp <= reg;
 		end if;	
 	end process;
 

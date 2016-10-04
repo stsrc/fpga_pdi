@@ -1,0 +1,140 @@
+#include <stdio.h>
+#include <string.h>
+#include <arpa/inet.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <net/if.h>
+#include <unistd.h>
+#include <time.h>
+
+#define SERVER "10.0.0.2"
+#define CLIENT "10.0.0.3"
+#define BUFLEN 512
+#define PORT_UDP 8888
+#define PORT_TCP 8889
+
+int main(void) {
+	const char test = 0xfa;
+	char buf[512];
+	int udp_sock, tcp_sock, tcp_c_sock;
+	struct sockaddr_in srv_udp, srv_tcp, clnt_udp;
+	struct ifreq ifr;
+	struct timespec t1, t2;
+
+	memset((char *)&srv_udp, 0, sizeof(struct sockaddr_in));
+	memset((char *)&srv_tcp, 0, sizeof(struct sockaddr_in));
+	memset(buf, 0, sizeof(buf));	
+
+	udp_sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	if (udp_sock < 0) {
+		perror("socket");
+		return -1;
+	}
+	printf("created udp_sock.\n");
+	tcp_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (tcp_sock < 0) {
+		perror("socket");
+		close(udp_sock);
+		return -1;
+	}
+	printf("created tcp_sock.\n");
+	srv_udp.sin_family = AF_INET;
+	srv_udp.sin_port = htons(PORT_UDP);
+	srv_udp.sin_addr.s_addr = inet_addr(SERVER);
+
+	clnt_udp.sin_family = AF_INET;
+	clnt_udp.sin_port = htons(PORT_UDP);
+	clnt_udp.sin_addr.s_addr = inet_addr(CLIENT);
+
+	srv_tcp.sin_family = AF_INET;
+	srv_tcp.sin_port = htons(PORT_TCP);
+	srv_tcp.sin_addr.s_addr = inet_addr(SERVER);
+
+	int rt;
+	rt = bind(udp_sock, (struct sockaddr*)&srv_udp, sizeof(srv_udp));
+	if (rt == -1) {
+		perror("bind");
+		return -1;
+	}
+	printf("udp_sock was binded.\n");
+	rt = bind(tcp_sock, (struct sockaddr*)&srv_tcp, sizeof(srv_tcp));
+	if (rt == -1) {
+		perror("bind");
+		return -1;
+	}
+	printf("tcp_sock was binded.\n");
+	snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "enp36s0f1");
+	if (setsockopt(udp_sock, SOL_SOCKET, SO_BINDTODEVICE, (void *)&ifr, sizeof(ifr)) < 0) {
+		perror("setsockopt");
+		return -1;
+	}
+	printf("udp_sock binded to enp36s0f1.\n");
+	if (setsockopt(tcp_sock, SOL_SOCKET, SO_BINDTODEVICE, (void *)&ifr, sizeof(ifr)) < 0) {
+		perror("setsockopt");
+		return -1;
+	}
+	printf("tcp_sock binded to enp36s0f1.\n");
+	rt = listen(tcp_sock, 2);
+	if (rt < 0) {
+		perror("listen");
+		return -1;
+	}
+	printf("tcp_sock as listening socket.\n");
+
+	tcp_c_sock = accept(tcp_sock, NULL, NULL);
+	if (tcp_c_sock < 0) {
+		perror("accept");
+		return -1;
+	}
+	printf("tcp_sock accepted connection\n");
+	rt = send(tcp_c_sock, &test, 1, 0);
+	if (rt < 0) {
+		perror("write");
+		return -1;
+	}
+	printf("test command was sent.\n");
+	sleep(1);
+
+	int cnt = 0;
+	char temp = 0;
+	clock_gettime(CLOCK_MONOTONIC, &t1);
+	while(cnt != 10000) {
+
+		memset(buf, temp, sizeof(buf));
+
+		rt = sendto(udp_sock, buf, sizeof(buf), 0, (struct sockaddr *)&clnt_udp, sizeof(clnt_udp));
+		if (rt < 0) {
+			perror("sendto");
+			return rt;
+		}
+		cnt++;
+		temp++;
+		if (temp == 0xff)
+			temp = 0;
+	}	
+	clock_gettime(CLOCK_MONOTONIC, &t2);
+	printf("Transmission of test data was stopped.\n");
+	memset(buf, 0xff, sizeof(buf));	
+	rt = sendto(udp_sock, buf, sizeof(buf), 0, (struct sockaddr *)&clnt_udp, sizeof(clnt_udp));
+	if (rt < 0) {
+		perror("sendto");
+		return rt;
+	}
+	printf("0xff end byte was sent.\n");
+	rt = recv(tcp_sock, buf, sizeof(buf), 0);
+	printf("received result from MB.\n");
+	int bytes_cnt = buf[3] | buf[2] << 8 | buf[1] << 16 | buf[0] << 24;
+	
+	printf("RESULTS RESULTS RESULTS RESULTS\n");
+
+	printf("MB received %d of 5120000 bytes ", bytes_cnt);
+	long time = t2.tv_sec * 10e9 + t2.tv_nsec - (t1.tv_sec * 10e9 + t1.tv_nsec);
+	printf("in time %ld nsec\n", time);
+	double speed = bytes_cnt / ((double)time * 10.0e-9);
+	printf("Overall connection speed is: %f.\n", speed);
+	printf("Byte error rate: %f;\n", (double)bytes_cnt/5120000.0);
+	
+	close(udp_sock);
+	close(tcp_sock);
+	close(tcp_c_sock);
+}

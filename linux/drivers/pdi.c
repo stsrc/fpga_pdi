@@ -160,7 +160,7 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 		data_len -= 4;
 		for (int i = 0; i < 4; i++) {
 			*buf = data_in & 0xff;
-			pr_info("PDI: received byte: 0x%x\n", *buf);
+//			pr_info("PDI: received byte: 0x%x\n", *buf);
 			buf++;
 			data_in = data_in >> 8;
 		}
@@ -171,7 +171,7 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 		rmb();
 		for (int i = 0; i < data_len; i++) {
 			*buf = data_in & 0xff;
-			pr_info("PDI: received byte: 0x%x\n", *buf);
+//			pr_info("PDI: received byte: 0x%x\n", *buf);
 			buf++;
 			data_in = data_in >> 8;
 		}

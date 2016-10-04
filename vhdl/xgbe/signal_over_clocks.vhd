@@ -45,23 +45,27 @@ process (clk_out) begin
 	end if;
 end process;
 
-process(sig_reg_in, sig_reg_out, signal_in) begin
-    
-        sig_tmp_in <= sig_reg_in;
-        sig_tmp_out <= sig_reg_out;
-        
-        if (signal_in = '1') then
-            sig_tmp_in <= '1';
-        end if;
-        
-        if (sig_reg_in = '1') then
-            sig_tmp_out <= '1';
-        end if;
-        
-        if (sig_reg_out = '1') then
-            sig_tmp_in <= '0';
-            sig_tmp_out <= '0';
-       end if; 
+process (signal_in, sig_reg_in, sig_reg_out) begin
+	sig_tmp_in <= sig_reg_in;
+	sig_tmp_out <= sig_reg_out;
+	
+	if (signal_in = '1') then
+		sig_tmp_in <= '1';
+	end if;
+
+	if (sig_reg_in = '1') then
+		sig_tmp_out <= '1';
+	end if;
+
+	if (sig_reg_out = '1') then
+		if (signal_in = '0') then
+			sig_tmp_in <= '0';
+			sig_tmp_out <= '0';
+		else
+			sig_tmp_in <= '1';
+			sig_tmp_out <= '1';
+		end if;
+	end if;
 end process;
 
 end signal_over_clocks_arch;
