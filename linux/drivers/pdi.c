@@ -30,7 +30,12 @@
 #include <linux/dma/xilinx_dma.h>
 
 #define DRIVER_NAME "pdi"
-#define DEVICE_MAC_BYTE 0xab
+/* 
+ * WARNING ABOUT MAC ADDRESS! Its least significant bit says about 
+ * unicast or multicast type of transmisson! If there LSB is 1, then
+ * there is a multicast transmisson and TCP will fail!
+ */
+#define DEVICE_MAC_BYTE 0xa0
 
 MODULE_LICENSE("GPL");
 
@@ -106,15 +111,11 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	for (int i = 0; i < skb->len / 4; i++) {
 		data = 0;
-
 		/*TODO word generation */
 		for (int i = 0; i < 4; i++) {
 			data |=	*data_ptr << (8 * i);
-//			pr_info("PDI: sent byte: 0x%x\n", *data_ptr);
 			data_ptr++;
 		}
-		
-
 		iowrite32(data, reg1);
 		wmb();
 	}
@@ -135,21 +136,19 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 	unsigned char *buf = NULL;
 	int ret;
 
-	pr_info("pdi_int_handler executed.\n");
 	data_len = ioread32(reg0);
 	rmb();
 	
 	roundoff = data_len % 8;
 
-	skb = dev_alloc_skb(data_len + 2);
-	/* + 2 - ALIGN IP on 16 byte boundaries, look to plip.c*/
+	skb = dev_alloc_skb(data_len + NET_IP_ALIGN);
 	if (!skb) {
 		pr_info("alloc_skb failed! Packet not received! "
 			"FPGA IN ERROR STATE\n");
 		return IRQ_HANDLED;
 	}
-	/*Align IP on 16 byte boundaries */
-	skb_reserve(skb, 2);
+
+	skb_reserve(skb, NET_IP_ALIGN);
 
 	buf = skb_put(skb, data_len);
 	skb->dev = pdi_netdev; 
@@ -160,7 +159,6 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 		data_len -= 4;
 		for (int i = 0; i < 4; i++) {
 			*buf = data_in & 0xff;
-//			pr_info("PDI: received byte: 0x%x\n", *buf);
 			buf++;
 			data_in = data_in >> 8;
 		}
@@ -171,7 +169,6 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 		rmb();
 		for (int i = 0; i < data_len; i++) {
 			*buf = data_in & 0xff;
-//			pr_info("PDI: received byte: 0x%x\n", *buf);
 			buf++;
 			data_in = data_in >> 8;
 		}
@@ -288,16 +285,13 @@ static int pdi_init_ethernet(struct platform_device *pdev)
 		pr_info("alloc_etherdev failed.\n");
 		return -ENOMEM;
 	}
-	
-//TODO DO I NEED THIS?
+
 	pdi_netdev->irq = pdi_irq;
 	pdi_netdev->base_addr = pdi_iomem->start;
 
-	//pdi_netdev->flags = IFF_POINTOPOINT;
 	memset(pdi_netdev->dev_addr, DEVICE_MAC_BYTE, ETH_ALEN);
 	
 	pdi_netdev->netdev_ops = &pdi_netdev_ops;
-//TODO	pdi_netdev->header_ops = &pdi_header_ops;
 
 	rt = register_netdev(pdi_netdev);
 	
@@ -327,8 +321,16 @@ static int pdi_probe(struct platform_device *pdev)
 	rt = pdi_init_ethernet(pdev);
 	if (rt)
 		return rt;
-	/* Enabling data reception on FPGA */
+	/* Software reset on xgbe part of FPGA*/
 	iowrite32(1, reg2);
+	/* 
+	 * Softrst has delay of 2 ticks. To be sure that reset has ended,
+	 * small delay is used.
+	 */
+	mdelay(1);
+
+	/* Data reception enable on FPGA */
+	iowrite32(2, reg2);
 	wmb();
 	return 0;
 }
