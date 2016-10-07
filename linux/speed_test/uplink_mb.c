@@ -5,7 +5,6 @@
 #include <sys/socket.h>
 #include <net/if.h>
 #include <unistd.h>
-#include <time.h>
 
 #define SERVER "10.0.0.2"
 #define CLIENT "10.0.0.3"
@@ -17,7 +16,6 @@
 
 int main(void) {
 	unsigned char buf[512];
-	struct timespec t1, t2;
 	int udp_sock, tcp_sock;
 	struct sockaddr_in srv_udp, srv_tcp, clnt_udp;
 	struct ifreq ifr;
@@ -93,26 +91,36 @@ int main(void) {
 		return -1;
 	}
 	printf("tcp_sock received 0xfa (start command).\n");
+
+	unsigned char temp = 0;
 	unsigned int cnt = 0;
 	socklen_t addrlen;
-	clock_gettime(CLOCK_MONOTONIC, &t1);
-	while (1) {
-		rt = recvfrom(udp_sock, buf, sizeof(buf), 0, (struct sockaddr *)&srv_udp, 
-			      &addrlen);
+
+	while(cnt < 6000) {
+
+		memset(buf, temp, sizeof(buf));
+
+		rt = sendto(udp_sock, buf, sizeof(buf), 0, 
+			    (struct sockaddr *)&clnt_udp, sizeof(clnt_udp));
+		if (rt < 0) {
+			perror("sendto");
+			return rt;
+		}
 		cnt += rt;
-		if ((*buf == 0xff) ||((*(buf + sizeof(buf)/2)) == 0xff) || (rt < 0))
-			break;
+		temp++;
+		if (temp == 0xff)
+			temp = 0;
 	}
-	clock_gettime(CLOCK_MONOTONIC, &t2);
-	printf("Received %d bytes.\n", cnt);
-	rt = send(tcp_sock, (char *)&cnt, sizeof(unsigned int), 0);
-	uint32_t time = t2.tv_sec * 10e9 + t2.tv_nsec - (t1.tv_sec * 10e9 + t1.tv_nsec);
+	memset(buf, 0xff, sizeof(buf));	
+	rt = sendto(udp_sock, buf, sizeof(buf), 0, (struct sockaddr *)&clnt_udp, sizeof(clnt_udp));
 	if (rt < 0) {
-		perror("send");
+		perror("sendto");
 		return rt;
 	}
-	printf("In time %d [ns].\n", time);
-	rt = send(tcp_sock, (char *)&time, sizeof(time), 0);
+	cnt += rt;
+	printf("0xff end byte was sent.\n");
+
+	rt = send(tcp_sock, (char *)&cnt, sizeof(int), 0);
 	if (rt < 0) {
 		perror("send");
 		return rt;

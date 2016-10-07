@@ -5,6 +5,7 @@
 #include <sys/socket.h>
 #include <net/if.h>
 #include <unistd.h>
+#include <time.h>
 
 #define SERVER "10.0.0.2"
 #define CLIENT "10.0.0.3"
@@ -18,6 +19,7 @@ int main(void) {
 	int udp_sock, tcp_sock, tcp_c_sock;
 	struct sockaddr_in srv_udp, srv_tcp, clnt_udp;
 	struct ifreq ifr;
+	struct timespec t1, t2;
 
 	memset((char *)&srv_udp, 0, sizeof(struct sockaddr_in));
 	memset((char *)&srv_tcp, 0, sizeof(struct sockaddr_in));
@@ -97,57 +99,40 @@ int main(void) {
 		return -1;
 	}
 	printf("test command was sent.\n");
+	sleep(1);
 
 	unsigned int cnt = 0;
-	unsigned char temp = 0;
-
-	while(cnt < 5000) {
-		memset(buf, temp, sizeof(buf));
-		rt = sendto(udp_sock, buf, sizeof(buf), 0, 
-			    (struct sockaddr *)&clnt_udp, sizeof(clnt_udp));
-		if (rt < 0) {
-			perror("sendto");
-			return rt;
-		}
-		cnt += rt;
-		temp++;
-		if (temp == 0xff)
-			temp = 0;
-	}	
-	memset(buf, 0xff, sizeof(buf));	
-	rt = sendto(udp_sock, buf, sizeof(buf), 0, (struct sockaddr *)&clnt_udp, sizeof(clnt_udp));
-	if (rt < 0) {
-		perror("sendto");
-		return rt;
+	unsigned int bytes_cnt = 0;
+	socklen_t addrlen;
+	
+	clock_gettime(CLOCK_MONOTONIC, &t1);
+	while (1) {
+		rt = recvfrom(udp_sock, buf, sizeof(buf), 0, (struct sockaddr *)&srv_udp, 
+			      &addrlen);
+		bytes_cnt += rt;
+		if ((*buf == 0xff) ||((*(buf + sizeof(buf)/2)) == 0xff) || (rt < 0))
+			break;
 	}
-	cnt += rt;
+	clock_gettime(CLOCK_MONOTONIC, &t2);
+
+	printf("Received %d bytes.\n", bytes_cnt);
 	printf("Transmission of test data was stopped.\n");
-	printf("0xff end byte was sent.\n");
-	rt = recv(tcp_c_sock, buf, sizeof(unsigned int), 0);
+
+
+	rt = recv(tcp_c_sock, buf, sizeof(buf), 0);
 	if (rt < 0) {
 		printf("problem occured on receiving bytes count from mb.\n");
 		perror("recv");
 		return rt;
-	};
-	printf("\nReceived result from MB.\n");
-	unsigned int bytes_cnt = buf[0] | buf[1] << 8 | buf[2] << 16 | buf[3] << 24;
-	printf("\nMB received %d of %d bytes ", bytes_cnt, cnt);
-
-	uint32_t time = 0;
-
-	rt = recv(tcp_c_sock, buf, sizeof(time), 0);
-	if (rt < 0) {
-		printf("problem occured on receiving time from mb.\n");
-		perror("recv");
-		return rt;
 	}
-	for (int i = 0; i < sizeof(time); i++) 
-		time |= buf[i] << (8*i);
-
-
-	printf("in time %d nsec\n", time);
+	printf("\nReceived result from MB.\n");
+	cnt = buf[0] | buf[1] << 8 | buf[2] << 16 | buf[3] << 24;
+	
+	printf("\nDELL received %d of %d bytes ", bytes_cnt, cnt);
+	long time = t2.tv_sec * 10e9 + t2.tv_nsec - (t1.tv_sec * 10e9 + t1.tv_nsec);
+	printf("in time %ld nsec\n", time);
 	double speed = bytes_cnt / ((double)time * 10.0e-9);
-	printf("Overall connection speed is: %.2f B/s = %.2f kB/s = %.2f MB/s.\n",
+	printf("Overall uplink speed is: %.2f B/s = %.2f kB/s = %.2f MB/s.\n",
 		speed, speed/1024.0, speed/(1024.0*1024.0));
 
 	printf("Percent of lost packets: %.2f%%;\n", (double)(cnt - bytes_cnt) 
