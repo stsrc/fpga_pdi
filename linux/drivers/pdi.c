@@ -48,6 +48,20 @@ static struct resource *pdi_iomem = NULL;
 static int pdi_irq = 0;
 static struct net_device *pdi_netdev = NULL;
 
+/*
+ * reg0 - packet's size in bytes. To push packet into MAC write
+ * packet bytes count into it.
+ * reg1 - packet's word. Write to this register data which you want to
+ *        transmit.
+ * reg2 - control register.
+ *        1 LSB bit - reset bit.
+ *                    Write '1' to reset xgbe part of design.
+ *                    After write delay execution for 1 ms, to ensure that
+ *		      reset ended.
+ *        2 LSB bit - data reception enable bit. 
+ *                    Write '1' to enable data reception.
+ * reg3 - Counter of not read packets yet. Each read zeroes this reg.
+ */
 static void __iomem *reg0 = NULL;
 static void __iomem *reg1 = NULL;
 static void __iomem *reg2 = NULL;
@@ -129,61 +143,70 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static irqreturn_t pdi_int_handler(int irq, void *data)
 {
+	u32 packets_cnt = 0;
 	unsigned int data_in = 0;
 	unsigned int data_len = 0;
 	unsigned char roundoff = 0;
 	struct sk_buff *skb = NULL;
 	unsigned char *buf = NULL;
-	int ret;
+	int ret = 0;
 
-	data_len = ioread32(reg0);
+	packets_cnt = (u32)ioread32(reg3);
 	rmb();
+	if (!packets_cnt) {
+		pr_info("PDI: interrupt falsely triggered!!!\n");
+		return IRQ_HANDLED;		
+	}
+	for (u32 i = 0; i < packets_cnt; i++) {
+		data_len = ioread32(reg0);
+		rmb();
 	
-	roundoff = data_len % 8;
+		roundoff = data_len % 8;
 
-	skb = dev_alloc_skb(data_len + NET_IP_ALIGN);
-	if (!skb) {
-		pr_info("alloc_skb failed! Packet not received! "
-			"FPGA IN ERROR STATE\n");
-		return IRQ_HANDLED;
-	}
-
-	skb_reserve(skb, NET_IP_ALIGN);
-
-	buf = skb_put(skb, data_len);
-	skb->dev = pdi_netdev; 
-
-	while (data_len >= 4) {
-		data_in = ioread32(reg1);
-		rmb();	
-		data_len -= 4;
-		for (int i = 0; i < 4; i++) {
-			*buf = data_in & 0xff;
-			buf++;
-			data_in = data_in >> 8;
+		skb = dev_alloc_skb(data_len + NET_IP_ALIGN);
+		if (!skb) {
+			pr_info("alloc_skb failed! Packet not received! "
+				"FPGA IN ERROR STATE\n");
+			return IRQ_HANDLED;
 		}
-	}
 
-	if (data_len) {
-		data_in = ioread32(reg1);
-		rmb();
-		for (int i = 0; i < data_len; i++) {
-			*buf = data_in & 0xff;
-			buf++;
-			data_in = data_in >> 8;
+		skb_reserve(skb, NET_IP_ALIGN);
+
+		buf = skb_put(skb, data_len);
+		skb->dev = pdi_netdev; 
+
+		while (data_len >= 4) {
+			data_in = ioread32(reg1);
+			rmb();	
+			data_len -= 4;
+			for (int j = 0; j < 4; j++) {
+				*buf = data_in & 0xff;
+				buf++;
+				data_in = data_in >> 8;
+			}
 		}
-	}
 
-	/* 
-	 * 4 bytes flushed from FPGA fifo, because fifo's data width is 8 byte,
-	 * and AXI data width is 4 byte.
-	 */
-	if (roundoff <= 4) {
-		ioread32(reg1);
-		rmb();
+		if (data_len) {
+			data_in = ioread32(reg1);
+			rmb();
+			for (int j = 0; j < data_len; j++) {
+				*buf = data_in & 0xff;
+				buf++;
+				data_in = data_in >> 8;
+			}
+		}
+
+		/* 
+		 * 4 bytes flushed from FPGA fifo, because fifo's data width is
+	 	 * 8 byte, and AXI data width is 4 byte.
+		 */
+		if (roundoff <= 4) {
+			ioread32(reg1);
+			rmb();
+		}
+		skb->protocol = eth_type_trans(skb, pdi_netdev); 	
+		ret = netif_rx(skb);
 	}
-	skb->protocol = eth_type_trans(skb, pdi_netdev); 	
-	ret = netif_rx(skb);
 	return IRQ_HANDLED;
 }
 

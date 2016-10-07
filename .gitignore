@@ -6,7 +6,3 @@
 .tmp_versions
 *.ko
 *.swp
-eth_clnt_mb
-eth_clnt_x86
-eth_srv_mb
-eth_srv_x86

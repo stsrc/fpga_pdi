@@ -54,15 +54,18 @@ begin
 		end if;
 	end process;
 	
-	process (int_gen_cnt, incr) is
+	process (int_gen_cnt, cnt, incr) is
 	begin 
 	       interrupt <= '0';
 	       int_gen_cnt_tmp <= int_gen_cnt;
 	       if (incr = '1') then
 	           interrupt <= '1';
+	           int_gen_cnt_tmp <= (others => '0');
 	       elsif (int_gen_cnt > to_unsigned(INT_GEN_DELAY, REG_WIDTH)) then
 	           interrupt <= '1';
 	           int_gen_cnt_tmp <= (others => '0');
+	       elsif (cnt /= 0) then
+		   int_gen_cnt_tmp <= int_gen_cnt + 1;
 	       end if;
 	end process;
 end counter_arch;

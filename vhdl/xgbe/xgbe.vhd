@@ -97,6 +97,21 @@ component xge_mac is
 	);
 end component xge_mac;
 
+component counter is
+	generic (
+		REG_WIDTH : integer := 32;
+		INT_GEN_DELAY : integer := 100
+	);
+	port (
+		clk		: in std_logic;
+		resetn		: in std_logic;
+		incr   		: in std_logic;
+		get_val		: in std_logic;
+		cnt_out		: out std_logic_vector(REG_WIDTH - 1 downto 0);
+		interrupt   : out std_logic
+	);
+end component counter;
+
 component signal_over_clocks is
 	port (
 		clk_in 		: in std_logic;
@@ -279,7 +294,8 @@ end component reset_con;
 	signal slv_reg0_rd_strb, slv_reg1_rd_strb, slv_reg2_rd_strb, slv_reg3_rd_strb : std_logic := '0';
 	signal slv_reg0_wr_strb, slv_reg1_wr_strb, slv_reg2_wr_strb, slv_reg3_wr_strb : std_logic := '0';
 	signal interrupt_axi_fifo, interrupt_fifo_mac : std_logic := '0';
-	signal interrupt_mac_fifo, interrupt_fifo_axi : std_logic := '0';
+	signal interrupt_mac_fifo, interrupt_fifo_counter : std_logic := '0';
+	signal interrupt_counter_axi : std_logic := '0';
 	
 	signal en_rcv, resetp 			: std_logic := '0';
 	signal control_reg_100MHz_resetn 	: std_logic := '0';
@@ -312,8 +328,21 @@ end component reset_con;
 	signal pkt_rx_data, pkt_tx_data: std_logic_vector(63 downto 0) := (others => '0');
 	signal pkt_rx_mod, pkt_tx_mod : std_logic_vector(2 downto 0) := (others => '0');
 
+
+
 begin
    	
+	not_read_packet_counter : counter
+		generic map ( REG_WIDTH => 32, INT_GEN_DELAY => 100)
+		port map (
+			clk => s_axi_aclk,
+			resetn => con_100MHz_resetn,
+			incr => interrupt_fifo_counter,
+			get_val => slv_reg3_rd_strb,
+			cnt_out => slv_reg3_rd,
+			interrupt => interrupt_counter_axi
+		);
+
 	int_fifo_axi_mac : signal_over_clocks
 		port map (
 			clk_in => s_axi_aclk,
@@ -359,7 +388,7 @@ begin
 			clk_out => s_axi_aclk,
 			clk_out_resetn => con_100MHz_resetn,
 			signal_in => interrupt_mac_fifo,
-			signal_out => interrupt_fifo_axi
+			signal_out => interrupt_fifo_counter
 		);	 
 
 	fifo_mac_axi_data : fifo	
@@ -503,7 +532,7 @@ begin
 		)
 		port map (
 			interrupt => interrupt,
-			interrupt_in => interrupt_fifo_axi,
+			interrupt_in => interrupt_counter_axi,
 			slv_reg0_rd => slv_reg0_rd,
 			slv_reg0_wr => slv_reg0_wr,
 			slv_reg1_rd => slv_reg1_rd,

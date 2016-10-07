@@ -227,11 +227,12 @@ begin
    s_axi_wstrb<=b"0000";
     wait for 100 ns;
 for j in 0 to 9 loop
+	for k in 0 to 3 loop
 	xgmii_rxd <= x"0707070707070707";
 	xgmii_rxc <= x"ff";
 	
 
-    wait until rising_edge(clk_156_25MHz);
+	wait until rising_edge(clk_156_25MHz);
 	xgmii_rxd <= x"555555fb07070707";
 	xgmii_rxc <= "00011111";
 	wait until rising_edge(clk_156_25MHz);
@@ -253,9 +254,20 @@ for j in 0 to 9 loop
 	xgmii_rxc <= x"ff";
 	
 	wait until rising_edge(clk_156_25MHz);
-    xgmii_rxd <= x"0707070707070707";
-    xgmii_rxc <= x"ff";
+	xgmii_rxd <= x"0707070707070707";
+	xgmii_rxc <= x"ff";
+	end loop;
+	wait for 2 us;
     wait until interrupt = '1';
+
+   -- read how many packets are available - should be 4.
+    s_axi_araddr<="1100";
+        readit<='1';                --start axi read from slave
+        wait for 1 ns; 
+       readit<='0';                --clear "start read" flag
+    wait until s_axi_rready = '1';
+    wait until s_axi_rready = '0';    --axi_data should be equal to 17
+
 
     s_axi_araddr<="0000";
         readit<='1';                --start axi read from slave

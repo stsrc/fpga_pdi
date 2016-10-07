@@ -8,8 +8,6 @@
 
 #define SERVER "10.0.0.2"
 #define CLIENT "10.0.0.3"
-//#define SERVER "127.0.0.1"
-//#define CLIENT "127.0.0.1"
 #define BUFLEN 512
 #define PORT_UDP 8888
 #define PORT_TCP 8889
@@ -17,7 +15,7 @@
 
 
 int main(void) {
-	char buf[512];
+	unsigned char buf[512];
 	int udp_sock, tcp_sock;
 	struct sockaddr_in srv_tcp;
 	struct ifreq ifr;
@@ -65,6 +63,14 @@ int main(void) {
 		return -1;
 	}
 	printf("tcp_sock received 0xba (start command).\n");
+	for (int i = 0; i < 10; i++) {
+		rt = send(tcp_sock, buf, 1, 0);
+		if (rt < 0) {
+			perror("send");
+			close(tcp_sock);
+			return -1;
+		}
+	}
 	close(tcp_sock);
 	return 0;
 }

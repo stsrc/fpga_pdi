@@ -11,8 +11,8 @@
 #define PORT_TCP 8889
 
 int main(void) {
-	char buf[512];
-	char test = 0xba;
+	unsigned char buf[512];
+	unsigned char test = 0xba;
 	int tcp_sock, tcp_c_sock;
 	struct sockaddr_in srv_tcp;
 	struct ifreq ifr;
@@ -31,6 +31,12 @@ int main(void) {
 	srv_tcp.sin_addr.s_addr = inet_addr(SERVER);
 
 	int rt;
+
+	if (setsockopt(tcp_sock, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0) {
+		perror("setsockopt");
+		return -1;
+	}
+
 
 	rt = bind(tcp_sock, (struct sockaddr*)&srv_tcp, sizeof(srv_tcp));
 	if (rt == -1) {
@@ -53,19 +59,44 @@ int main(void) {
 		return -1;
 	}
 	printf("tcp_sock as listening socket.\n");
+	while(1) {
+		tcp_c_sock = accept(tcp_sock, NULL, NULL);
+		if (tcp_c_sock < 0) {
+			perror("accept");
+			return -1;
+		}
+		printf("tcp_sock accepted connection\n");
+		test = 0xba;
+		rt = send(tcp_c_sock, &test, 1, 0);
+		if (rt < 0) {
+			perror("write");
+			close(tcp_c_sock);
+			close(tcp_sock);
+			return -1;
+		}
+		printf("test command was sent.\n");
 
-	tcp_c_sock = accept(tcp_sock, NULL, NULL);
-	if (tcp_c_sock < 0) {
-		perror("accept");
-		return -1;
+		for (int i = 0; i < 10; i++) {
+			rt = recv(tcp_c_sock, &test, 1, 0);
+
+			if (rt < 0) {
+				perror("recv");
+				close(tcp_c_sock);
+				close(tcp_sock);
+				return -1;
+			}
+
+			if (test != 0xba) {
+				printf("Received wrong byte!\n");
+				close(tcp_c_sock);
+				close(tcp_sock);
+				return -1;
+			} else {
+				printf("Received good asnwer.\n");
+			}
+
+		}
+		close(tcp_c_sock);
 	}
-	printf("tcp_sock accepted connection\n");
-	rt = send(tcp_c_sock, &test, 1, 0);
-	if (rt < 0) {
-		perror("write");
-		return -1;
-	}
-	printf("test command was sent.\n");
 	close(tcp_sock);
-	close(tcp_c_sock);
 }

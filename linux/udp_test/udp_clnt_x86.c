@@ -61,13 +61,11 @@ int main(void) {
 		return rt;
 	}
 	printf("client has connected socket to server.\n");
-	rt = send(sockfd, buf, 65, 0);
-	
-	if (rt < 0) 
-		perror("send");
-	else
-		printf("Client sent %d bytes.\n", rt);
 
+	for (int i = 0; i < 10; i++)
+		rt = send(sockfd, buf, 65, 0);
+	printf("Client sent 10 packets with 65 bytes.\n");
+	
 	close(sockfd);
 	return 0;
 }

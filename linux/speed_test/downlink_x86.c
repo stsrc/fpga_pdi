@@ -14,8 +14,8 @@
 #define PORT_TCP 8889
 
 int main(void) {
-	const char test = 0xfa;
-	char buf[512];
+	const unsigned char test = 0xfa;
+	unsigned char buf[512];
 	int udp_sock, tcp_sock, tcp_c_sock;
 	struct sockaddr_in srv_udp, srv_tcp, clnt_udp;
 	struct ifreq ifr;
@@ -102,7 +102,8 @@ int main(void) {
 
 		memset(buf, temp, sizeof(buf));
 
-		rt = sendto(udp_sock, buf, sizeof(buf), 0, (struct sockaddr *)&clnt_udp, sizeof(clnt_udp));
+		rt = sendto(udp_sock, buf, sizeof(buf), 0, 
+			    (struct sockaddr *)&clnt_udp, sizeof(clnt_udp));
 		if (rt < 0) {
 			perror("sendto");
 			return rt;

@@ -15,14 +15,13 @@
 
 
 int main(void) {
-	char buf[512];
+	unsigned char buf[512];
 	int udp_sock, tcp_sock;
-	struct sockaddr_in srv_udp, srv_tcp, clnt_udp, clnt_tcp;
+	struct sockaddr_in srv_udp, srv_tcp, clnt_udp;
 	struct ifreq ifr;
 
 	memset((char *)&srv_udp, 0, sizeof(struct sockaddr_in));
 	memset((char *)&srv_tcp, 0, sizeof(struct sockaddr_in));
-	memset((char *)&clnt_tcp, 0, sizeof(struct sockaddr_in));
 	memset(buf, 0, sizeof(buf));	
 
 	udp_sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -50,10 +49,6 @@ int main(void) {
 	clnt_udp.sin_port = htons(PORT_UDP);
 	clnt_udp.sin_addr.s_addr = inet_addr(CLIENT);
 
-	clnt_tcp.sin_family = AF_INET;
-	clnt_tcp.sin_port = htons(PORT_TCP);
-	clnt_tcp.sin_addr.s_addr = inet_addr(CLIENT);
-
 	int rt;
 	rt = bind(udp_sock, (struct sockaddr*)&clnt_udp, sizeof(clnt_udp));
 	if (rt == -1) {
@@ -61,12 +56,7 @@ int main(void) {
 		return -1;
 	}
 	printf("udp_sock was binded.\n");
-	rt = bind(tcp_sock, (struct sockaddr*)&clnt_tcp, sizeof(clnt_tcp));
-	if (rt == -1) {
-		perror("bind");
-		return -1;
-	}
-	printf("tcp_sock was binded.\n");
+	
 	snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "eth0");
 	if (setsockopt(udp_sock, SOL_SOCKET, SO_BINDTODEVICE, (void *)&ifr, sizeof(ifr)) < 0) {
 		perror("setsockopt");
