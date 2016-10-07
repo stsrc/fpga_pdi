@@ -87,11 +87,11 @@ int main(void) {
 	}		
 	
 	if (buf[0] != 0xfa) {
-		printf("Dell sent wrong input command!\n");
+		printf("Dell sent wrong start command!\n");
 		return -1;
 	}
 	printf("tcp_sock received 0xfa (start command).\n");
-	int cnt = 0;
+	unsigned int cnt = 0;
 	socklen_t addrlen;
 	while (1) {
 		rt = recvfrom(udp_sock, buf, sizeof(buf), 0, (struct sockaddr *)&srv_udp, 
@@ -107,6 +107,7 @@ int main(void) {
 		perror("send");
 		return rt;
 	}
+
 	close(tcp_sock);
 	close(udp_sock);
 	return 0;

@@ -38,6 +38,12 @@ int main(void) {
 		return -1;
 	}
 	printf("created tcp_sock.\n");
+
+	if (setsockopt(tcp_sock, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0) {
+		perror("setsockopt");
+		return -1;
+	}
+
 	srv_udp.sin_family = AF_INET;
 	srv_udp.sin_port = htons(PORT_UDP);
 	srv_udp.sin_addr.s_addr = inet_addr(SERVER);
@@ -95,10 +101,10 @@ int main(void) {
 	printf("test command was sent.\n");
 	sleep(1);
 
-	int cnt = 0;
-	char temp = 0;
+	unsigned int cnt = 0;
+	unsigned char temp = 0;
 	clock_gettime(CLOCK_MONOTONIC, &t1);
-	while(cnt != 10000) {
+	while(cnt < 6000) {
 
 		memset(buf, temp, sizeof(buf));
 
@@ -108,7 +114,7 @@ int main(void) {
 			perror("sendto");
 			return rt;
 		}
-		cnt++;
+		cnt += rt;
 		temp++;
 		if (temp == 0xff)
 			temp = 0;
@@ -122,19 +128,25 @@ int main(void) {
 		return rt;
 	}
 	printf("0xff end byte was sent.\n");
-	rt = recv(tcp_sock, buf, sizeof(buf), 0);
-	printf("received result from MB.\n");
-	int bytes_cnt = buf[3] | buf[2] << 8 | buf[1] << 16 | buf[0] << 24;
+	rt = recv(tcp_c_sock, buf, sizeof(buf), 0);
+	if (rt < 0) {
+		printf("problem occured on receiving bytes count from mb.\n");
+		perror("recv");
+		return rt;
+	}
+	printf("\nReceived result from MB.\n");
+	unsigned int bytes_cnt = buf[0] | buf[1] << 8 | buf[2] << 16 | buf[3] << 24;
 	
-	printf("RESULTS RESULTS RESULTS RESULTS\n");
-
-	printf("MB received %d of 5120000 bytes ", bytes_cnt);
+	printf("\nMB received %d of %d bytes ", bytes_cnt, cnt);
 	long time = t2.tv_sec * 10e9 + t2.tv_nsec - (t1.tv_sec * 10e9 + t1.tv_nsec);
 	printf("in time %ld nsec\n", time);
 	double speed = bytes_cnt / ((double)time * 10.0e-9);
-	printf("Overall connection speed is: %f.\n", speed);
-	printf("Byte error rate: %f;\n", (double)bytes_cnt/5120000.0);
-	
+	printf("Overall connection speed is: %.2f B/s = %.2f kB/s = %.2f MB/s.\n",
+		speed, speed/1024.0, speed/(1024.0*1024.0));
+
+	printf("Percent of lost packets: %.2f%%;\n", (double)(cnt - bytes_cnt) 
+		/ (double)cnt * 100.0);
+	printf("\n");	
 	close(udp_sock);
 	close(tcp_sock);
 	close(tcp_c_sock);
