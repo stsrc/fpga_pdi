@@ -206,6 +206,7 @@ begin
     xgmii_rxd <= x"0707070707070707";
     xgmii_rxc <= x"ff";
     wait until rst_clk_20MHz = '1';
+    wait for 30 ns;
  	s_axi_awaddr<="1000";
     s_axi_wdata<=x"00000003";
     s_axi_wstrb<=b"1111";

@@ -112,16 +112,38 @@ component counter is
 	);
 end component counter;
 
-component signal_over_clocks is
+component bit_over_clocks is
 	port (
 		clk_in 		: in std_logic;
 		clk_in_resetn 	: in std_logic;
 		clk_out 	: in std_logic;
 		clk_out_resetn 	: in std_logic;
-		signal_in 	: in std_logic;
-		signal_out 	: out std_logic
+		bit_in 		: in std_logic;
+		bit_out 	: out std_logic
 	);
-end component signal_over_clocks;
+end component bit_over_clocks;
+
+component flag_over_clocks is
+	port (
+		clk_in 		: in std_logic;
+		clk_in_resetn 	: in std_logic;
+		clk_out 	: in std_logic;
+		clk_out_resetn 	: in std_logic;
+		flag_in 	: in std_logic;
+		flag_out 	: out std_logic
+	);
+end component flag_over_clocks;
+
+component flagn_over_clocks is
+	port (
+		clk_in 		: in std_logic;
+		clk_in_resetn 	: in std_logic;
+		clk_out 	: in std_logic;
+		clk_out_resetn 	: in std_logic;
+		flagn_in 	: in std_logic;
+		flagn_out 	: out std_logic
+	);
+end component flagn_over_clocks;
 
 component fifo is
 	generic (
@@ -297,7 +319,7 @@ end component reset_con;
 	signal interrupt_mac_fifo, interrupt_fifo_counter : std_logic := '0';
 	signal interrupt_counter_axi : std_logic := '0';
 	
-	signal en_rcv, resetp 			: std_logic := '0';
+	signal rcv_en_100MHz, rcv_en_156_25MHz, resetp 	: std_logic := '0';
 	signal control_reg_100MHz_resetn 	: std_logic := '0';
 	signal control_reg_156_25MHz_resetn 	: std_logic := '0';
 	signal con_100MHz_resetn		: std_logic := '0';
@@ -328,8 +350,6 @@ end component reset_con;
 	signal pkt_rx_data, pkt_tx_data: std_logic_vector(63 downto 0) := (others => '0');
 	signal pkt_rx_mod, pkt_tx_mod : std_logic_vector(2 downto 0) := (others => '0');
 
-
-
 begin
    	
 	not_read_packet_counter : counter
@@ -343,14 +363,14 @@ begin
 			interrupt => interrupt_counter_axi
 		);
 
-	int_fifo_axi_mac : signal_over_clocks
+	int_axi_mac : flag_over_clocks
 		port map (
 			clk_in => s_axi_aclk,
 			clk_in_resetn => con_100MHz_resetn,
 			clk_out => clk_156_25MHz,
 			clk_out_resetn => con_156_25MHz_resetn,
-			signal_in => interrupt_axi_fifo,
-			signal_out => interrupt_fifo_mac
+			flag_in => interrupt_axi_fifo,
+			flag_out => interrupt_fifo_mac
 		);	 
  
 	fifo_axi_mac_data : fifo	
@@ -381,14 +401,14 @@ begin
 			drop_in => '0'
 		);
 
-	int_fifo_mac_axi : signal_over_clocks
+	int_mac_axi : flag_over_clocks
 		port map (
 			clk_in => clk_156_25MHz,
 			clk_in_resetn => con_156_25MHz_resetn,
 			clk_out => s_axi_aclk,
 			clk_out_resetn => con_100MHz_resetn,
-			signal_in => interrupt_mac_fifo,
-			signal_out => interrupt_fifo_counter
+			flag_in => interrupt_mac_fifo,
+			flag_out => interrupt_fifo_counter
 		);	 
 
 	fifo_mac_axi_data : fifo	
@@ -455,7 +475,7 @@ begin
 		port map (
 			clk => clk_156_25MHz,
 			rst => con_156_25MHz_resetn,
-			en_rcv => en_rcv,
+			en_rcv => rcv_en_156_25MHz,
 			fifo_data => data_mac_fifo,
 			fifo_cnt => cnt_mac_fifo,
 			fifo_cnt_strb => strb_cnt_mac_fifo,
@@ -490,10 +510,10 @@ begin
 	generic map (DATA_WIDTH => 32)
 		port map (
 			clk => s_axi_aclk,
-			clk_resetn => con_100MHz_resetn,
+			clk_resetn => s_axi_aresetn,
 			reg_input => slv_reg2_wr,
 			reg_strb => slv_reg2_wr_strb,
-			rcv_en  => en_rcv,
+			rcv_en  => rcv_en_100MHz,
 			resetp => resetp	
 		);
 		
@@ -507,15 +527,25 @@ begin
 			out_resetn => con_100MHz_resetn
 		);
 
-	softreset_intra_clk : signal_over_clocks
+	softreset_intra_clk : flagn_over_clocks
+		port map (
+			clk_in => s_axi_aclk,
+			clk_in_resetn => s_axi_aresetn,
+			clk_out => clk_156_25MHz,
+			clk_out_resetn => rst_clk_156_25MHz,
+			flagn_in => con_100MHz_resetn,
+			flagn_out => control_reg_156_25MHz_resetn
+		);	
+
+ 	rcv_en_intra_clk : bit_over_clocks
 		port map (
 			clk_in => s_axi_aclk,
 			clk_in_resetn => '1',
 			clk_out => clk_156_25MHz,
 			clk_out_resetn => '1',
-			signal_in => con_100MHz_resetn,
-			signal_out => control_reg_156_25MHz_resetn
-		);	 
+			bit_in => rcv_en_100MHz,
+			bit_out => rcv_en_156_25MHz
+		);
 
 	reset_con_156_25MHz : reset_con
 		port map (
@@ -550,7 +580,7 @@ begin
 			slv_reg2_wr_strb => slv_reg2_wr_strb,
 			slv_reg3_wr_strb => slv_reg3_wr_strb,
 			S_AXI_ACLK => s_axi_aclk,
-			S_AXI_ARESETN => con_100MHz_resetn,
+			S_AXI_ARESETN => s_axi_aresetn,
 			S_AXI_AWADDR => s_axi_awaddr,
 			S_AXI_AWPROT => s_axi_awprot,
 			S_AXI_AWVALID => s_axi_awvalid,

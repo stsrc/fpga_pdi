@@ -147,7 +147,7 @@ begin
         fifo_data_strb <= '1';
         pkt_tx_eop <= '1';
         state_tmp <= "00";
-	    MOD_VAL(cnt, fifo_data, pkt_tx_mod, pkt_tx_data);
+	MOD_VAL(cnt, fifo_data, pkt_tx_mod, pkt_tx_data);
 
 	when others =>
 		state_tmp <= (others => '0');

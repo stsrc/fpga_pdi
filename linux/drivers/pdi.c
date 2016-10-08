@@ -27,6 +27,8 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 
+#include <linux/spinlock.h>
+
 #include <linux/dma/xilinx_dma.h>
 
 #define DRIVER_NAME "pdi"
@@ -47,6 +49,7 @@ static struct resource *pdi_ports = NULL;
 static struct resource *pdi_iomem = NULL;
 static int pdi_irq = 0;
 static struct net_device *pdi_netdev = NULL;
+static spinlock_t pdi_lock;
 
 /*
  * reg0 - packet's size in bytes. To push packet into MAC write
@@ -104,17 +107,22 @@ const struct file_operations pdi_fops = {
 static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	uint32_t data = 0;
-	const uint32_t len = skb->len;
+	uint32_t len;
 	/* 
 	 * to_add - padding bytes count. 
 	 * FPGA eth 'internals' are 8 bytes aligned. 
 	 */
-	const unsigned int to_add = 8 - len % 8;
+	unsigned int to_add;
 	unsigned char *data_ptr = NULL;
+	unsigned long flags = 0;
 
+	spin_lock_irqsave(&pdi_lock, flags);
+	len = skb->len;
+	to_add = 8 - len % 8;
 	if (to_add != 0) {		
 		if ((unsigned int)skb->end < (unsigned int)skb->tail + to_add) {
 			pr_info("PDI: FAILED TO ADD SPACE TO SKB!!!\n");
+			spin_unlock_irqrestore(&pdi_lock, flags);
 			return NETDEV_TX_BUSY;
 		}
 
@@ -138,6 +146,7 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	wmb();
 
 	dev_kfree_skb(skb);
+	spin_unlock_irqrestore(&pdi_lock, flags);
 	return NETDEV_TX_OK;
 }
 
@@ -344,6 +353,8 @@ static int pdi_probe(struct platform_device *pdev)
 	rt = pdi_init_ethernet(pdev);
 	if (rt)
 		return rt;
+
+	spin_lock_init(&pdi_lock);
 	/* Software reset on xgbe part of FPGA*/
 	iowrite32(1, reg2);
 	/* 
