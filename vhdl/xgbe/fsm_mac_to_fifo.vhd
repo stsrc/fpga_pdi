@@ -19,6 +19,7 @@ entity fsm_mac_to_fifo is
 		-- End of packet reception pin strobe. It signals that
 		-- MB may now get packet.
 	        eop_strb	: out std_logic;
+		fifo_is_full	: in  std_logic;
 		-- xge_mac related ports
         	pkt_rx_data	: in  std_logic_vector(63 downto 0);
 	        pkt_rx_ren	: out std_logic;
@@ -37,56 +38,16 @@ architecture Behavioral of fsm_mac_to_fifo is
 	signal cnt, cnt_temp : unsigned(13 downto 0) := (others => '0');
   	signal pkt_rx_data_s : std_logic_vector(63 downto 0) := (others => '0');
 
-begin
-   fifo_data <= pkt_rx_data_s;
-   fifo_cnt <= std_logic_vector(cnt_temp);
-    
-    process(clk) is
-    begin
-    if (rising_edge(clk)) then
-        
-            state <= tmp_state;
-            cnt <= cnt_temp;
-        
-    end if;
-    end process;
-    
-    process(state, cnt, en_rcv, pkt_rx_mod, pkt_rx_avail, pkt_rx_val, 
-        pkt_rx_eop, pkt_rx_data, pkt_rx_err) begin
-    tmp_state <= "00";
-    pkt_rx_ren <= '0';
-    fifo_strb <= '0';
-    eop_strb <= '0';
-    pkt_rx_data_s <= (others => '0');
-    cnt_temp <= (others => '0');
-    fifo_cnt_strb <= '0';
-    fifo_drop <= '0';
-    case state is
-    when "00" =>
-        if (pkt_rx_avail = '1' and en_rcv = '1') then
-           pkt_rx_ren <= '1';
-           tmp_state <= "01";
-        end if;
-    when "01" =>
-    if (pkt_rx_err = '1') then
-            fifo_strb <= '1';
-            fifo_drop <= '1';
-	elsif (pkt_rx_val = '0') then
-		tmp_state <= "01";
-		cnt_temp <= cnt;
-		pkt_rx_ren <= '1';
-        elsif (pkt_rx_val = '1' and pkt_rx_eop = '0') then
-            tmp_state <= "01";
-            pkt_rx_ren <= '1';
-            fifo_strb <= '1';
-            pkt_rx_data_s <= pkt_rx_data;
-            cnt_temp <= cnt + 8;
-        elsif (pkt_rx_val = '1' and pkt_rx_eop = '1') then
-            fifo_strb <= '1';
-            eop_strb <= '1';
-            fifo_cnt_strb <= '1';
-            case pkt_rx_mod is
-            when "000" =>
+	procedure MOD_VAL (
+			signal cnt : in unsigned(13 downto 0);
+			signal cnt_temp : out unsigned(13 downto 0);
+			signal pkt_rx_data : in std_logic_vector(63 downto 0);
+			signal pkt_rx_data_s : out std_logic_vector(63 downto 0);
+			signal pkt_rx_mod : in std_logic_vector(2 downto 0))
+	is 
+	begin
+		case pkt_rx_mod is
+		when "000" =>
                 pkt_rx_data_s <= pkt_rx_data;
                 cnt_temp <= cnt + 8;
             when "001" =>
@@ -120,9 +81,88 @@ begin
             when others =>
                 pkt_rx_data_s <= (others => '0');
             end case;
-        end if;   
-    when others =>
-        tmp_state <= "00";
-    end case;
-    end process;
+	end MOD_VAL;
+
+begin
+
+fifo_data <= pkt_rx_data_s;
+fifo_cnt <= std_logic_vector(cnt);
+    
+	process(clk) is
+	begin
+	if (rising_edge(clk)) then
+		if (rst = '0') then
+			state <= (others => '0');
+			cnt <= (others => '0');
+		else
+        		state <= tmp_state;
+			cnt <= cnt_temp;
+		end if;
+	end if;
+	end process;
+    
+	process(state, cnt, en_rcv, pkt_rx_mod, pkt_rx_avail, pkt_rx_val, 
+		pkt_rx_eop, pkt_rx_data, pkt_rx_err) begin
+
+	tmp_state <= "00";
+	pkt_rx_ren <= '0';
+	fifo_strb <= '0';
+	eop_strb <= '0';
+	pkt_rx_data_s <= (others => '0');
+	cnt_temp <= (others => '0');
+	fifo_cnt_strb <= '0';
+	fifo_drop <= '0';
+
+	case state is
+	when "00" =>
+
+	if (pkt_rx_avail = '1' and en_rcv = '1') then
+		pkt_rx_ren <= '1';
+		tmp_state <= "01";
+	end if;
+
+	when "01" =>
+	if (fifo_is_full = '1') then
+		if (pkt_rx_eop = '1' or pkt_rx_err = '1') then
+			tmp_state <= "00";
+		else
+			tmp_state <= "11";
+			pkt_rx_ren <= '1';
+		end if;
+	elsif (pkt_rx_err = '1') then
+		tmp_state <= "00";
+		fifo_strb <= '1';
+		fifo_drop <= '1';
+	elsif (pkt_rx_val = '0') then
+		tmp_state <= "01";
+		cnt_temp <= cnt;
+		pkt_rx_ren <= '1'; --IS IT OK?
+	elsif (pkt_rx_val = '1' and pkt_rx_eop = '0') then
+		tmp_state <= "01";
+		pkt_rx_ren <= '1';
+		fifo_strb <= '1';
+		pkt_rx_data_s <= pkt_rx_data;
+		cnt_temp <= cnt + 8;
+	elsif (pkt_rx_val = '1' and pkt_rx_eop = '1') then
+		tmp_state <= "10";
+		fifo_strb <= '1';
+		MOD_VAL(cnt, cnt_temp, pkt_rx_data, pkt_rx_data_s, pkt_rx_mod);
+	end if;
+
+	when "10" =>
+	if (fifo_is_full = '0') then
+		eop_strb <= '1';
+		fifo_cnt_strb <= '1';
+	end if;
+	when "11" =>
+	if (pkt_rx_eop = '0') then
+		pkt_rx_ren <= '1';
+		tmp_state <= "11";
+	end if;	
+	when others =>
+		tmp_state <= "00";
+	end case;
+
+end process;
+
 end Behavioral;

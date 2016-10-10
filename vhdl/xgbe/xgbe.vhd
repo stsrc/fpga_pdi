@@ -151,15 +151,16 @@ component fifo is
 		DATA_HEIGHT : integer := 10
 	);
 	port (
-		clk_in		: in std_logic;
-		clk_in_resetn   : in std_logic;
-		clk_out		: in std_logic;
-		clk_out_resetn  : in std_logic;	
-		data_in		: in std_logic_vector(DATA_WIDTH - 1 downto 0);
+		clk_in		: in  std_logic;
+		clk_in_resetn   : in  std_logic;
+		clk_out		: in  std_logic;
+		clk_out_resetn  : in  std_logic;	
+		data_in		: in  std_logic_vector(DATA_WIDTH - 1 downto 0);
 		data_out	: out std_logic_vector(DATA_WIDTH - 1 downto 0);
-		strb_in		: in std_logic;
-		strb_out	: in std_logic;
-		drop_in		: in std_logic
+		strb_in		: in  std_logic;
+		strb_out	: in  std_logic;
+		drop_in		: in  std_logic;
+		is_full_clk_in	: out std_logic
 	);
 end component fifo;
 
@@ -239,9 +240,10 @@ port (
 	data_to_fifo_strb 	: out std_logic;
 	cnt_from_axi 		: in std_logic_vector(31 downto 0);
 	cnt_from_axi_strb 	: in std_logic;
-	cnt_to_fifo : out std_logic_vector(13 downto 0);
-	cnt_to_fifo_strb : out std_logic;
-	packet_strb : out std_logic
+	cnt_to_fifo 		: out std_logic_vector(13 downto 0);
+	cnt_to_fifo_strb 	: out std_logic;
+	packet_strb 		: out std_logic;
+	fifo_is_full 		: in std_logic
 );
 end component;
 
@@ -255,7 +257,6 @@ component fsm_fifo_to_mac is
 		pkt_tx_eop 	: out std_logic;
 		pkt_tx_mod 	: out std_logic_vector(2 downto 0);
 		pkt_tx_full 	: in std_logic;
-	
 		packet_strb 	: in std_logic;
 		fifo_data 	: in std_logic_vector(63 downto 0);
 		fifo_cnt 	: in std_logic_vector(13 downto 0);
@@ -268,13 +269,14 @@ component fsm_mac_to_fifo is
 	port (
 		clk 		: in  std_logic;	
 		rst 		: in  std_logic;
-		en_rcv 		: in std_logic;
+		en_rcv 		: in  std_logic;
 		fifo_data 	: out std_logic_vector(63 downto 0);
 		fifo_cnt 	: out std_logic_vector(13 downto 0);
 	        fifo_cnt_strb 	: out std_logic;
 	        fifo_strb 	: out std_logic;
 	        fifo_drop 	: out std_logic;
 		eop_strb 	: out std_logic;
+		fifo_is_full	: in  std_logic;
 	        pkt_rx_data 	: in  std_logic_vector(63 downto 0);
 	        pkt_rx_ren 	: out std_logic;
 	        pkt_rx_avail 	: in  std_logic;
@@ -344,6 +346,7 @@ end component reset_con;
 	signal strb_data_fifo_axi, strb_cnt_fifo_axi : std_logic := '0';
 
 	signal fifo_drop : std_logic := '0';
+	signal full_fifo_axi_mac, full_fifo_mac_axi : std_logic := '0';
 
 	signal pkt_rx_avail, pkt_rx_eop, pkt_rx_err, pkt_rx_ren, pkt_rx_sop : std_logic := '0';
 	signal pkt_rx_val, pkt_tx_eop, pkt_tx_full, pkt_tx_sop, pkt_tx_val : std_logic := '0';
@@ -384,7 +387,8 @@ begin
 			data_out => data_fifo_mac,
 			strb_in => strb_data_axi_fifo,
 			strb_out => strb_data_fifo_mac,
-			drop_in => '0'
+			drop_in => '0',
+			is_full_clk_in => full_fifo_axi_mac
 		);
 
 	fifo_axi_mac_cnt : fifo		
@@ -398,7 +402,8 @@ begin
 			data_out => cnt_fifo_mac,
 			strb_in => strb_cnt_axi_fifo,
 			strb_out => strb_cnt_fifo_mac,
-			drop_in => '0'
+			drop_in => '0',
+			is_full_clk_in => open
 		);
 
 	int_mac_axi : flag_over_clocks
@@ -422,7 +427,8 @@ begin
 			data_out => data_fifo_axi,
 			strb_in => strb_data_mac_fifo,
 			strb_out => strb_data_fifo_axi,
-			drop_in => fifo_drop
+			drop_in => fifo_drop,
+			is_full_clk_in => full_fifo_mac_axi
 		);
 
 	fifo_mac_axi_cnt : fifo		
@@ -436,7 +442,8 @@ begin
 			data_out => cnt_fifo_axi,
 			strb_in => strb_cnt_mac_fifo,
 			strb_out => strb_cnt_fifo_axi,
-			drop_in => '0'
+			drop_in => '0',
+			is_full_clk_in => open
 		);
 
 	fsm_axi_to_fifo_0 : fsm_axi_to_fifo
@@ -451,7 +458,8 @@ begin
 			cnt_from_axi_strb => slv_reg0_wr_strb,
 			cnt_to_fifo  => cnt_axi_fifo,
 			cnt_to_fifo_strb => strb_cnt_axi_fifo,
-			packet_strb => interrupt_axi_fifo
+			packet_strb => interrupt_axi_fifo,
+			fifo_is_full => full_fifo_axi_mac
 		);
 
 	fsm_fifo_to_mac_0 : fsm_fifo_to_mac 
@@ -482,6 +490,7 @@ begin
 			fifo_strb => strb_data_mac_fifo,
 			fifo_drop => fifo_drop,
 			eop_strb => interrupt_mac_fifo,
+			fifo_is_full => full_fifo_mac_axi,
 			pkt_rx_data => pkt_rx_data,
 			pkt_rx_ren => pkt_rx_ren,
 			pkt_rx_avail => pkt_rx_avail,

@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+#include <time.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -8,13 +10,13 @@
 
 #define SERVER "10.0.0.3"
 #define CLIENT "10.0.0.2"
-#define BUFLEN 512
+#define BUFLEN 1024
 #define PORT 8888
 
 
-void generate_msg(char *buf) {
-	for (int i = 0; i < 65; i++)
-		buf[i] = i;
+void generate_msg(char *buf, int buf_siz) {
+	for (int i = 0; i < buf_siz; i++)
+		buf[i] = (char)i + (char)rand();
 }
 
 int main(void) {
@@ -22,9 +24,7 @@ int main(void) {
 	char buf[BUFLEN];
 	int slen = sizeof(srv_sock);
 	int sockfd, rt;
-
-	generate_msg(buf);
-
+	srand(time(0));
 	sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (sockfd == -1) {
 		perror("socket");
@@ -62,9 +62,11 @@ int main(void) {
 	}
 	printf("client has connected socket to server.\n");
 
-	for (int i = 0; i < 10; i++)
-		rt = send(sockfd, buf, 65, 0);
-	printf("Client sent 10 packets with 65 bytes.\n");
+	for (int i = 0; i < 40; i++) {
+		generate_msg(buf, BUFLEN);
+		rt = send(sockfd, buf, BUFLEN, 0);
+	}
+	printf("Client sent 1 packets with 1024 bytes.\n");
 	
 	close(sockfd);
 	return 0;

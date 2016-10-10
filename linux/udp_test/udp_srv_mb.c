@@ -6,7 +6,7 @@
 #include <net/if.h>
 
 #define SERVER "10.0.0.3"
-#define BUFLEN 512
+#define BUFLEN 1024
 #define PORT 8888
 
 int main(void) {
@@ -14,7 +14,7 @@ int main(void) {
 	struct ifreq ifr;
 	char buf[BUFLEN];
 	int slen = sizeof(si_other);
-	int s, rt;
+	int s, rt, cnt = 0;
 	s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (s == -1) {
 		perror("socket");
@@ -36,18 +36,17 @@ int main(void) {
 		perror("setsockopt");
 		return -1;
 	}
-
+	
+	printf("UDP SERVER: waiting for data.\n");
 	while(1) {
-		printf("UDP SERVER: waiting for data.\n");
 		rt = recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *)&si_other,
 			      &slen);
-
 		if (rt == -1) {
 			perror("recvfrom");
 			return -1;
 		}
-		printf("!!!!!!!!!!!!!!!test!!!!!!!!!!!!!!!\n");
-		printf("UDP SERVER: received packet from %s:%d\n\n", 
+		cnt++;
+		printf("UDP SERVER: received %d packet from %s:%d\n\n", cnt,
 		       inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
 	}
 }

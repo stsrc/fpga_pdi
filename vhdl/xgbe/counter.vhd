@@ -18,6 +18,7 @@ entity counter is
 end counter;
 
 architecture counter_arch of counter is
+	--cnt - packet count
 	signal cnt, cnt_tmp : unsigned(REG_WIDTH - 1 downto 0);
 	signal int_gen_cnt, int_gen_cnt_tmp  : unsigned(REG_WIDTH - 1 downto 0);
 	signal int_state  : std_logic := '0';

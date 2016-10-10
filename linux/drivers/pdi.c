@@ -144,9 +144,10 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	iowrite32(len, reg0);
 	wmb();
-
-	dev_kfree_skb(skb);
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes += (unsigned long)len;
 	spin_unlock_irqrestore(&pdi_lock, flags);
+	dev_kfree_skb(skb);
 	return NETDEV_TX_OK;
 }
 
@@ -159,11 +160,16 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 	struct sk_buff *skb = NULL;
 	unsigned char *buf = NULL;
 	int ret = 0;
+	unsigned long flags = 0;
 
+	spin_lock_irqsave(&pdi_lock, flags);	
+	
 	packets_cnt = (u32)ioread32(reg3);
+	pr_info("IRQ: packets_cnt = %d.\n", packets_cnt);
 	rmb();
 	if (!packets_cnt) {
 		pr_info("PDI: interrupt falsely triggered!!!\n");
+		spin_unlock_irqrestore(&pdi_lock, flags);
 		return IRQ_HANDLED;		
 	}
 	for (u32 i = 0; i < packets_cnt; i++) {
@@ -176,6 +182,9 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 		if (!skb) {
 			pr_info("alloc_skb failed! Packet not received! "
 				"FPGA IN ERROR STATE\n");
+			pdi_netdev->stats.rx_errors++;
+			pdi_netdev->stats.rx_dropped++;
+			spin_unlock_irqrestore(&pdi_lock, flags);
 			return IRQ_HANDLED;
 		}
 
@@ -215,7 +224,10 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 		}
 		skb->protocol = eth_type_trans(skb, pdi_netdev); 	
 		ret = netif_rx(skb);
+		pdi_netdev->stats.rx_bytes += (unsigned long)data_len;
 	}
+	pdi_netdev->stats.rx_packets += (unsigned long)packets_cnt;
+	spin_unlock_irqrestore(&pdi_lock, flags);
 	return IRQ_HANDLED;
 }
 
