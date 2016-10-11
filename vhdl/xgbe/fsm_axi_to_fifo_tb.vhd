@@ -48,8 +48,7 @@ port (
 	cnt_from_axi_strb 	: in std_logic;
 	cnt_to_fifo : out std_logic_vector(13 downto 0);
 	cnt_to_fifo_strb : out std_logic;
-	packet_strb : out std_logic;
-	fifo_is_full : in std_logic
+	packet_strb : out std_logic
 );
 
 end component;
@@ -58,7 +57,6 @@ signal cnt_from_axi_strb, cnt_to_fifo_strb, packet_strb : std_logic := '0';
 signal data_from_axi, cnt_from_axi : std_logic_vector(31 downto 0) := (others => '0');
 signal data_to_fifo : std_logic_vector(63 downto 0) := (others => '0');
 signal cnt_to_fifo : std_logic_vector(13 downto 0) := (others => '0');
-signal fifo_is_full : std_logic := '0';
 begin
 fsm_1 : fsm_axi_to_fifo 
 	port map (
@@ -72,8 +70,7 @@ fsm_1 : fsm_axi_to_fifo
 		cnt_from_axi_strb => cnt_from_axi_strb,
 		cnt_to_fifo => cnt_to_fifo,
 		cnt_to_fifo_strb => cnt_to_fifo_strb,
-		packet_strb => packet_strb,
-		fifo_is_full => fifo_is_full
+		packet_strb => packet_strb
 	);
 
 process begin
@@ -90,34 +87,8 @@ resetn <= '1';
 data_from_axi <= (others => '1');
 wait for 10 ns;
 data_from_axi_strb <= '1';
-data_from_axi <= x"ff000000";
 wait for 10 ns;
-data_from_axi <= x"000000ff";
-wait for 10 ns;
-data_from_axi_strb <= '0';
-cnt_from_axi <= x"000000ff";
-cnt_from_axi_strb <= '1';
-wait for 10 ns;
-cnt_from_axi_strb <= '0';
-
-wait for 10 ns;
-fifo_is_full <= '1';
-data_from_axi_strb <= '1';
-data_from_axi <= x"ff000000";
-wait for 10 ns;
-fifo_is_full <= '0';
-data_from_axi <= x"000000ff";
-wait for 10 ns;
-data_from_axi_strb <= '0';
-cnt_from_axi <= x"000000ff";
-cnt_from_axi_strb <= '1';
-wait for 10 ns;
-cnt_from_axi_strb <= '0';
-wait for 10 ns;
-data_from_axi_strb <= '1';
-data_from_axi <= x"ff000000";
-wait for 10 ns;
-data_from_axi <= x"000000ff";
+data_from_axi <= "10101010101010101010101010101010";
 wait for 10 ns;
 data_from_axi_strb <= '0';
 cnt_from_axi <= x"000000ff";

@@ -32,7 +32,7 @@ signal head, head_save, tail : unsigned(DATA_HEIGHT - 1 downto 0);
 
 signal gray_tail_clkout : unsigned(DATA_HEIGHT - 1 downto 0);
 signal gray_tail_clkin_meta, gray_tail_clkin_reg : unsigned(DATA_HEIGHT - 1 downto 0);
-signal tail_clkin : unsigned(DATA_HEIGHT - 1 downto 0);
+signal tail_clkin, tail_clkin_tmp : unsigned(DATA_HEIGHT - 1 downto 0);
 
 type mem_type is array (2**DATA_HEIGHT - 1 downto 0) of std_logic_vector(DATA_WIDTH - 1 downto 0);
 signal mem : mem_type;
@@ -44,7 +44,7 @@ is
 begin
 	tail_clkin(DATA_HEIGHT - 1) <= gray_tail_clkin_reg(DATA_HEIGHT - 1);
 	for i in DATA_HEIGHT - 2 downto 0 loop
-		tail_clkin(i) <= gray_tail_clkin_reg(i + 1) xor gray_tail_clkin_reg(i);
+		tail_clkin(i) <= tail_clkin(i + 1) xor gray_tail_clkin_reg(i);
 	end loop;
 end GRAY2BIN;				
 
@@ -64,8 +64,7 @@ begin
 
 				gray_tail_clkin_meta <= gray_tail_clkout;
 				gray_tail_clkin_reg <= gray_tail_clkin_meta;	
-				
-				GRAY2BIN(tail_clkin, gray_tail_clkin_reg);
+				tail_clkin <= tail_clkin_tmp;
 
 				if (head = tail_clkin - 1) then
 					is_full_clk_in <= '1';
@@ -85,6 +84,10 @@ begin
 		end if;
 	end process;
 	
+	process(gray_tail_clkin_reg, tail_clkin_tmp) begin
+		GRAY2BIN(tail_clkin_tmp, gray_tail_clkin_reg);
+	end process;
+
 	process (clk_out) begin
 		if (rising_edge(clk_out)) then
 			if (clk_out_resetn = '0') then

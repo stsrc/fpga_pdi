@@ -242,8 +242,7 @@ port (
 	cnt_from_axi_strb 	: in std_logic;
 	cnt_to_fifo 		: out std_logic_vector(13 downto 0);
 	cnt_to_fifo_strb 	: out std_logic;
-	packet_strb 		: out std_logic;
-	fifo_is_full 		: in std_logic
+	packet_strb 		: out std_logic
 );
 end component;
 
@@ -466,8 +465,7 @@ begin
 			cnt_from_axi_strb => slv_reg0_wr_strb,
 			cnt_to_fifo  => cnt_axi_fifo,
 			cnt_to_fifo_strb => strb_cnt_axi_fifo,
-			packet_strb => interrupt_axi_fifo,
-			fifo_is_full => full_fifo_axi_mac
+			packet_strb => interrupt_axi_fifo
 		);
 
 	fsm_fifo_to_mac_0 : fsm_fifo_to_mac 
