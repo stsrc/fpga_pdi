@@ -231,7 +231,7 @@ begin
    s_axi_wstrb<=b"0000";
     wait for 100 ns;
 
-	for k in 0 to 128 loop
+	for k in 0 to 127 loop
 	xgmii_rxd <= x"0707070707070707";
 	xgmii_rxc <= x"ff";
 	

@@ -102,7 +102,7 @@ fifo_cnt <= std_logic_vector(cnt);
 	end process;
     
 	process(state, cnt, en_rcv, pkt_rx_mod, pkt_rx_avail, pkt_rx_val, 
-		pkt_rx_eop, pkt_rx_data, pkt_rx_err) begin
+		pkt_rx_eop, pkt_rx_data, pkt_rx_err, fifo_is_full) begin
 
 	tmp_state <= "00";
 	pkt_rx_ren <= '0';

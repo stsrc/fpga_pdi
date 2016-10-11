@@ -59,7 +59,7 @@ end component;
   constant LOCK_INIT : integer := 0;
   constant RESET_CNT : integer := 1;
   constant TEST_SH_ST: integer := 2;
-  signal send_my_packet : std_logic := '0';
+  shared variable send_my_packet : integer := 0;
   signal coreclk_out : std_logic := '0';
   signal core_status : std_logic_vector(7 downto 0) := (others => '0');
   signal sim_speedup_control, resetdone : std_logic := '0';
@@ -322,9 +322,6 @@ begin
   -- Generate the resets.
   reset_proc : process
   begin
-    rstn_clk_156_25MHz <= '1';
-    s_axi_aresetn <= '1';
-    wait for 100 ns;
     rstn_clk_156_25MHz <= '0';
     s_axi_aresetn <= '0';
     wait for 6.4 ns;
@@ -469,19 +466,13 @@ begin
     end rx_stimulus_send_frame;
 
   begin
-
-    
-    -- Give the core and TB time to get block_lock on incoming data...
-    while (send_my_packet /= '1') loop
-      rx_stimulus_send_idle;
-    end loop;
- 
-    rx_stimulus_send_frame(frame_data(0));
-
-    while (true) loop
-        rx_stimulus_send_idle;
-    end loop;
-
+    	while (send_my_packet /= 1) loop
+      		rx_stimulus_send_idle;
+    	end loop;
+	while (true) loop	
+	    	rx_stimulus_send_frame(frame_data(0));
+		rx_stimulus_send_idle;
+	end loop;
     wait;
   end process p_rx_stimulus;
 
@@ -951,11 +942,9 @@ send : process
 
 	working_process : process
 	begin
-		wait until resetdone = '1'; 
-		wait until block_lock = '1';
-		
+	wait until s_axi_aresetn = '1';
  	s_axi_awaddr<="1000";
-        s_axi_wdata<=x"00000001";
+        s_axi_wdata<=x"00000002";
         s_axi_wstrb<=b"1111";
         sendit<='1';                --start axi write to slave
         wait for 1 ns; 
@@ -964,13 +953,16 @@ send : process
 	wait until s_axi_bvalid = '0';  --axi write finished
         s_axi_wstrb<=b"0000";
 
-	for j in 0 to 9 loop
+	wait until resetdone = '1'; 
+	wait until block_lock = '1';
+
+	while(true) loop
 		s_axi_awaddr<="0100";
-        	s_axi_wdata<=x"00000100";
-	        s_axi_wstrb<=b"1111";
- 	        sendit<='1';                --start axi write to slave
-	        wait for 1 ns; 
-	        sendit<='0'; --clear start send flag
+	        s_axi_wdata<=x"00000100";
+		s_axi_wstrb<=b"1111";
+	 	sendit<='1';                --start axi write to slave
+		wait for 1 ns; 
+		sendit<='0'; --clear start send flag
 		wait until s_axi_bvalid = '1';
 		wait until s_axi_bvalid = '0';  --axi write finished
 	       	s_axi_wstrb<=b"0000";
@@ -978,85 +970,91 @@ send : process
 		s_axi_awaddr<="0100";
 		s_axi_wdata<=x"00010010";
 		s_axi_wstrb<=b"1111";
-        sendit<='1';                --start axi write to slave
-        wait for 1 ns; 
-        sendit<='0'; --clear start send flag
-	   wait until s_axi_bvalid = '1';
-	   wait until s_axi_bvalid = '0';  --axi write finished
-        s_axi_wstrb<=b"0000";  
+	        sendit<='1';                --start axi write to slave
+	        wait for 1 ns; 
+	        sendit<='0'; --clear start send flag
+		wait until s_axi_bvalid = '1';
+		wait until s_axi_bvalid = '0';  --axi write finished
+	        s_axi_wstrb<=b"0000";  
 
-	   s_axi_awaddr<="0100";
-        s_axi_wdata<=x"94000002";
-        s_axi_wstrb<=b"1111";
-        sendit<='1';                --start axi write to slave
-        wait for 1 ns; 
-        sendit<='0'; --clear start send flag
-	    wait until s_axi_bvalid = '1';
-	    wait until s_axi_bvalid = '0';  --axi write finished
-        s_axi_wstrb<=b"0000";
+		s_axi_awaddr<="0100";
+	        s_axi_wdata<=x"94000002";
+	        s_axi_wstrb<=b"1111";
+	        sendit<='1';                --start axi write to slave
+	        wait for 1 ns; 
+	        sendit<='0'; --clear start send flag
+		wait until s_axi_bvalid = '1';
+		wait until s_axi_bvalid = '0';  --axi write finished
+	        s_axi_wstrb<=b"0000";
 
-	    s_axi_awaddr<="0100";
-        s_axi_wdata<=x"88b50001";
-        s_axi_wstrb<=b"1111";
-        sendit<='1';                --start axi write to slave
-        wait for 1 ns; 
-        sendit<='0'; --clear start send flag
-	   wait until s_axi_bvalid = '1';
-	   wait until s_axi_bvalid = '0';  --axi write finished
-        s_axi_wstrb<=b"0000";
+		s_axi_awaddr<="0100";
+	        s_axi_wdata<=x"88b50001";
+        	s_axi_wstrb<=b"1111";
+		sendit<='1';                --start axi write to slave
+		wait for 1 ns; 
+		sendit<='0'; --clear start send flag
+		wait until s_axi_bvalid = '1';
+		wait until s_axi_bvalid = '0';  --axi write finished
+		s_axi_wstrb<=b"0000";
 	 
-    for i in 0 to 7 loop
-	   s_axi_awaddr<="0100";
-        s_axi_wdata<=x"ffffff00" or std_logic_vector(to_unsigned(i, 32) + to_unsigned(j, 32));
-        s_axi_wstrb<=b"1111";
-        sendit<='1';                --start axi write to slave
-        wait for 1 ns; 
-        sendit<='0'; --clear start send flag
-	    wait until s_axi_bvalid = '1';
-	    wait until s_axi_bvalid = '0';  --axi write finished
-        s_axi_wstrb<=b"0000";
+		for i in 0 to 7 loop
+			s_axi_awaddr<="0100";
+		        s_axi_wdata<=x"ffffff00" or std_logic_vector(to_unsigned(i, 32));
+		        s_axi_wstrb<=b"1111";
+		        sendit<='1';                --start axi write to slave
+		        wait for 1 ns; 
+		        sendit<='0'; --clear start send flag
+			wait until s_axi_bvalid = '1';
+			wait until s_axi_bvalid = '0';  --axi write finished
+			s_axi_wstrb<=b"0000";
+			s_axi_awaddr<="0100";
+			s_axi_wdata<=x"f0000000" or std_logic_vector(to_unsigned(i, 32));
+			s_axi_wstrb<=b"1111";
+			sendit<='1';                --start axi write to slave
+			wait for 1 ns; 
+			sendit<='0'; --clear start send flag
+			wait until s_axi_bvalid = '1';
+			wait until s_axi_bvalid = '0';  --axi write finished
+			s_axi_wstrb<=b"0000";
+		end loop;
 
-	    s_axi_awaddr<="0100";
-        s_axi_wdata<=x"f0000000" or std_logic_vector(to_unsigned(i, 32) + to_unsigned(j,32));
-        s_axi_wstrb<=b"1111";
-        sendit<='1';                --start axi write to slave
-        wait for 1 ns; 
-        sendit<='0'; --clear start send flag
-	   wait until s_axi_bvalid = '1';
-	   wait until s_axi_bvalid = '0';  --axi write finished
-        s_axi_wstrb<=b"0000";
-    end loop;
-
-	s_axi_awaddr<="0000";
-    s_axi_wdata<=x"00000040";
-    s_axi_wstrb<=b"1111";
-    sendit<='1';                --start axi write to slave
-    wait for 1 ns; 
-    sendit<='0'; --clear start send flag
-	wait until s_axi_bvalid = '1';
-	wait until s_axi_bvalid = '0';  --axi write finished
-    s_axi_wstrb<=b"0000";
+		s_axi_awaddr<="0000";
+		s_axi_wdata<=x"00000040";
+		s_axi_wstrb<=b"1111";
+		sendit<='1';                --start axi write to slave
+		wait for 1 ns; 
+		sendit<='0'; --clear start send fla
+		wait until s_axi_bvalid = '1';
+		wait until s_axi_bvalid = '0';  --axi write finished
+		s_axi_wstrb<=b"0000";
    
-    send_my_packet <= '1'; 
-    wait until interrupt = '1';
+		send_my_packet := 1; 
+		wait until interrupt = '1';
+
+		s_axi_araddr<="1100";
+		readit<='1';                --start axi read from slave
+		wait for 1 ns; 
+		readit<='0';                --clear "start read" flag
+		wait until s_axi_rready = '1';
+		wait until s_axi_rready = '0';    --axi_data should be equal to 64
       
-    s_axi_araddr<="0000";
-        readit<='1';                --start axi read from slave
-        wait for 1 ns; 
-       readit<='0';                --clear "start read" flag
-    wait until s_axi_rready = '1';
-    wait until s_axi_rready = '0';    --axi_data should be equal to 64
+		s_axi_araddr<="0000";
+		readit<='1'; 
+		wait for 1 ns;
+		readit<='0';
+		wait until s_axi_rready = '1';
+		wait until s_axi_rready = '0';    
     
-        s_axi_araddr<="0100";    
-   for i in 0 to 15 loop
-        readit<='1';                --start axi read from slave
-        wait for 1 ns; 
-       readit<='0';                --clear "start read" flag
-    wait until s_axi_rready = '1';    --axi_data should be equal to 00000000...
-    wait until s_axi_rready = '0';
-    end loop;
-    end loop; 
-    end process;
+		s_axi_araddr<="0100";    
+		for i in 0 to 15 loop
+			readit<='1';                --start axi read from slave
+			wait for 1 ns; 
+			readit<='0';                --clear "start read" flag
+			wait until s_axi_rready = '1';    --axi_data should be equal to 00000000...
+			wait until s_axi_rready = '0';
+		end loop;
+	end loop; 
+end process;
 
 
 end xgbe_pcs_pma_tb_arch;

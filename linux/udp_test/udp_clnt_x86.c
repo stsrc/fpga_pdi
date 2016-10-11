@@ -62,7 +62,7 @@ int main(void) {
 	}
 	printf("client has connected socket to server.\n");
 
-	for (int i = 0; i < 40; i++) {
+	for (int i = 0; i < 1; i++) {
 		generate_msg(buf, BUFLEN);
 		rt = send(sockfd, buf, BUFLEN, 0);
 	}

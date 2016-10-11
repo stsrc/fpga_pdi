@@ -49,7 +49,6 @@ static struct resource *pdi_ports = NULL;
 static struct resource *pdi_iomem = NULL;
 static int pdi_irq = 0;
 static struct net_device *pdi_netdev = NULL;
-static spinlock_t pdi_lock;
 
 /*
  * reg0 - packet's size in bytes. To push packet into MAC write
@@ -114,15 +113,12 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	unsigned int to_add;
 	unsigned char *data_ptr = NULL;
-	unsigned long flags = 0;
 
-	spin_lock_irqsave(&pdi_lock, flags);
 	len = skb->len;
 	to_add = 8 - len % 8;
 	if (to_add != 0) {		
 		if ((unsigned int)skb->end < (unsigned int)skb->tail + to_add) {
 			pr_info("PDI: FAILED TO ADD SPACE TO SKB!!!\n");
-			spin_unlock_irqrestore(&pdi_lock, flags);
 			return NETDEV_TX_BUSY;
 		}
 
@@ -133,7 +129,7 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	for (int i = 0; i < skb->len / 4; i++) {
 		data = 0;
-		/*TODO word generation */
+
 		for (int i = 0; i < 4; i++) {
 			data |=	*data_ptr << (8 * i);
 			data_ptr++;
@@ -146,7 +142,6 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	wmb();
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += (unsigned long)len;
-	spin_unlock_irqrestore(&pdi_lock, flags);
 	dev_kfree_skb(skb);
 	return NETDEV_TX_OK;
 }
@@ -160,18 +155,16 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 	struct sk_buff *skb = NULL;
 	unsigned char *buf = NULL;
 	int ret = 0;
-	unsigned long flags = 0;
-
-	spin_lock_irqsave(&pdi_lock, flags);	
 	
 	packets_cnt = (u32)ioread32(reg3);
-	pr_info("IRQ: packets_cnt = %d.\n", packets_cnt);
 	rmb();
+	pr_info("PDI: IRQ: packets_cnt = %d.\n", packets_cnt);
+
 	if (!packets_cnt) {
-		pr_info("PDI: interrupt falsely triggered!!!\n");
-		spin_unlock_irqrestore(&pdi_lock, flags);
+		pr_info("PDI: IRQ: interrupt falsely triggered!!!\n");
 		return IRQ_HANDLED;		
 	}
+
 	for (u32 i = 0; i < packets_cnt; i++) {
 		data_len = ioread32(reg0);
 		rmb();
@@ -184,7 +177,6 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 				"FPGA IN ERROR STATE\n");
 			pdi_netdev->stats.rx_errors++;
 			pdi_netdev->stats.rx_dropped++;
-			spin_unlock_irqrestore(&pdi_lock, flags);
 			return IRQ_HANDLED;
 		}
 
@@ -227,7 +219,6 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 		pdi_netdev->stats.rx_bytes += (unsigned long)data_len;
 	}
 	pdi_netdev->stats.rx_packets += (unsigned long)packets_cnt;
-	spin_unlock_irqrestore(&pdi_lock, flags);
 	return IRQ_HANDLED;
 }
 
@@ -313,7 +304,6 @@ err0 :
 
 static const struct net_device_ops pdi_netdev_ops = {
 	.ndo_start_xmit = pdi_start_xmit,
-
 };
 
 /*
@@ -366,9 +356,9 @@ static int pdi_probe(struct platform_device *pdev)
 	if (rt)
 		return rt;
 
-	spin_lock_init(&pdi_lock);
 	/* Software reset on xgbe part of FPGA*/
 	iowrite32(1, reg2);
+	wmb();
 	/* 
 	 * Softrst has delay of 2 ticks. To be sure that reset has ended,
 	 * small delay is used.

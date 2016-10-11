@@ -74,6 +74,10 @@ xgmii_rxd <= xgmii_txd;
 xgmii_rxc <= xgmii_txc;
 
 block_design_i: xgbe
+    generic map (
+    C_S_AXI_DATA_WIDTH => 32,
+    C_S_AXI_ADDR_WIDTH => 4
+    )
      port map (
        clk_156_25MHz => clk_156_25MHz,
        rst_clk_156_25MHz => rst_clk_156_25MHz,
@@ -212,11 +216,23 @@ begin
  	s_axi_awaddr<="1000";
         s_axi_wdata<=x"00000001";
         s_axi_wstrb<=b"1111";
-        sendit<='1';                --start axi write to slave
+        sendit<='1';                
         wait for 1 ns; 
         sendit<='0'; --clear start send flag
 	wait until s_axi_bvalid = '1';
-	wait until s_axi_bvalid = '0';  --axi write finished
+	wait until s_axi_bvalid = '0';  
+        s_axi_wstrb<=b"0000";
+
+wait for 100 ns;
+
+	s_axi_awaddr<="1000";
+        s_axi_wdata<=x"00000002";
+        s_axi_wstrb<=b"1111";
+        sendit<='1';                
+        wait for 1 ns; 
+        sendit<='0'; --clear start send flag
+	wait until s_axi_bvalid = '1';
+	wait until s_axi_bvalid = '0';  
         s_axi_wstrb<=b"0000";
 
 for j in 0 to 9 loop

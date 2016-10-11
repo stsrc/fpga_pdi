@@ -28,66 +28,81 @@ end fifo;
 
 architecture fifo_arch of fifo is
 
-signal head, head_tmp, tail : unsigned(DATA_HEIGHT - 1 downto 0) := (others => '0'); 
-signal tail_gray, tail_in_bin: unsigned(DATA_HEIGHT - 1 downto 0) := (others => '0');
-signal tail_in_0, tail_in_1 : unsigned(DATA_HEIGHT - 1 downto 0) := (others => '0'); 
+signal head, head_save, tail : unsigned(DATA_HEIGHT - 1 downto 0); 
+
+signal gray_tail_clkout : unsigned(DATA_HEIGHT - 1 downto 0);
+signal gray_tail_clkin_meta, gray_tail_clkin_reg : unsigned(DATA_HEIGHT - 1 downto 0);
+signal tail_clkin : unsigned(DATA_HEIGHT - 1 downto 0);
 
 type mem_type is array (2**DATA_HEIGHT - 1 downto 0) of std_logic_vector(DATA_WIDTH - 1 downto 0);
 signal mem : mem_type;
 
+procedure GRAY2BIN (
+	signal tail_clkin 		: inout unsigned(DATA_HEIGHT - 1 downto 0);
+	signal gray_tail_clkin_reg 	: in unsigned(DATA_HEIGHT - 1 downto 0))
+is
+begin
+	tail_clkin(DATA_HEIGHT - 1) <= gray_tail_clkin_reg(DATA_HEIGHT - 1);
+	for i in DATA_HEIGHT - 2 downto 0 loop
+		tail_clkin(i) <= gray_tail_clkin_reg(i + 1) xor gray_tail_clkin_reg(i);
+	end loop;
+end GRAY2BIN;				
+
 begin
 	
 	process (clk_in) begin
-		if (clk_in'event and clk_in = '1') then
+		if (rising_edge(clk_in)) then
 			if (clk_in_resetn = '0') then
-				head 	<= (others => '0');
-				head_tmp  <= (others => '0');
-				tail_in_0 <= (others => '0');
-				tail_in_1 <= (others => '0');
-				is_full_clk_in <= '0';
+				is_full_clk_in 		<= '0';
+				head 			<= (others => '0');
+				head_save 		<= (others => '0');
+				gray_tail_clkin_meta 	<= (others => '0');
+				gray_tail_clkin_reg 	<= (others => '0');
+				tail_clkin	 	<= (others => '0');
 			else
-				is_full_clk_in <= '0';	      
-				tail_in_1 <= tail_in_0;
-				tail_in_0 <= tail_gray;
-				--Gray to BIN convertion.
-				tail_in_bin(DATA_HEIGHT - 1) <= tail_in_1(DATA_HEIGHT - 1);
-				for i in DATA_HEIGHT - 2 downto 0 loop
-					tail_in_bin(i) <= tail_in_bin(i + 1) xor tail_in_1(i);
-				end loop;
-				--End of convertion
+				is_full_clk_in <= '0';
 
-				if(head = tail_in_bin - 1) then
+				gray_tail_clkin_meta <= gray_tail_clkout;
+				gray_tail_clkin_reg <= gray_tail_clkin_meta;	
+				
+				GRAY2BIN(tail_clkin, gray_tail_clkin_reg);
+
+				if (head = tail_clkin - 1) then
 					is_full_clk_in <= '1';
-					head <= head_tmp;
+					head <= head_save;
+				elsif (strb_in = '1' and drop_in = '1') then
+					head <= head_save;
 				elsif (strb_in = '1' and drop_in = '0') then
 					mem(to_integer(head)) <= data_in;
 					head <= head + 1;
-				elsif (strb_in = '1' and drop_in = '1') then
-					head <= head_tmp;
 				else
-					--TODO: fsm_axi_to_mac will fail because of this line.
-					--when is_full_clk_in = 1 happend.
-					head_tmp <= head; 
-				end if;
+					--TODO: it works only if strb_in = '1' 
+					--is constant at write time. 
+					--fsm_axi_to_fifo breaks this rule.
+					head_save <= head;
+				end if;			
 			end if;
 		end if;
 	end process;
 	
 	process (clk_out) begin
-		if (clk_out'event and clk_out = '1') then
+		if (rising_edge(clk_out)) then
 			if (clk_out_resetn = '0') then
-				tail <= (others => '0');   
+				tail 			<= (others => '0');
+				gray_tail_clkout 	<= (others => '0');
 			else
 				if (strb_out = '1') then
-		        		tail <= tail + 1;
-					--Binary to gray conversion
-					tail_gray <= tail xor ("0" & tail(DATA_HEIGHT - 1 downto 1));
-					--End of BTG conversion
+					data_out <= mem(to_integer(tail + 1));
+					tail <= tail + 1;
+				else
+					data_out <= mem(to_integer(tail));				
 				end if;
-			end if;
+				
+				--BIN to GRAY conversion.
+				gray_tail_clkout <= tail xor ("0" & tail(DATA_HEIGHT - 1 downto 1));
+				--End of convertion. 
+			end if;	
 		end if;
 	end process;
-	
-	data_out <= mem(to_integer(tail));
 
 end fifo_arch;

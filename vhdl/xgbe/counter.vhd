@@ -62,7 +62,7 @@ begin
 	       if (incr = '1') then
 	           interrupt <= '1';
 	           int_gen_cnt_tmp <= (others => '0');
-	       elsif (int_gen_cnt > to_unsigned(INT_GEN_DELAY, REG_WIDTH)) then
+	       elsif (to_integer(int_gen_cnt) > INT_GEN_DELAY) then
 	           interrupt <= '1';
 	           int_gen_cnt_tmp <= (others => '0');
 	       elsif (cnt /= 0) then

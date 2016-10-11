@@ -6,3 +6,7 @@
 .tmp_versions
 *.ko
 *.swp
+udp_clnt_mb
+udp_clnt_x86
+udp_srv_mb
+udp_srv_x86

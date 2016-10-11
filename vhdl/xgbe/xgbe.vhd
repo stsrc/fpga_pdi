@@ -354,7 +354,15 @@ end component reset_con;
 	signal pkt_rx_mod, pkt_tx_mod : std_logic_vector(2 downto 0) := (others => '0');
 
 begin
-   	
+	--process resets not used AXI register.
+   	process (s_axi_aclk) begin
+		if (rising_edge(s_axi_aclk)) then
+			if (s_axi_aresetn = '0') then
+				slv_reg2_rd <= (others => '0');
+			end if;
+		end if;
+	end process;	
+
 	not_read_packet_counter : counter
 		generic map ( REG_WIDTH => 32, INT_GEN_DELAY => 100)
 		port map (
