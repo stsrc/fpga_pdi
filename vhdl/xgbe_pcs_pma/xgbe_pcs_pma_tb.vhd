@@ -1,6 +1,5 @@
 library ieee;
 use ieee.std_logic_1164.all;
-use ieee.std_logic_arith.all;
 use ieee.numeric_std.all;
 
 library unisim;
@@ -110,22 +109,24 @@ end component;
 
   signal serial_word : std_logic_vector(65 downto 0) := (others => '0');
 
-  signal bitclk : std_logic;
-  signal block_lock : std_logic := '0';
+	signal bitclk : std_logic;
+	signal block_lock : std_logic := '0';
 
-  signal ReadIt, SendIt : std_logic := '0';
+	signal ReadIt, SendIt : std_logic := '0';
 
-  constant BITPERIOD : time := 98 ps;
-  constant PERIODCORECLK : time := 66*98 ps; 
+	shared variable packet_cnt : integer := 0;
 
-  type column_typ is record
+	constant BITPERIOD : time := 98 ps;
+	constant PERIODCORECLK : time := 66*98 ps; 
+
+	type column_typ is record
                        d : bit_vector(31 downto 0);
                        c : bit_vector(3 downto 0);
                      end record;
 
-  type column_array_typ is array (natural range <>) of column_typ;
+	type column_array_typ is array (natural range <>) of column_typ;
 
-  type frame_typ is record
+	type frame_typ is record
                       stim : column_array_typ(0 to 31);
                       length : integer;
                     end record;
@@ -1037,21 +1038,24 @@ send : process
 		readit<='0';                --clear "start read" flag
 		wait until s_axi_rready = '1';
 		wait until s_axi_rready = '0';    --axi_data should be equal to 64
-      
-		s_axi_araddr<="0000";
-		readit<='1'; 
-		wait for 1 ns;
-		readit<='0';
-		wait until s_axi_rready = '1';
-		wait until s_axi_rready = '0';    
+		packet_cnt := to_integer(unsigned(s_axi_rdata));
+
+		for i in 0 to packet_cnt - 1 loop
+			s_axi_araddr<="0000";
+			readit<='1'; 
+			wait for 1 ns;
+			readit<='0';
+			wait until s_axi_rready = '1';
+			wait until s_axi_rready = '0';    
     
-		s_axi_araddr<="0100";    
-		for i in 0 to 15 loop
-			readit<='1';                --start axi read from slave
-			wait for 1 ns; 
-			readit<='0';                --clear "start read" flag
-			wait until s_axi_rready = '1';    --axi_data should be equal to 00000000...
-			wait until s_axi_rready = '0';
+			s_axi_araddr<="0100";    
+			for j in 0 to 15 loop
+				readit<='1';                --start axi read from slave
+				wait for 1 ns; 
+				readit<='0';                --clear "start read" flag
+				wait until s_axi_rready = '1';    --axi_data should be equal to 00000000...
+				wait until s_axi_rready = '0';
+			end loop;
 		end loop;
 	end loop; 
 end process;

@@ -227,7 +227,7 @@ begin
 	wait until s_axi_bvalid = '1';
 	wait until s_axi_bvalid = '0';  --axi write finished
 	s_axi_wstrb<=b"0000";
-	wait for 100 ns;
+	wait;
 end process;
 
 process begin

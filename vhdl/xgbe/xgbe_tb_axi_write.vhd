@@ -50,8 +50,8 @@ architecture STRUCTURE of tb is
 		xgmii_txc : out STD_LOGIC_VECTOR (7 downto 0);
 		xgmii_txd : out STD_LOGIC_VECTOR (63 downto 0);
 		xgmii_tx_clk : in std_logic;
-		xgmii_rx_clk : in std_logic		
-);
+		xgmii_rx_clk : in std_logic			
+	);
 end component xgbe;
 
   signal xgmii_tx_clk, xgmii_rx_clk : std_logic := '0';
@@ -68,6 +68,7 @@ end component xgbe;
   signal xgmii_rxc, xgmii_txc : std_logic_vector(7 downto 0) := (others => '0');
 
   signal ReadIt, SendIt : std_logic := '0';
+  shared variable cnt : integer := 0;
 begin
 
 block_design_i: xgbe
@@ -201,45 +202,57 @@ send : process
      end loop;
   end process read;
       
-tb : process
+process
 begin
-
-    wait until rst_clk_20MHz = '1';
-
+	wait until rst_clk_20MHz = '1';
+	wait for 30 ns;
  	s_axi_awaddr<="1000";
-        s_axi_wdata<=x"00000001";
-        s_axi_wstrb<=b"1111";
-        sendit<='1';                --start axi write to slave
-        wait for 1 ns; 
-        sendit<='0'; --clear start send flag
+	s_axi_wdata<=x"00000001";
+	s_axi_wstrb<=b"1111";
+	sendit<='1';                --start axi write to slave
+	wait for 1 ns; 
+	sendit<='0'; --clear start send flag
 	wait until s_axi_bvalid = '1';
 	wait until s_axi_bvalid = '0';  --axi write finished
-        s_axi_wstrb<=b"0000";
+	s_axi_wstrb<=b"0000";
 
-    wait for 50 ns;
-    for i in 0 to 15 loop
-	   s_axi_awaddr<="0100";
-        s_axi_wdata<=x"00000000";
-        s_axi_wstrb<=b"1111";
-        sendit<='1';                --start axi write to slave
-        wait for 1 ns; 
-        sendit<='0'; --clear start send flag
-	    wait until s_axi_bvalid = '1';
-	    wait until s_axi_bvalid = '0';  --axi write finished
-        s_axi_wstrb<=b"0000";
-    end loop;
-
-	s_axi_awaddr<="0000";
-    s_axi_wdata<=x"00000040";
-    s_axi_wstrb<=b"1111";
-    sendit<='1';                --start axi write to slave
-    wait for 1 ns; 
-    sendit<='0'; --clear start send flag
-	wait until s_axi_bvalid = '1';
-	wait until s_axi_bvalid = '0';  --axi write finished
-    s_axi_wstrb<=b"0000";
+	wait for 100 ns;
     
-    wait;
-end process tb;   
+ 	s_axi_awaddr<="1000";
+	s_axi_wdata<=x"00000002";
+	s_axi_wstrb<=b"1111";
+	sendit<='1';                --start axi write to slave
+	wait for 1 ns; 
+	sendit<='0'; --clear start send flag
+	wait until s_axi_bvalid = '1';
+	wait until s_axi_bvalid = '0';  --axi write finished
+	s_axi_wstrb<=b"0000";
+	while (true) loop
+		for i in 0 to 15 loop
+			s_axi_awaddr<="0100";
+			s_axi_wdata<= std_logic_vector(to_unsigned(i + cnt, 32));
+			s_axi_wstrb<=b"1111";
+			sendit<='1';
+			wait for 1 ns;
+			sendit<='0';
+			wait until s_axi_bvalid = '1';
+			wait until s_axi_bvalid = '0';
+			s_axi_wstrb<=b"0000";
+    		end loop;
+	 	s_axi_awaddr<="0000";
+		s_axi_wdata<=x"00000040";
+		s_axi_wstrb<=b"1111";
+		sendit<='1';
+		wait for 1 ns;
+		sendit<='0';
+		wait until s_axi_bvalid = '1';
+		wait until s_axi_bvalid = '0';
+		s_axi_wstrb<=b"0000";
+		cnt := cnt + 1;
+	end loop;
+end process;
+
+
+
      
 end structure;
