@@ -65,21 +65,26 @@ begin
 				gray_tail_clkin_meta <= gray_tail_clkout;
 				gray_tail_clkin_reg <= gray_tail_clkin_meta;	
 				tail_clkin <= tail_clkin_tmp;
-
-				if (head = tail_clkin - 1) then
-					is_full_clk_in <= '1';
-					head <= head_save;
-				elsif (strb_in = '1' and drop_in = '1') then
-					head <= head_save;
-				elsif (strb_in = '1' and drop_in = '0') then
-					mem(to_integer(head)) <= data_in;
-					head <= head + 1;
-				else
-					--TODO: it works only if strb_in = '1' 
-					--is constant at write time. 
-					--fsm_axi_to_fifo breaks this rule.
+				
+				case (strb_in) is
+				when '1' =>
+					if (head = tail_clkin - 1) then
+						is_full_clk_in <= '1';
+						head <= head_save;
+					elsif (drop_in = '1') then
+						head <= head_save;
+					else
+						mem(to_integer(head)) <= data_in;
+						head <= head + 1;
+					end if;
+				when '0' =>
+					--TODO:
+					--fsm_axi_to_fifo fails here, because it makes strb_in as pulse. 
+					--When fifo will become full, it will come back to the wrong head ptr.
 					head_save <= head;
-				end if;			
+				when others =>
+					head <= head_save;
+				end case;			
 			end if;
 		end if;
 	end process;

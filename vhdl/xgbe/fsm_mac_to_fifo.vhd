@@ -123,7 +123,7 @@ fifo_cnt <= std_logic_vector(cnt);
 
 	when "01" =>
 	if (fifo_is_full = '1') then
-		if (pkt_rx_eop = '1' or pkt_rx_err = '1') then
+		if ((pkt_rx_eop = '1' and pkt_rx_val = '1') or pkt_rx_err = '1') then
 			tmp_state <= "00";
 		else
 			tmp_state <= "11";
@@ -155,9 +155,9 @@ fifo_cnt <= std_logic_vector(cnt);
 		fifo_cnt_strb <= '1';
 	end if;
 	when "11" =>
-	if (pkt_rx_eop = '0') then
+	if (pkt_rx_eop = '0' or pkt_rx_val = '0') then
 		pkt_rx_ren <= '1';
-		tmp_state <= "11";
+		tmp_state <= "11";		
 	end if;	
 	when others =>
 		tmp_state <= "00";

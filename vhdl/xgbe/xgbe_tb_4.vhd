@@ -231,13 +231,13 @@ begin
 end process;
 
 process begin
-    wait for 250 ns;
 	xgmii_rxd <= x"0707070707070707";
 	xgmii_rxc <= x"ff";
 
 	wait until rising_edge(clk_156_25MHz);
 	xgmii_rxd <= x"555555fb07070707";
 	xgmii_rxc <= "00011111";
+
 	wait until rising_edge(clk_156_25MHz);
 	xgmii_rxd <= x"00000000d5555555";
 	xgmii_rxc <= x"00";
@@ -256,10 +256,7 @@ process begin
 	xgmii_rxd <= x"07070707070707fd";
 	xgmii_rxc <= x"ff";
 	
-	wait until rising_edge(clk_156_25MHz);
-	xgmii_rxd <= x"0707070707070707";
-	xgmii_rxc <= x"ff";
-	
+	wait until rising_edge(clk_156_25MHz);	
 end process;
 
 
