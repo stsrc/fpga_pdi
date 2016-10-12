@@ -59,6 +59,9 @@ end component;
   constant RESET_CNT : integer := 1;
   constant TEST_SH_ST: integer := 2;
   shared variable send_my_packet : integer := 0;
+	shared variable packet_cnt : integer := 0;
+	shared variable bytes_cnt  : integer := 0;
+	shared variable read_cnt   : integer := 0;
   signal coreclk_out : std_logic := '0';
   signal core_status : std_logic_vector(7 downto 0) := (others => '0');
   signal sim_speedup_control, resetdone : std_logic := '0';
@@ -113,8 +116,6 @@ end component;
 	signal block_lock : std_logic := '0';
 
 	signal ReadIt, SendIt : std_logic := '0';
-
-	shared variable packet_cnt : integer := 0;
 
 	constant BITPERIOD : time := 98 ps;
 	constant PERIODCORECLK : time := 66*98 ps; 
@@ -171,96 +172,26 @@ end component;
     length => 20),
     1      => ( -- frame 1
       stim => (
-        0  => ( d => X"030405FB", c => X"1" ),
-        1  => ( d => X"05060102", c => X"0" ),
-        2  => ( d => X"02020304", c => X"0" ),
-        3  => ( d => X"EE110080", c => X"0" ),
-        4  => ( d => X"11EE11EE", c => X"0" ),
-        5  => ( d => X"EE11EE11", c => X"0" ),
-        6  => ( d => X"11EE11EE", c => X"0" ),
-        7  => ( d => X"EE11EE11", c => X"0" ),
-        8  => ( d => X"11EE11EE", c => X"0" ),
-        9  => ( d => X"EE11EE11", c => X"0" ),
-        10 => ( d => X"11EE11EE", c => X"0" ),
-        11 => ( d => X"EE11EE11", c => X"0" ),
-        12 => ( d => X"11EE11EE", c => X"0" ),
-        13 => ( d => X"EE11EE11", c => X"0" ),
-        14 => ( d => X"11EE11EE", c => X"0" ),
-        15 => ( d => X"EE11EE11", c => X"0" ),
-        16 => ( d => X"11EE11EE", c => X"0" ),
-        17 => ( d => X"EE11EE11", c => X"0" ),
-        18 => ( d => X"11EE11EE", c => X"0" ),
-        19 => ( d => X"EE11EE11", c => X"0" ),
-        20 => ( d => X"11EE11EE", c => X"0" ),
-        21 => ( d => X"07FDEE11", c => X"C" ),
-        22 => ( d => X"07070707", c => X"F" ),
-        23 => ( d => X"07070707", c => X"F" ),
-        24 => ( d => X"07070707", c => X"F" ),
-        25 => ( d => X"07070707", c => X"F" ),
-        26 => ( d => X"07070707", c => X"F" ),
-        27 => ( d => X"07070707", c => X"F" ),
-        28 => ( d => X"07070707", c => X"F" ),
-        29 => ( d => X"07070707", c => X"F" ),
-        30 => ( d => X"07070707", c => X"F" ),
-        31 => ( d => X"07070707", c => X"F" )),
-    length => 22),
-    2      => ( -- frame 2
-      stim => (
-        0  => ( d => X"040302FB", c => X"1" ),
-        1  => ( d => X"02020605", c => X"0" ),
-        2  => ( d => X"06050403", c => X"0" ),
-        3  => ( d => X"55AA2E80", c => X"0" ),
-        4  => ( d => X"AA55AA55", c => X"0" ),
-        5  => ( d => X"55AA55AA", c => X"0" ),
-        6  => ( d => X"AA55AA55", c => X"0" ),
-        7  => ( d => X"55AA55AA", c => X"0" ),
-        8  => ( d => X"AA55AA55", c => X"0" ),
-        9  => ( d => X"55AA55AA", c => X"0" ),
-        10 => ( d => X"AA55AA55", c => X"0" ),
-        11 => ( d => X"55AA55AA", c => X"0" ),
-        12 => ( d => X"AA55AA55", c => X"0" ),
-        13 => ( d => X"55AA55AA", c => X"0" ),
-        14 => ( d => X"AA55AA55", c => X"0" ),
-        15 => ( d => X"55AA55AA", c => X"0" ),
-        16 => ( d => X"AA55AA55", c => X"0" ),
-        17 => ( d => X"55AA55AA", c => X"0" ),
-        18 => ( d => X"AA55AA55", c => X"0" ),
-        19 => ( d => X"55AA55AA", c => X"0" ),
-        20 => ( d => X"0707FDAA", c => X"E" ),
-        21 => ( d => X"07070707", c => X"F" ),
-        22 => ( d => X"07070707", c => X"F" ),
-        23 => ( d => X"07070707", c => X"F" ),
-        24 => ( d => X"07070707", c => X"F" ),
-        25 => ( d => X"07070707", c => X"F" ),
-        26 => ( d => X"07070707", c => X"F" ),
-        27 => ( d => X"07070707", c => X"F" ),
-        28 => ( d => X"07070707", c => X"F" ),
-        29 => ( d => X"07070707", c => X"F" ),
-        30 => ( d => X"07070707", c => X"F" ),
-        31 => ( d => X"07070707", c => X"F" )),
-    length => 21),
-    3      => ( -- frame 3
-      stim => (
-        0  => ( d => X"030405FB", c => X"1" ),
-        1  => ( d => X"05060102", c => X"0" ),
-        2  => ( d => X"02020304", c => X"0" ),
-        3  => ( d => X"EE110080", c => X"0" ),
-        4  => ( d => X"11EE11EE", c => X"0" ),
-        5  => ( d => X"EE11EE11", c => X"0" ),
-        6  => ( d => X"11EE11EE", c => X"0" ),
-        7  => ( d => X"EE11EE11", c => X"0" ),
-        8  => ( d => X"11EE11EE", c => X"0" ),
-        9  => ( d => X"070707FD", c => X"F" ),
-        10 => ( d => X"07070707", c => X"F" ),
-        11 => ( d => X"07070707", c => X"F" ),
-        12 => ( d => X"07070707", c => X"F" ),
-        13 => ( d => X"07070707", c => X"F" ),
-        14 => ( d => X"07070707", c => X"F" ),
-        15 => ( d => X"07070707", c => X"F" ),
-        16 => ( d => X"07070707", c => X"F" ),
-        17 => ( d => X"07070707", c => X"F" ),
-        18 => ( d => X"07070707", c => X"F" ),
-        19 => ( d => X"07070707", c => X"F" ),
+        0  => ( d => X"555555FB", c => X"1" ),
+        1  => ( d => X"d5555555", c => X"0" ),
+        2  => ( d => X"ffffffff", c => X"0" ),
+        3  => ( d => X"ffffffff", c => X"0" ),
+        4  => ( d => X"ffffffff", c => X"0" ),
+        5  => ( d => X"ffffffff", c => X"0" ),
+        6  => ( d => X"ffffffff", c => X"0" ),
+        7  => ( d => X"ffffffff", c => X"0" ),
+        8  => ( d => X"ffffffff", c => X"0" ),
+        9  => ( d => X"ffffffff", c => X"0" ),
+        10 => ( d => X"ffffffff", c => X"0" ),
+        11 => ( d => X"ffffffff", c => X"0" ),
+        12 => ( d => X"ffffffff", c => X"0" ),
+        13 => ( d => X"ffffffff", c => X"0" ),
+        14 => ( d => X"ffffffff", c => X"0" ),
+        15 => ( d => X"ffffffff", c => X"0" ),
+        16 => ( d => X"ffffffff", c => X"0" ),
+        17 => ( d => X"ffffffff", c => X"0" ),
+        18 => ( d => X"BB3B15ff", c => X"0" ),
+        19 => ( d => X"0707fdD4", c => "1110" ),
         20 => ( d => X"07070707", c => X"F" ),
         21 => ( d => X"07070707", c => X"F" ),
         22 => ( d => X"07070707", c => X"F" ),
@@ -273,7 +204,77 @@ end component;
         29 => ( d => X"07070707", c => X"F" ),
         30 => ( d => X"07070707", c => X"F" ),
         31 => ( d => X"07070707", c => X"F" )),
-    length => 10));
+    length => 20),
+    2      => ( -- frame 2
+      stim => (
+        0  => ( d => X"555555FB", c => X"1" ),
+        1  => ( d => X"d5555555", c => X"0" ),
+        2  => ( d => X"ffffffff", c => X"0" ),
+        3  => ( d => X"ffffffff", c => X"0" ),
+        4  => ( d => X"ffffffff", c => X"0" ),
+        5  => ( d => X"ffffffff", c => X"0" ),
+        6  => ( d => X"ffffffff", c => X"0" ),
+        7  => ( d => X"ffffffff", c => X"0" ),
+        8  => ( d => X"ffffffff", c => X"0" ),
+        9  => ( d => X"ffffffff", c => X"0" ),
+        10 => ( d => X"ffffffff", c => X"0" ),
+        11 => ( d => X"ffffffff", c => X"0" ),
+        12 => ( d => X"ffffffff", c => X"0" ),
+        13 => ( d => X"ffffffff", c => X"0" ),
+        14 => ( d => X"ffffffff", c => X"0" ),
+        15 => ( d => X"ffffffff", c => X"0" ),
+        16 => ( d => X"ffffffff", c => X"0" ),
+        17 => ( d => X"90ffffff", c => X"0" ),
+        18 => ( d => X"fd6E14FE", c => "1000" ),
+        19 => ( d => X"0707fdD4", c => X"F" ),
+        20 => ( d => X"07070707", c => X"F" ),
+        21 => ( d => X"07070707", c => X"F" ),
+        22 => ( d => X"07070707", c => X"F" ),
+        23 => ( d => X"07070707", c => X"F" ),
+        24 => ( d => X"07070707", c => X"F" ),
+        25 => ( d => X"07070707", c => X"F" ),
+        26 => ( d => X"07070707", c => X"F" ),
+        27 => ( d => X"07070707", c => X"F" ),
+        28 => ( d => X"07070707", c => X"F" ),
+        29 => ( d => X"07070707", c => X"F" ),
+        30 => ( d => X"07070707", c => X"F" ),
+        31 => ( d => X"07070707", c => X"F" )),
+   length => 20), --TODO CHECK WHAT HAPPENS WHEN length = 19
+    3      => ( -- frame 3
+      stim => (
+        0  => ( d => X"555555FB", c => X"1" ),
+        1  => ( d => X"d5555555", c => X"0" ),
+        2  => ( d => X"f0f0f0f0", c => X"0" ),
+        3  => ( d => X"f0f0f0f0", c => X"0" ),
+        4  => ( d => X"f0f0f0f0", c => X"0" ),
+        5  => ( d => X"f0f0f0f0", c => X"0" ),
+        6  => ( d => X"f0f0f0f0", c => X"0" ),
+        7  => ( d => X"f0f0f0f0", c => X"0" ),
+        8  => ( d => X"f0f0f0f0", c => X"0" ),
+        9  => ( d => X"f0f0f0f0", c => X"0" ),
+        10 => ( d => X"f0f0f0f0", c => X"0" ),
+        11 => ( d => X"f0f0f0f0", c => X"0" ),
+        12 => ( d => X"f0f0f0f0", c => X"0" ),
+        13 => ( d => X"f0f0f0f0", c => X"0" ),
+        14 => ( d => X"f0f0f0f0", c => X"0" ),
+        15 => ( d => X"f0f0f0f0", c => X"0" ),
+        16 => ( d => X"f0f0f0f0", c => X"0" ),
+        17 => ( d => X"f0f0f0f0", c => X"0" ),
+        18 => ( d => X"E97357f0", c => X"0" ),
+        19 => ( d => X"0707fdD8", c => "1110" ),
+        20 => ( d => X"07070707", c => X"F" ),
+        21 => ( d => X"07070707", c => X"F" ),
+        22 => ( d => X"07070707", c => X"F" ),
+        23 => ( d => X"07070707", c => X"F" ),
+        24 => ( d => X"07070707", c => X"F" ),
+        25 => ( d => X"07070707", c => X"F" ),
+        26 => ( d => X"07070707", c => X"F" ),
+        27 => ( d => X"07070707", c => X"F" ),
+        28 => ( d => X"07070707", c => X"F" ),
+        29 => ( d => X"07070707", c => X"F" ),
+        30 => ( d => X"07070707", c => X"F" ),
+        31 => ( d => X"07070707", c => X"F" )),
+    length => 20));
 
 
 begin
@@ -471,8 +472,10 @@ begin
       		rx_stimulus_send_idle;
     	end loop;
 	while (true) loop	
-	    	rx_stimulus_send_frame(frame_data(0));
-		rx_stimulus_send_idle;
+		for i in 0 to 3 loop
+		    	rx_stimulus_send_frame(frame_data(i));
+			rx_stimulus_send_idle;
+		end loop;
 	end loop;
     wait;
   end process p_rx_stimulus;
@@ -1047,9 +1050,20 @@ send : process
 			readit<='0';
 			wait until s_axi_rready = '1';
 			wait until s_axi_rready = '0';    
-    
+			bytes_cnt := to_integer(unsigned(s_axi_rdata));
+
+			if (bytes_cnt = 64) then
+ 				read_cnt := 15;
+			elsif (bytes_cnt = 63) then
+				read_cnt := 15;
+			elsif (bytes_cnt = 65) then
+				read_cnt := 17;
+			else
+				assert false report "bytes_cnt strange value." severity failure;
+			end if;   
+
 			s_axi_araddr<="0100";    
-			for j in 0 to 15 loop
+			for j in 0 to read_cnt loop
 				readit<='1';                --start axi read from slave
 				wait for 1 ns; 
 				readit<='0';                --clear "start read" flag
