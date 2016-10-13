@@ -6,17 +6,25 @@
 #include <net/if.h>
 #include <unistd.h>
 #include <time.h>
+#include <stdlib.h>
 
 #define SERVER "10.0.0.2"
 #define PORT_TCP 8889
+#define BUFSIZE 1024
+#define PACKET_CNT 1000
+void generate_msg(char *buf, int buf_siz) {
+	for (int i = 0; i < buf_siz; i++)
+		buf[i] = (char)i + (char)rand();
+}
 
-int main(void) {
-	unsigned char buf[512];
-	unsigned char test = 0xba;
+int main(void)
+{
+	unsigned char buf[BUFSIZE];
 	int tcp_sock, tcp_c_sock;
 	struct sockaddr_in srv_tcp;
 	struct ifreq ifr;
-
+	
+	srand(time(0));
 	memset((char *)&srv_tcp, 0, sizeof(struct sockaddr_in));
 	memset(buf, 0, sizeof(buf));	
 
@@ -66,18 +74,9 @@ int main(void) {
 			return -1;
 		}
 		printf("tcp_sock accepted connection\n");
-		test = 0xba;
-		rt = send(tcp_c_sock, &test, 1, 0);
-		if (rt < 0) {
-			perror("write");
-			close(tcp_c_sock);
-			close(tcp_sock);
-			return -1;
-		}
-		printf("test command was sent.\n");
-
-		for (int i = 0; i < 10; i++) {
-			rt = recv(tcp_c_sock, &test, 1, 0);
+		printf("Server receives %d packets.\n", PACKET_CNT);
+		for (int i = 0; i < PACKET_CNT; i++) {
+			rt = recv(tcp_c_sock, buf, BUFSIZE, 0);
 
 			if (rt < 0) {
 				perror("recv");
@@ -85,17 +84,24 @@ int main(void) {
 				close(tcp_sock);
 				return -1;
 			}
+			printf("Server received %d packet.\n", i + 1);
 
-			if (test != 0xba) {
-				printf("Received wrong byte!\n");
+		}
+		printf("Server received %d messages with 1024 bytes each.\n"
+		       "Server now sends %d messages with 1024 bytes each.\n",
+			PACKET_CNT, PACKET_CNT);
+		for (int i = 0; i < PACKET_CNT; i++) {
+			generate_msg(buf, BUFSIZE);
+			rt = send(tcp_c_sock, buf, BUFSIZE, 0); 
+			if (rt < 0) {
+				perror("send");
 				close(tcp_c_sock);
 				close(tcp_sock);
 				return -1;
-			} else {
-				printf("Received good asnwer.\n");
 			}
-
+			printf("Server send %d packet.\n", i + 1);
 		}
+		sleep(10);
 		close(tcp_c_sock);
 	}
 	close(tcp_sock);

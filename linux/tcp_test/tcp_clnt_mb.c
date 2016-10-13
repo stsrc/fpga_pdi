@@ -5,18 +5,21 @@
 #include <sys/socket.h>
 #include <net/if.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 #define SERVER "10.0.0.2"
 #define CLIENT "10.0.0.3"
-#define BUFLEN 512
-#define PORT_UDP 8888
+#define BUFLEN 1024
 #define PORT_TCP 8889
-
-
+#define PACKET_CNT 1000
+void generate_msg(char *buf, int buf_siz) {
+	for (int i = 0; i < buf_siz; i++)
+		buf[i] = (char)i + (char)rand();
+}
 
 int main(void) {
-	unsigned char buf[512];
-	int udp_sock, tcp_sock;
+	unsigned char buf[BUFLEN];
+	int tcp_sock;
 	struct sockaddr_in srv_tcp;
 	struct ifreq ifr;
 
@@ -27,7 +30,6 @@ int main(void) {
 	tcp_sock = socket(PF_INET, SOCK_STREAM, 0);
 	if (tcp_sock < 0) {
 		perror("socket");
-		close(udp_sock);
 		return -1;
 	}
 	
@@ -52,24 +54,27 @@ int main(void) {
 	}
 	printf("tcp_sock connected to server.\n");
 
-	rt = recv(tcp_sock, buf, 1, 0);
-	if (rt == -1) {
-		perror("recv");
-		return -1;
-	}		
-	printf("received %d\n", buf[0]);
-	if (buf[0] != 0xba) {
-		printf("Dell sent wrong input command!\n");
-		return -1;
-	}
-	printf("tcp_sock received 0xba (start command).\n");
-	for (int i = 0; i < 10; i++) {
-		rt = send(tcp_sock, buf, 1, 0);
+	printf("Sending %d packets with 1024 bytes each.\n", PACKET_CNT);
+	for (int i = 0; i < PACKET_CNT; i++) {
+		generate_msg(buf, BUFLEN);
+		rt = send(tcp_sock, buf, BUFLEN, 0);
 		if (rt < 0) {
 			perror("send");
 			close(tcp_sock);
 			return -1;
 		}
+		printf("Client sent %d packet.\n", i + 1);
+	}
+	printf("Packets were sent.\n");
+	printf("Receiving %d packets.\n", PACKET_CNT);
+	for (int i = 0; i < PACKET_CNT; i++) {
+		rt = recv(tcp_sock, buf, BUFLEN, 0);
+		if (rt < 0) {
+			perror("send");
+			close(tcp_sock);
+			return -1;
+		}
+		printf("Client received %d packet.\n", i + 1);
 	}
 	close(tcp_sock);
 	return 0;
