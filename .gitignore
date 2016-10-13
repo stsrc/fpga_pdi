@@ -14,3 +14,5 @@ tcp_clnt_mb
 tcp_clnt_x86
 tcp_srv_mb
 tcp_srv_x86
+test_mb
+test_x86

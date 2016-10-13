@@ -106,16 +106,19 @@ const struct file_operations pdi_fops = {
 static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	uint32_t data = 0;
-	uint32_t len;
+	uint32_t len = 0;
 	/* 
 	 * to_add - padding bytes count. 
 	 * FPGA eth 'internals' are 8 bytes aligned. 
 	 */
-	unsigned int to_add;
+	unsigned int to_add = 0;
 	unsigned char *data_ptr = NULL;
 
 	len = skb->len;
-	to_add = 8 - len % 8;
+
+	if (len % 8)
+		to_add = 8 - len % 8;
+
 	if (to_add != 0) {		
 		if ((unsigned int)skb->end < (unsigned int)skb->tail + to_add) {
 			pr_info("PDI: FAILED TO ADD SPACE TO SKB!!!\n");
