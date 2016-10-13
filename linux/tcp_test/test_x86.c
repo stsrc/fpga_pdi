@@ -13,26 +13,34 @@
 #define BUFSIZE 1024
 #define PACKET_CNT 1000
 
-int generate_msg(char *buf, int buf_siz, int it)
+int generate_msg(unsigned char *buf, int buf_siz, int it)
 {
+	unsigned char val = 0;
 	if (it >= buf_siz)
 		return -1;
 
-	for (int i = 0; i < it; i++)
-		buf[i] = (char)i;
+	for (int i = 0; i < it; i++) {
+		buf[i] = val;
+		val++;
+	}
 
 	return 0;
 }
 
 
-int check_msg(char *buf, int buf_siz, int it)
+int check_msg(unsigned char *buf, int buf_siz, int it)
 {
+	unsigned char test = 0;
 	if (it >= buf_siz)
 		return -1;
 		
 	for (int i = 0; i < it; i++) {
-		if (buf[i] != i)
+		if (buf[i] != test) {
+			printf("buf[%d] = %u, test = %u\n", i, 
+				(unsigned int)buf[i], (unsigned int)test);
 			return -2;
+		}
+		test++;
 	}
 
 	return 0;
@@ -97,18 +105,25 @@ int main(void)
 		printf("tcp_sock accepted connection\n");
 
 		for (int i = 1; i < PACKET_CNT + 1; i++) {
-			rt = recv(tcp_c_sock, buf, i, 0);
+			int cnt = i;
+			int tmp = 0;
+			do {
+			 	rt = recv(tcp_c_sock, buf + tmp, i, 0);
+				
+				if (rt < 0) {
+					perror("recv");
+					close(tcp_c_sock);
+					close(tcp_sock);
+					return -1;
+				}
+				cnt -= rt;
+				tmp += rt;
+			} while (cnt);
 
-			if (rt < 0) {
-				perror("recv");
-				close(tcp_c_sock);
-				close(tcp_sock);
-				return -1;
-			}
 			printf("Server received %d packet.\n", i);
 			rt = check_msg(buf, BUFSIZE, i);
 			if (rt < 0) {
-				printf("Error occured on packet %d, programs" 
+				printf("Error occured on packet %d, program" 
 					" aborts.\n", i);
 				return -1;
 			}	
@@ -123,7 +138,6 @@ int main(void)
 				close(tcp_sock);
 				return -1;
 			}
-			sleep(1);
 			printf("Server send %d packet.\n", i);
 		}
 		sleep(10);
