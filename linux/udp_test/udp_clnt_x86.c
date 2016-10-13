@@ -62,11 +62,11 @@ int main(void) {
 	}
 	printf("client has connected socket to server.\n");
 
-	for (int i = 0; i < 1; i++) {
+	for (int i = 0; i < 1000; i++) {
 		generate_msg(buf, BUFLEN);
 		rt = send(sockfd, buf, BUFLEN, 0);
 	}
-	printf("Client sent 1 packets with 1024 bytes.\n");
+	printf("Client sent 1000 packets, each with 1024 bytes.\n");
 	
 	close(sockfd);
 	return 0;
