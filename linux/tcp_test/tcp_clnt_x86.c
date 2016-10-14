@@ -53,32 +53,25 @@ int main(void) {
 		return -1;
 	}
 	printf("tcp_sock connected to server.\n");
-
-	printf("Sending %d packets with 1024 bytes each.\n", PACKET_CNT);
-	for (int i = 0; i < PACKET_CNT; i++) {
+	rt = 1;	
+	while(rt > 0) {
 		generate_msg(buf, BUFLEN);
 		rt = send(tcp_sock, buf, BUFLEN, 0);
 		if (rt < 0) {
 			perror("send");
 			close(tcp_sock);
-			return -1;
+			continue;
 		}
-		printf("Client sent %d packet.\n", i + 1);
-	}
-	printf("Packets were sent.\n");
-	printf("Receiving %d packets.\n", PACKET_CNT);
-	for (int i = 0; i < PACKET_CNT; i++) {
+
+		printf("Packet was sent.\n");
+
 		rt = recv(tcp_sock, buf, BUFLEN, 0);
 		if (rt < 0) {
 			perror("send");
 			close(tcp_sock);
-			return -1;
+			continue;
 		}
-		printf("Client received %d packet.\n", i + 1);
+		printf("Client received packet.\n");
 	}
-	printf("Waiting 10 sec to prevent mb srv from error related to closed"
-		" tcp_sock.\n");
-	sleep(10);
-	close(tcp_sock);
 	return 0;
 }

@@ -59,7 +59,7 @@ int main(void)
 		perror("setsockopt");
 		return -1;
 	}
-	printf("tcp_sock binded to enp36s0f1.\n");
+	printf("tcp_sock binded to eth0.\n");
 	
 	rt = listen(tcp_sock, 2);
 	if (rt < 0) {
@@ -73,36 +73,27 @@ int main(void)
 			perror("accept");
 			return -1;
 		}
-		printf("tcp_sock accepted connection\n");
-		printf("Server receives %d packets.\n", PACKET_CNT);
-		for (int i = 0; i < PACKET_CNT; i++) {
-			rt = recv(tcp_c_sock, buf, BUFSIZE, 0);
+		rt = 1;
+		while(rt > 0) {
+		rt = recv(tcp_c_sock, buf, BUFSIZE, 0);
 
-			if (rt < 0) {
+		if (rt < 0) {
 				perror("recv");
 				close(tcp_c_sock);
-				close(tcp_sock);
-				return -1;
+				continue;
 			}
-			printf("Server received %d packet.\n", i + 1);
+			printf("Server received packet.\n");
 
-		}
-		printf("Server received %d messages with 1024 bytes each.\n"
-		       "Server now sends %d messages with 1024 bytes each.\n",
-			PACKET_CNT, PACKET_CNT);
-		for (int i = 0; i < PACKET_CNT; i++) {
+
 			generate_msg(buf, BUFSIZE);
 			rt = send(tcp_c_sock, buf, BUFSIZE, 0); 
 			if (rt < 0) {
 				perror("send");
 				close(tcp_c_sock);
-				close(tcp_sock);
-				return -1;
+				continue;
 			}
-			printf("Server send %d packet.\n", i + 1);
+			printf("Server send packet.\n");
 		}
-		sleep(10);
-		close(tcp_c_sock);
 	}
 	close(tcp_sock);
 }

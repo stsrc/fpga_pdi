@@ -16,3 +16,5 @@ tcp_srv_mb
 tcp_srv_x86
 test_mb
 test_x86
+udp_test_mb
+udp_test_x86

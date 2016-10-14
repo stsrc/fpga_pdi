@@ -212,7 +212,7 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 		 * 4 bytes flushed from FPGA fifo, because fifo's data width is
 	 	 * 8 byte, and AXI data width is 4 byte.
 		 */
-		if (roundoff <= 4) {
+		if (roundoff && roundoff <= 4) {
 			ioread32(reg1);
 			rmb();
 		}

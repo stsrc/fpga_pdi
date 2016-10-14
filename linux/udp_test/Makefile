@@ -3,5 +3,7 @@ export CROSS_COMPILE:=/opt/Xilinx/petalinux-v2016.2-final/tools/linux-i386/micro
 default:
 	$(CROSS_COMPILE)gcc udp_srv_mb.c -o udp_srv_mb
 	$(CROSS_COMPILE)gcc udp_clnt_mb.c -o udp_clnt_mb
+	$(CROSS_COMPILE)gcc udp_test_mb.c -o udp_test_mb
 	gcc udp_srv_x86.c -o udp_srv_x86
 	gcc udp_clnt_x86.c -o udp_clnt_x86
+	gcc udp_test_x86.c -o udp_test_x86

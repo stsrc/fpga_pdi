@@ -9,14 +9,14 @@
 
 #define SERVER "10.0.0.2"
 #define CLIENT "10.0.0.3"
-#define BUFLEN 1024
+#define BUFLEN 2000
 #define PORT_TCP 8889
-#define PACKET_CNT 1000
+#define PACKET_CNT 2000
 
 int generate_msg(unsigned char *buf, int buf_siz, int it)
 {
 	unsigned char val = 0;
-	if (it >= buf_siz)
+	if (it > buf_siz)
 		return -1;
 
 	for (int i = 0; i < it; i++) {
@@ -31,7 +31,7 @@ int generate_msg(unsigned char *buf, int buf_siz, int it)
 int check_msg(unsigned char *buf, int buf_siz, int it)
 {
 	unsigned char test = 0;
-	if (it >= buf_siz)
+	if (it > buf_siz)
 		return -1;
 		
 	for (int i = 0; i < it; i++) {
