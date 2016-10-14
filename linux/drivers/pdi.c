@@ -161,7 +161,6 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 	
 	packets_cnt = (u32)ioread32(reg3);
 	rmb();
-	pr_info("PDI: IRQ: packets_cnt = %d.\n", packets_cnt);
 
 	if (!packets_cnt) {
 		pr_info("PDI: IRQ: interrupt falsely triggered!!!\n");
