@@ -10,7 +10,7 @@
 
 #define SERVER "10.0.0.3"
 #define CLIENT "10.0.0.2"
-#define BUFLEN 1024
+#define BUFLEN 2048
 #define PORT 8888
 
 
@@ -62,11 +62,11 @@ int main(void) {
 	}
 	printf("client has connected socket to server.\n");
 
-	for (int i = 0; i < 1000; i++) {
-		generate_msg(buf, BUFLEN);
-		rt = send(sockfd, buf, BUFLEN, 0);
+	for (int i = 1; i < BUFLEN; i++) {
+		generate_msg(buf, i);
+		rt = send(sockfd, buf, i, 0);
 	}
-	printf("Client sent 1000 packets, each with 1024 bytes.\n");
+	printf("Client sent 1000 packets.\n");
 	
 	close(sockfd);
 	return 0;

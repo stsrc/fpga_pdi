@@ -138,11 +138,9 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			data_ptr++;
 		}
 		iowrite32(data, reg1);
-		wmb();
 	}
-
-	iowrite32(len, reg0);
 	wmb();
+	iowrite32(len, reg0);
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += (unsigned long)len;
 	dev_kfree_skb(skb);
@@ -160,7 +158,6 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 	int ret = 0;
 	
 	packets_cnt = (u32)ioread32(reg3);
-	rmb();
 
 	if (!packets_cnt) {
 		pr_info("PDI: IRQ: interrupt falsely triggered!!!\n");
@@ -169,7 +166,6 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 
 	for (u32 i = 0; i < packets_cnt; i++) {
 		data_len = ioread32(reg0);
-		rmb();
 	
 		roundoff = data_len % 8;
 
@@ -188,8 +184,7 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 		skb->dev = pdi_netdev; 
 
 		while (data_len >= 4) {
-			data_in = ioread32(reg1);
-			rmb();	
+			data_in = ioread32(reg1);	
 			data_len -= 4;
 			for (int j = 0; j < 4; j++) {
 				*buf = data_in & 0xff;
@@ -200,7 +195,6 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 
 		if (data_len) {
 			data_in = ioread32(reg1);
-			rmb();
 			for (int j = 0; j < data_len; j++) {
 				*buf = data_in & 0xff;
 				buf++;
@@ -212,10 +206,9 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 		 * 4 bytes flushed from FPGA fifo, because fifo's data width is
 	 	 * 8 byte, and AXI data width is 4 byte.
 		 */
-		if (roundoff && roundoff <= 4) {
+		if (roundoff && roundoff <= 4)
 			ioread32(reg1);
-			rmb();
-		}
+
 		skb->protocol = eth_type_trans(skb, pdi_netdev); 	
 		ret = netif_rx(skb);
 		pdi_netdev->stats.rx_bytes += (unsigned long)data_len;
