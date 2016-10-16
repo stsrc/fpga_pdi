@@ -38,9 +38,26 @@ static int cdma_irq = 0;
 
 static void __iomem *CDMACR = NULL;
 static void __iomem *CDMASR = NULL;
-static void __iomem *SA = NULL;
-static void __iomem *DA = NULL;
-static void __iomem *BTT = NULL;
+static void __iomem *CURDESC = NULL;
+static void __iomem *TAILDESC = NULL;
+
+int cdma_set_sg_desc(struct cdma_sg_descriptor *desc, u32 next_desc_ptr,
+		      u32 sa, u32 da, u32 control)
+{
+	if (next_desc_ptr & 0x3F)
+		return -EINVAL;
+
+	desc->next_desc_ptr = next_desc_ptr;
+	desc->next_desc_ptr_msb = 0;
+	desc->sa = sa;
+	desc->sa_msb = 0;
+	desc->da = da;
+	desc->da_msb = 0;
+	desc->control = control;
+
+	return 0;
+}
+EXPORT_SYMBOL(cdma_set_sg_desc);
 
 unsigned int cdma_get_cdmasr(void)
 {
@@ -87,28 +104,26 @@ void cdma_softrst(void)
 		rmb();
 		ret = ret & 1 << 2; 
 	} while (ret);
+
 }
 EXPORT_SYMBOL(cdma_softrst);
 
 //TODO REMOVE ACTIVE WAIT!!!
-unsigned int cdma_set_sa_da(dma_addr_t src, dma_addr_t dest, u32 byte_cnt)
+unsigned int cdma_set_cur_tail(dma_addr_t cur, dma_addr_t tail)
 {
-	pr_info("CDMA: cdma_set_sa_da entered.\n");
+	pr_info("CDMA: cdma_set_cur_tail entered.\n");
 	if (cdma_wait_for_idle())
 		return -ETIMEDOUT;
-	pr_info("CDMA: cdma_set_sa_da 1.\n");
-	iowrite32((u32)src, SA);
+	pr_info("CDMA: cdma_set_cur_tail 1.\n");
+	iowrite32((u32)cur, CURDESC);
 	wmb();
-	pr_info("CDMA: cdma_set_sa_da 2.\n");
-	iowrite32((u32)dest, DA);
+	pr_info("CDMA: cdma_set_cur_tail 2.\n");
+	iowrite32((u32)tail, TAILDESC);
 	wmb();
-	pr_info("CDMA: cdma_set_sa_da 3.\n");
-	iowrite32(byte_cnt, BTT);
-	wmb();
-	pr_info("CDMA: cdma_set_sa_da 4.\n");
+	pr_info("CDMA: cdma_set_cur_tail 3.\n");
 	return 0;
 }
-EXPORT_SYMBOL(cdma_set_sa_da);
+EXPORT_SYMBOL(cdma_set_cur_tail);
 
 static irqreturn_t cdma_int_handler(int irq, void *data)
 {
@@ -167,24 +182,18 @@ static int cdma_init_registers(struct platform_device *pdev)
 	if (!CDMASR) 
 		goto err1;
 
-	SA = ioremap(cdma_iomem->start + 0x18, 4);
-	if (!SA)
+	CURDESC = ioremap(cdma_iomem->start + 0x08, 4);
+	if (!CURDESC)
 		goto err2;
 
-	DA = ioremap(cdma_iomem->start + 0x20, 4);
-	if (!DA)
+	TAILDESC = ioremap(cdma_iomem->start + 0x10, 4);
+	if (!TAILDESC)
 		goto err3;
-	BTT = ioremap(cdma_iomem->start + 0x28, 4);
-	if (!BTT)
-		goto err4;
 	return 0;
 
-err4:
-	iounmap(DA);
-	DA = NULL;
 err3:
-	iounmap(SA);
-	SA = NULL;
+	iounmap(CURDESC);
+	CURDESC = NULL;
 err2:
 	iounmap(CDMASR);
 	CDMASR = NULL;
@@ -209,6 +218,8 @@ static int cdma_init_hw(void)
 	rmb();
 	ret |= 1 << 12; /* IOC_IrqEn */
 	ret |= 1 << 14; /* Err_IrqEn */
+#error Here is problem
+	ret |= 1 << 3;	/* SG *///XXX: NOT HERE!
 	wmb();
 	iowrite32(ret, CDMACR);
 	wmb();
@@ -278,12 +289,10 @@ static void __exit cdma_exit(void)
 
 	if (cdma_irq != -1)
 		free_irq(cdma_irq, NULL);
-	if (BTT)
-		iounmap(BTT);
-	if (SA)
-		iounmap(SA);
-	if (DA)
-		iounmap(DA);
+	if (TAILDESC)
+		iounmap(TAILDESC);
+	if (CURDESC)
+		iounmap(CURDESC);
 	if (CDMASR)
 		iounmap(CDMASR);
 	if (CDMACR)

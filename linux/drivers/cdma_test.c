@@ -43,6 +43,7 @@ static struct class *cdma_class = NULL;
 
 struct cdma{
 	struct cdma_ring_info *tx_buffers;
+	struct cdma_sg_descriptor desc;
 	struct platform_device *pdev;
 };
 

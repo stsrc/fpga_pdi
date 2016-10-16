@@ -10,9 +10,26 @@
 
 MODULE_LICENSE("GPL");
 
-unsigned int cdma_set_sa_da(dma_addr_t source, dma_addr_t dest, u32 byte_cnt);
+/*
+ * Transfer descriptors must be aligned on 16 32-bit word alignment.
+ */
+struct cdma_sg_descriptor {
+	u32 next_desc_ptr;
+	u32 next_desc_ptr_msb;
+	u32 sa;
+	u32 sa_msb;
+	u32 da;
+	u32 da_msb;
+	u32 control;
+	u32 status;
+} __attribute__((packed, aligned(8)));
+
+
+unsigned int cdma_set_cur_tail(dma_addr_t cur, dma_addr_t tail);
 unsigned int cdma_get_cdmasr(void);
 void cdma_softrst(void);
 int cdma_wait_for_idle(void);
+int cdma_set_sg_desc(struct cdma_sg_descriptor *desc, u32 next_desc_ptr,
+		      u32 sa, u32 da, u32 control);
 
 #endif
