@@ -1,5 +1,5 @@
 //TODO more then one card!!!
-//TODO clean in probe function!!!
+//TODO DETECTION OF ALREADY USED DEVICE, ETC!
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/string.h>
@@ -40,15 +40,7 @@
 
 MODULE_LICENSE("GPL");
 
-static struct device *pdi_device = NULL;
-static struct cdev *pdi_cdev = NULL;
-static dev_t pdi_dev;
-static struct class *pdi_class = NULL;
-static struct resource *pdi_ports = NULL;
-static struct resource *pdi_iomem = NULL;
-static int pdi_irq = 0;
-static struct net_device *pdi_netdev = NULL;
-
+static int pdi_cnt = 0;
 
 /*
  * reg0 - packet's size in bytes. To push packet into MAC write
@@ -65,45 +57,14 @@ static struct net_device *pdi_netdev = NULL;
  * reg3 - Counter of not read packets yet. Each read zeroes this reg.
  */
 struct pdi {
-	int irq;
 	struct net_device *netdev;
 	struct resource *ports;
 	struct resource *iomem;
+	int irq;
 	void __iomem *reg0;
 	void __iomem *reg1;
 	void __iomem *reg2;
 	void __iomem *reg3;
-};
-
-static int pdi_open(struct inode *node, struct file *f)
-{
-	if (f->f_mode & FMODE_READ)
-		return -EPERM;
-	return 0;
-}
-
-static int pdi_release(struct inode *node, struct file *f)
-{
-	return 0;
-}
-
-static int pdi_write(struct file *f, const char __user *buf, size_t nbytes,
-			loff_t *ppos)
-{
-	return 0;
-}
-
-static int pdi_read(struct file *f, char __user *buf, size_t nbytes, 
-			loff_t *ppos)
-{
-	return 0;
-}
-
-const struct file_operations pdi_fops = {
-	.write = pdi_write,
-	.read = pdi_read,
-	.open = pdi_open,
-	.release = pdi_release,
 };
 
 /*
@@ -181,15 +142,15 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 		if (!skb) {
 			pr_info("alloc_skb failed! Packet not received! "
 				"FPGA IN ERROR STATE\n");
-			pdi_netdev->stats.rx_errors++;
-			pdi_netdev->stats.rx_dropped++;
+			pdi->netdev->stats.rx_errors++;
+			pdi->netdev->stats.rx_dropped++;
 			return IRQ_HANDLED;
 		}
 
 		skb_reserve(skb, NET_IP_ALIGN);
 
 		buf = skb_put(skb, data_len);
-		skb->dev = pdi_netdev; 
+		skb->dev = pdi->netdev; 
 
 		while (data_len >= 4) {
 			data_in = le32_to_cpu(ioread32(pdi->reg1));	
@@ -217,30 +178,30 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 		if (roundoff && roundoff <= 4)
 			ioread32(pdi->reg1);
 
-		skb->protocol = eth_type_trans(skb, pdi_netdev); 	
+		skb->protocol = eth_type_trans(skb, pdi->netdev); 	
 		ret = netif_rx(skb);
-		pdi_netdev->stats.rx_bytes += (unsigned long)data_len;
+		pdi->netdev->stats.rx_bytes += (unsigned long)data_len;
 	}
-	pdi_netdev->stats.rx_packets += (unsigned long)packets_cnt;
+	pdi->netdev->stats.rx_packets += (unsigned long)packets_cnt;
 	return IRQ_HANDLED;
 }
 
 static int pdi_init_irq(struct platform_device *pdev)
 {
 	int rt;
+	struct pdi *pdi = pdev->dev.platform_data;
 
-	pdi_irq = platform_get_irq(pdev, 0);
-	if (pdi_irq <= 0) {
-		pr_info("platform_get_irq failed.\n");
+	pdi->irq = platform_get_irq(pdev, pdi_cnt);
+	if (pdi->irq <= 0) {
+		pr_info("pdi: platform_get_irq failed.\n");
 		return -ENXIO;
 	}
 
-	rt = request_irq(pdi_irq, pdi_int_handler, IRQF_SHARED, DRIVER_NAME, 
-			 pdev->dev.platform_data);
+	rt = request_irq(pdi->irq, pdi_int_handler, IRQF_SHARED, DRIVER_NAME, 
+			 pdi);
 	if (rt) {
-		pr_info("request_irq failed.\n");
-		free_irq(pdi_irq, NULL);
-		pdi_irq = - 1;	
+		pr_info("pdi: request_irq failed.\n");
+		pdi->irq = -1;	
 		return -ENXIO;
 	}
 
@@ -258,34 +219,34 @@ static int pdi_init_registers(struct platform_device *pdev)
 	if (!pdi)
 		return -EINVAL;
 
-	pdi_iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!pdi_iomem) {
+	pdi->iomem = platform_get_resource(pdev, IORESOURCE_MEM, pdi_cnt);
+	if (!pdi->iomem) {
 		rt = -ENXIO;
-		pr_info("PDI: platform_get_resource failed.\n");
+		pr_info("pdi: platform_get_resource failed.\n");
 		goto err0;
 	}
 
-	pdi_ports = request_mem_region(pdi_iomem->start, pdi_iomem->end -
-					pdi_iomem->start, DRIVER_NAME);
-	if (!pdi_ports) {
+	pdi->ports = request_mem_region(pdi->iomem->start, pdi->iomem->end -
+					pdi->iomem->start, DRIVER_NAME);
+	if (!pdi->ports) {
 		rt = -ENOMEM;
-		pr_info("PDI: request_mem_region failed.\n");
+		pr_info("pdi: request_mem_region failed.\n");
 		goto err0;
 	}
 
-	pdi->reg0 = ioremap(pdi_iomem->start, 4);
+	pdi->reg0 = ioremap(pdi->iomem->start, 4);
 	if (!pdi->reg0)
 		goto err1;
 
-	pdi->reg1 = ioremap(pdi_iomem->start + 4, 4);
+	pdi->reg1 = ioremap(pdi->iomem->start + 4, 4);
 	if (!pdi->reg1) 
 		goto err2;
 
-	pdi->reg2 = ioremap(pdi_iomem->start + 8, 4);
+	pdi->reg2 = ioremap(pdi->iomem->start + 8, 4);
 	if (!pdi->reg2)
 		goto err3;
 
-	pdi->reg3 = ioremap(pdi_iomem->start + 12, 4);
+	pdi->reg3 = ioremap(pdi->iomem->start + 12, 4);
 	if (!pdi->reg3)
 		goto err4;
 	return 0;
@@ -301,12 +262,11 @@ err2 :
 	pdi->reg0 = NULL;
 err1 :
 	pr_info("ioremap failed.\n");
-	release_mem_region(pdi_iomem->start, pdi_iomem->end - pdi_iomem->start);
-	pdi_iomem = NULL;
+	release_mem_region(pdi->iomem->start, pdi->iomem->end - 
+			   pdi->iomem->start);
+	pdi->iomem = NULL;
 	rt = -ENOMEM;
 err0 :
-	free_irq(pdi_irq, NULL);
-	pdi_irq = - 1;
 	return rt;
 }
 
@@ -320,20 +280,19 @@ static const struct net_device_ops pdi_netdev_ops = {
 static int pdi_init_ethernet(struct platform_device *pdev)
 {	
 	int rt;
+	struct pdi *pdi = pdev->dev.platform_data;
 	
-	pdi_netdev->irq = pdi_irq;
-	pdi_netdev->base_addr = pdi_iomem->start;
+	pdi->netdev->irq = pdi->irq;
+	pdi->netdev->base_addr = pdi->iomem->start;
 
-	memset(pdi_netdev->dev_addr, DEVICE_MAC_BYTE, ETH_ALEN);
+	memset(pdi->netdev->dev_addr, DEVICE_MAC_BYTE, ETH_ALEN);
 	
-	pdi_netdev->netdev_ops = &pdi_netdev_ops;
+	pdi->netdev->netdev_ops = &pdi_netdev_ops;
 
-	rt = register_netdev(pdi_netdev);
+	rt = register_netdev(pdi->netdev);
 	
 	if (rt) {
-		free_netdev(pdi_netdev);//REMEMBER TO DO SOMETHING WITH IT
-		pdi_netdev = NULL;
-		pr_info("register_netdev failed.\n");
+		pr_info("pdi register_netdev failed.\n");
 		return -ENOMEM;
 	}
 
@@ -346,34 +305,36 @@ static int pdi_probe(struct platform_device *pdev)
 	
 	int rt;
 	struct pdi *pdi;
+	struct net_device *netdev; 
 
 	if (pdev->dev.platform_data) {
-		pr_info("PDI: tried to probe already probed"
+		pr_info("pdi: tried to probe already probed"
 			" platform device.\n");
 		return -EINVAL;
 	}
 
-	pdi_netdev = alloc_etherdev(sizeof(struct pdi));
+	netdev = alloc_etherdev(sizeof(struct pdi));
 
-	if (!pdi_netdev) {
-		pr_info("PDI: alloc_etherdev failed.\n");
+	if (!netdev) {
+		pr_info("pdi: alloc_etherdev failed.\n");
 		return -ENOMEM;
 	}
 
-	pdi = netdev_priv(pdi_netdev);
+	pdi = netdev_priv(netdev);
+	pdi->netdev = netdev;
 	pdev->dev.platform_data = pdi;
 
 	rt = pdi_init_irq(pdev);
-	if (rt)
-		return rt;//TODO cleaning
+	if (rt) 
+		goto err0;
 
 	rt = pdi_init_registers(pdev);
-	if (rt)
-		return rt;//TODO cleaning
+	if (rt) 
+		goto err1;
 
 	rt = pdi_init_ethernet(pdev);
-	if (rt)
-		return rt;//TODO cleaning
+	if (rt) 
+		goto err2;
 
 	/* Software reset on xgbe part of FPGA*/
 	iowrite32(cpu_to_le32(1), pdi->reg2);
@@ -388,7 +349,22 @@ static int pdi_probe(struct platform_device *pdev)
 	/* Data reception enable on FPGA */
 	iowrite32(cpu_to_le32(2), pdi->reg2);
 	wmb();
+
+	pdi_cnt++;
 	return 0;
+err2:
+	iounmap(pdi->reg3);
+	iounmap(pdi->reg2);
+	iounmap(pdi->reg1);
+	iounmap(pdi->reg0);
+	release_mem_region(pdi->iomem->start, pdi->iomem->end - 
+			   pdi->iomem->start);
+err1:
+	free_irq(pdi->irq, pdi);
+err0:
+	free_netdev(pdi->netdev);
+	pdev->dev.platform_data = NULL;
+	return rt;
 }
 
 static int pdi_remove(struct platform_device *pdev)
@@ -399,11 +375,14 @@ static int pdi_remove(struct platform_device *pdev)
 	iowrite32(0, pdi->reg2);
 	wmb();
 
-	if (pdi_irq != -1)
-		free_irq(pdi_irq, NULL);
+	if (!pdi)
+		return 0;
 
-	if (pdi_netdev)
-		unregister_netdev(pdi_netdev);
+	if (pdi->irq != -1)
+		free_irq(pdi->irq, pdi);
+
+	if (pdi->netdev)
+		unregister_netdev(pdi->netdev);
 
 	if (pdi->reg3)
 		iounmap(pdi->reg3);
@@ -417,13 +396,16 @@ static int pdi_remove(struct platform_device *pdev)
 	if (pdi->reg0)
 		iounmap(pdi->reg0);
 
-	if (pdi_iomem)
-		release_mem_region(pdi_iomem->start, pdi_iomem->end - 
-				   pdi_iomem->start);
+	if (pdi->iomem)
+		release_mem_region(pdi->iomem->start, pdi->iomem->end - 
+				   pdi->iomem->start);
 
-	if (pdi_netdev)
-		free_netdev(pdi_netdev);
+	if (pdi->netdev)
+		free_netdev(pdi->netdev);
 
+	pdev->dev.platform_data = NULL;
+
+	pdi_cnt--;
 	return 0;
 }
 
@@ -432,7 +414,6 @@ static int pdi_remove(struct platform_device *pdev)
 //If CONFIG_OF is not defined, ulite_of_match 
 //will dissapear. Futhermore, it won't compile (look at line 715).
 
-//TODO DETECTION OF ALREADY USED DEVICE, ETC!
 static const struct of_device_id pdi_of_match[] = {
 	{ .compatible = "xlnx,xgbe-pcs-pma-1.0", },
 	{}
@@ -453,64 +434,17 @@ MODULE_ALIAS("platform:pdi");
 static int __init pdi_init(void)
 {
 	int rt;
-
-	rt = alloc_chrdev_region(&pdi_dev, 0, 1, DRIVER_NAME);
-	if (rt)
-		return rt;
-
-
-	pdi_class = class_create(THIS_MODULE, DRIVER_NAME);
-	if (IS_ERR(pdi_class)) {
-		rt = PTR_ERR(pdi_class);
-		goto err;
-	}
-	pdi_cdev = cdev_alloc();
-	if (!pdi_cdev) {
-		rt = -ENOMEM;
-		goto err;
-	}
-	cdev_init(pdi_cdev, &pdi_fops);
-	rt = cdev_add(pdi_cdev, pdi_dev, 1);
-	if (rt) {
-		kfree(pdi_cdev);
-		pdi_cdev = NULL;
-		goto err;
-	}
-	pdi_device = device_create(pdi_class, NULL, pdi_dev, NULL, DRIVER_NAME);
-	if (IS_ERR(pdi_device)) {
-		rt = PTR_ERR(pdi_device);
-		goto err;
-	}
 	
 	rt = platform_driver_register(&pdi_platform_driver);
-	if (rt) {
-		pr_info("platform_driver_register failed.\n");
-		platform_driver_unregister(&pdi_platform_driver);
-		goto err;
-	}
+	if (rt) 
+		pr_info("pdi: platform_driver_register failed.\n");
 
-	pr_info("pdi loaded.\n");
-	return 0;
-err:
-	if (pdi_device)
-		device_destroy(pdi_class, pdi_dev);
-	if (pdi_cdev)
-		cdev_del(pdi_cdev);		
-	if (pdi_class)
-		class_destroy(pdi_class);
-	unregister_chrdev_region(pdi_dev, 1);
 	return rt;
 }
 
 static void __exit pdi_exit(void)
 {
 	platform_driver_unregister(&pdi_platform_driver);
-
-	device_destroy(pdi_class, pdi_dev);
-	cdev_del(pdi_cdev);
-	class_destroy(pdi_class);
-	unregister_chrdev_region(pdi_dev, 1);
-	pr_info("pdi unloaded.\n");
 }
 
 module_init(pdi_init);
