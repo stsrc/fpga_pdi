@@ -354,8 +354,9 @@ static int pdi_probe(struct platform_device *pdev)
 	iowrite32(cpu_to_le32(1), reg2);
 	wmb();
 	/* 
-	 * Softrst has delay of 2 ticks. To be sure that reset has ended,
-	 * small delay is used.
+	 * Softrst on fPGA has delay of ~2 ticks between clock domains. 
+	 * To be sure that reset was done on both clock domains,
+	 * little delay is used once.
 	 */
 	mdelay(1);
 
@@ -367,6 +368,33 @@ static int pdi_probe(struct platform_device *pdev)
 
 static int pdi_remove(struct platform_device *pdev)
 {
+	/*Disabling data reception on FPGA */
+	iowrite32(0, reg2);
+	wmb();
+
+	if (pdi_irq != -1)
+		free_irq(pdi_irq, NULL);
+
+	if (pdi_netdev) {
+		unregister_netdev(pdi_netdev);
+		free_netdev(pdi_netdev);
+	}
+
+	if (reg3)
+		iounmap(reg3);
+
+	if (reg2)
+		iounmap(reg2);
+
+	if (reg1)
+		iounmap(reg1);
+
+	if (reg0)
+		iounmap(reg0);
+
+	if (pdi_iomem)
+		release_mem_region(pdi_iomem->start, pdi_iomem->end - 
+				   pdi_iomem->start);
 	return 0;
 }
 
@@ -432,7 +460,7 @@ static int __init pdi_init(void)
 		goto err;
 	}
 
-	pr_info("Driver loaded.\n");
+	pr_info("pdi loaded.\n");
 	return 0;
 err:
 	if (pdi_device)
@@ -447,36 +475,7 @@ err:
 
 static void __exit pdi_exit(void)
 {
-
-	/*Disabling data reception on FPGA */
-	iowrite32(0, reg2);
-	wmb();
-
 	platform_driver_unregister(&pdi_platform_driver);
-
-	if (pdi_netdev) {
-		unregister_netdev(pdi_netdev);
-		free_netdev(pdi_netdev);
-	}
-
-	if (pdi_irq != -1)
-		free_irq(pdi_irq, NULL);
-
-	if (reg3)
-		iounmap(reg3);
-
-	if (reg2)
-		iounmap(reg2);
-
-	if (reg1)
-		iounmap(reg1);
-
-	if (reg0)
-		iounmap(reg0);
-
-	if (pdi_iomem)
-		release_mem_region(pdi_iomem->start, pdi_iomem->end - 
-				   pdi_iomem->start);
 
 	device_destroy(pdi_class, pdi_dev);
 	cdev_del(pdi_cdev);
