@@ -6,7 +6,7 @@
 #include <net/if.h>
 
 #define SERVER "10.0.0.2"
-#define BUFLEN 2048
+#define BUFLEN 10000
 #define PORT 8888
 
 int main(void) {

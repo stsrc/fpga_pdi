@@ -101,37 +101,37 @@ begin
 		pkt_tx_sop <= '0';
 		pkt_tx_eop <= '0';
 		pkt_tx_mod <= (others => '0');
-	if (pkt_tx_full = '0') then
-	case state is
-	when "00" =>
-		if (packet_strb = '1') then
-			cnt_tmp <= fifo_cnt_s - 8;
-			pkt_tx_data <= fifo_data;
-			pkt_tx_val <= '1';
-			pkt_tx_sop <= '1';
-			fifo_data_strb <= '1';
-			fifo_cnt_strb <= '1';
-			state_tmp <= "01";
-		end if;
-	when "01" =>
-		  cnt_tmp <= cnt - 8;
-		  pkt_tx_data <= fifo_data;
-		  pkt_tx_val <= '1';
-		  fifo_data_strb <= '1';
-		  if(cnt - 8 <= 8 ) then
-		      state_tmp <= "11";
-		  end if;
-	when "11" =>
-        pkt_tx_val <= '1';
-        fifo_data_strb <= '1';
-        pkt_tx_eop <= '1';
-        state_tmp <= "00";
-	MOD_VAL(cnt, fifo_data, pkt_tx_mod, pkt_tx_data);
+		if (pkt_tx_full = '0') then
+		case state is
+		when "00" =>
+			if (packet_strb = '1') then
+				cnt_tmp <= fifo_cnt_s - 8;
+				pkt_tx_data <= fifo_data;
+				pkt_tx_val <= '1';
+				pkt_tx_sop <= '1';
+				fifo_data_strb <= '1';
+				fifo_cnt_strb <= '1';
+				state_tmp <= "01";
+			end if;
+		when "01" =>
+			  cnt_tmp <= cnt - 8;
+			  pkt_tx_data <= fifo_data;
+			  pkt_tx_val <= '1';
+			  fifo_data_strb <= '1';
+			  if(cnt - 8 <= 8 ) then
+			  	state_tmp <= "11";
+			  end if;
+		when "11" =>
+		        pkt_tx_val <= '1';
+		        fifo_data_strb <= '1';
+		        pkt_tx_eop <= '1';
+		        state_tmp <= "00";
+			MOD_VAL(cnt, fifo_data, pkt_tx_mod, pkt_tx_data);
 
-	when others =>
-		state_tmp <= (others => '0');
-		cnt_tmp <= (others => '0');
-	end case;
-    end if;
+		when others =>
+			state_tmp <= (others => '0');
+			cnt_tmp <= (others => '0');
+		end case;
+		end if;
 	end process;
 end Behavioral;
