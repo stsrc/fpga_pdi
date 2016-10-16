@@ -1,4 +1,3 @@
-//TODO cpu_to_le32(xxx)!!!!
 //TODO more then one card!!!
 
 #include <linux/errno.h>
@@ -136,11 +135,11 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		for (int i = 0; i < 4; i++) {
 			data |=	*data_ptr << (8 * i);
 			data_ptr++;
-		}
-		iowrite32(data, reg1);
+		}	
+		iowrite32(cpu_to_le32(data), reg1);
 	}
 	wmb();
-	iowrite32(len, reg0);
+	iowrite32(cpu_to_le32(len), reg0);
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += (unsigned long)len;
 	dev_kfree_skb(skb);
@@ -157,7 +156,7 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 	unsigned char *buf = NULL;
 	int ret = 0;
 	
-	packets_cnt = (u32)ioread32(reg3);
+	packets_cnt = le32_to_cpu(ioread32(reg3));
 
 	if (!packets_cnt) {
 		pr_info("PDI: IRQ: interrupt falsely triggered!!!\n");
@@ -165,7 +164,7 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 	}
 
 	for (u32 i = 0; i < packets_cnt; i++) {
-		data_len = ioread32(reg0);
+		data_len = le32_to_cpu(ioread32(reg0));
 	
 		roundoff = data_len % 8;
 
@@ -184,7 +183,7 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 		skb->dev = pdi_netdev; 
 
 		while (data_len >= 4) {
-			data_in = ioread32(reg1);	
+			data_in = le32_to_cpu(ioread32(reg1));	
 			data_len -= 4;
 			for (int j = 0; j < 4; j++) {
 				*buf = data_in & 0xff;
@@ -194,7 +193,7 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 		}
 
 		if (data_len) {
-			data_in = ioread32(reg1);
+			data_in = le32_to_cpu(ioread32(reg1));
 			for (int j = 0; j < data_len; j++) {
 				*buf = data_in & 0xff;
 				buf++;
@@ -352,7 +351,7 @@ static int pdi_probe(struct platform_device *pdev)
 		return rt;
 
 	/* Software reset on xgbe part of FPGA*/
-	iowrite32(1, reg2);
+	iowrite32(cpu_to_le32(1), reg2);
 	wmb();
 	/* 
 	 * Softrst has delay of 2 ticks. To be sure that reset has ended,
@@ -361,7 +360,7 @@ static int pdi_probe(struct platform_device *pdev)
 	mdelay(1);
 
 	/* Data reception enable on FPGA */
-	iowrite32(2, reg2);
+	iowrite32(cpu_to_le32(2), reg2);
 	wmb();
 	return 0;
 }
