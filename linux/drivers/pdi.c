@@ -1,5 +1,5 @@
 //TODO more then one card!!!
-
+//TODO clean in probe function!!!
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/string.h>
@@ -49,6 +49,7 @@ static struct resource *pdi_iomem = NULL;
 static int pdi_irq = 0;
 static struct net_device *pdi_netdev = NULL;
 
+
 /*
  * reg0 - packet's size in bytes. To push packet into MAC write
  * packet bytes count into it.
@@ -63,10 +64,16 @@ static struct net_device *pdi_netdev = NULL;
  *                    Write '1' to enable data reception.
  * reg3 - Counter of not read packets yet. Each read zeroes this reg.
  */
-static void __iomem *reg0 = NULL;
-static void __iomem *reg1 = NULL;
-static void __iomem *reg2 = NULL;
-static void __iomem *reg3 = NULL;
+struct pdi {
+	int irq;
+	struct net_device *netdev;
+	struct resource *ports;
+	struct resource *iomem;
+	void __iomem *reg0;
+	void __iomem *reg1;
+	void __iomem *reg2;
+	void __iomem *reg3;
+};
 
 static int pdi_open(struct inode *node, struct file *f)
 {
@@ -112,6 +119,7 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	unsigned int to_add = 0;
 	unsigned char *data_ptr = NULL;
+	struct pdi *pdi = (struct pdi *)netdev_priv(dev);
 
 	len = skb->len;
 
@@ -136,10 +144,10 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			data |=	*data_ptr << (8 * i);
 			data_ptr++;
 		}	
-		iowrite32(cpu_to_le32(data), reg1);
+		iowrite32(cpu_to_le32(data), pdi->reg1);
 	}
 	wmb();
-	iowrite32(cpu_to_le32(len), reg0);
+	iowrite32(cpu_to_le32(len), pdi->reg0);
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += (unsigned long)len;
 	dev_kfree_skb(skb);
@@ -155,8 +163,9 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 	struct sk_buff *skb = NULL;
 	unsigned char *buf = NULL;
 	int ret = 0;
+	struct pdi *pdi = (struct pdi *)data;
 	
-	packets_cnt = le32_to_cpu(ioread32(reg3));
+	packets_cnt = le32_to_cpu(ioread32(pdi->reg3));
 
 	if (!packets_cnt) {
 		pr_info("PDI: IRQ: interrupt falsely triggered!!!\n");
@@ -164,7 +173,7 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 	}
 
 	for (u32 i = 0; i < packets_cnt; i++) {
-		data_len = le32_to_cpu(ioread32(reg0));
+		data_len = le32_to_cpu(ioread32(pdi->reg0));
 	
 		roundoff = data_len % 8;
 
@@ -183,7 +192,7 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 		skb->dev = pdi_netdev; 
 
 		while (data_len >= 4) {
-			data_in = le32_to_cpu(ioread32(reg1));	
+			data_in = le32_to_cpu(ioread32(pdi->reg1));	
 			data_len -= 4;
 			for (int j = 0; j < 4; j++) {
 				*buf = data_in & 0xff;
@@ -193,7 +202,7 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 		}
 
 		if (data_len) {
-			data_in = le32_to_cpu(ioread32(reg1));
+			data_in = le32_to_cpu(ioread32(pdi->reg1));
 			for (int j = 0; j < data_len; j++) {
 				*buf = data_in & 0xff;
 				buf++;
@@ -206,7 +215,7 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 	 	 * 8 byte, and AXI data width is 4 byte.
 		 */
 		if (roundoff && roundoff <= 4)
-			ioread32(reg1);
+			ioread32(pdi->reg1);
 
 		skb->protocol = eth_type_trans(skb, pdi_netdev); 	
 		ret = netif_rx(skb);
@@ -226,7 +235,8 @@ static int pdi_init_irq(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	rt = request_irq(pdi_irq, pdi_int_handler, 0, DRIVER_NAME, NULL);
+	rt = request_irq(pdi_irq, pdi_int_handler, IRQF_SHARED, DRIVER_NAME, 
+			 pdev->dev.platform_data);
 	if (rt) {
 		pr_info("request_irq failed.\n");
 		free_irq(pdi_irq, NULL);
@@ -243,11 +253,15 @@ static int pdi_init_irq(struct platform_device *pdev)
 static int pdi_init_registers(struct platform_device *pdev) 
 {
 	int rt;
+	struct pdi *pdi = pdev->dev.platform_data;
+
+	if (!pdi)
+		return -EINVAL;
 
 	pdi_iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!pdi_iomem) {
 		rt = -ENXIO;
-		pr_info("platform_get_resource failed.\n");
+		pr_info("PDI: platform_get_resource failed.\n");
 		goto err0;
 	}
 
@@ -255,36 +269,36 @@ static int pdi_init_registers(struct platform_device *pdev)
 					pdi_iomem->start, DRIVER_NAME);
 	if (!pdi_ports) {
 		rt = -ENOMEM;
-		pr_info("request_mem_region failed.\n");
+		pr_info("PDI: request_mem_region failed.\n");
 		goto err0;
 	}
 
-	reg0 = ioremap(pdi_iomem->start, 4);
-	if (!reg0)
+	pdi->reg0 = ioremap(pdi_iomem->start, 4);
+	if (!pdi->reg0)
 		goto err1;
 
-	reg1 = ioremap(pdi_iomem->start + 4, 4);
-	if (!reg1) 
+	pdi->reg1 = ioremap(pdi_iomem->start + 4, 4);
+	if (!pdi->reg1) 
 		goto err2;
 
-	reg2 = ioremap(pdi_iomem->start + 8, 4);
-	if (!reg2)
+	pdi->reg2 = ioremap(pdi_iomem->start + 8, 4);
+	if (!pdi->reg2)
 		goto err3;
 
-	reg3 = ioremap(pdi_iomem->start + 12, 4);
-	if (!reg3)
+	pdi->reg3 = ioremap(pdi_iomem->start + 12, 4);
+	if (!pdi->reg3)
 		goto err4;
 	return 0;
 
 err4 :
-	iounmap(reg2);
-	reg2 = NULL;
+	iounmap(pdi->reg2);
+	pdi->reg2 = NULL;
 err3 :
-	iounmap(reg1);
-	reg1 = NULL;
+	iounmap(pdi->reg1);
+	pdi->reg1 = NULL;
 err2 :
-	iounmap(reg0);
-	reg0 = NULL;
+	iounmap(pdi->reg0);
+	pdi->reg0 = NULL;
 err1 :
 	pr_info("ioremap failed.\n");
 	release_mem_region(pdi_iomem->start, pdi_iomem->end - pdi_iomem->start);
@@ -306,14 +320,7 @@ static const struct net_device_ops pdi_netdev_ops = {
 static int pdi_init_ethernet(struct platform_device *pdev)
 {	
 	int rt;
-
-	pdi_netdev = alloc_etherdev(0);
 	
-	if (!pdi_netdev) {
-		pr_info("alloc_etherdev failed.\n");
-		return -ENOMEM;
-	}
-
 	pdi_netdev->irq = pdi_irq;
 	pdi_netdev->base_addr = pdi_iomem->start;
 
@@ -324,7 +331,7 @@ static int pdi_init_ethernet(struct platform_device *pdev)
 	rt = register_netdev(pdi_netdev);
 	
 	if (rt) {
-		free_netdev(pdi_netdev);
+		free_netdev(pdi_netdev);//REMEMBER TO DO SOMETHING WITH IT
 		pdi_netdev = NULL;
 		pr_info("register_netdev failed.\n");
 		return -ENOMEM;
@@ -338,20 +345,38 @@ static int pdi_probe(struct platform_device *pdev)
 	//what happens when it returns negative value?
 	
 	int rt;
+	struct pdi *pdi;
+
+	if (pdev->dev.platform_data) {
+		pr_info("PDI: tried to probe already probed"
+			" platform device.\n");
+		return -EINVAL;
+	}
+
+	pdi_netdev = alloc_etherdev(sizeof(struct pdi));
+
+	if (!pdi_netdev) {
+		pr_info("PDI: alloc_etherdev failed.\n");
+		return -ENOMEM;
+	}
+
+	pdi = netdev_priv(pdi_netdev);
+	pdev->dev.platform_data = pdi;
+
 	rt = pdi_init_irq(pdev);
 	if (rt)
-		return rt;
+		return rt;//TODO cleaning
 
 	rt = pdi_init_registers(pdev);
 	if (rt)
-		return rt;
+		return rt;//TODO cleaning
 
 	rt = pdi_init_ethernet(pdev);
 	if (rt)
-		return rt;
+		return rt;//TODO cleaning
 
 	/* Software reset on xgbe part of FPGA*/
-	iowrite32(cpu_to_le32(1), reg2);
+	iowrite32(cpu_to_le32(1), pdi->reg2);
 	wmb();
 	/* 
 	 * Softrst on fPGA has delay of ~2 ticks between clock domains. 
@@ -361,40 +386,44 @@ static int pdi_probe(struct platform_device *pdev)
 	mdelay(1);
 
 	/* Data reception enable on FPGA */
-	iowrite32(cpu_to_le32(2), reg2);
+	iowrite32(cpu_to_le32(2), pdi->reg2);
 	wmb();
 	return 0;
 }
 
 static int pdi_remove(struct platform_device *pdev)
 {
+	struct pdi *pdi = pdev->dev.platform_data;
+
 	/*Disabling data reception on FPGA */
-	iowrite32(0, reg2);
+	iowrite32(0, pdi->reg2);
 	wmb();
 
 	if (pdi_irq != -1)
 		free_irq(pdi_irq, NULL);
 
-	if (pdi_netdev) {
+	if (pdi_netdev)
 		unregister_netdev(pdi_netdev);
-		free_netdev(pdi_netdev);
-	}
 
-	if (reg3)
-		iounmap(reg3);
+	if (pdi->reg3)
+		iounmap(pdi->reg3);
 
-	if (reg2)
-		iounmap(reg2);
+	if (pdi->reg2)
+		iounmap(pdi->reg2);
 
-	if (reg1)
-		iounmap(reg1);
+	if (pdi->reg1)
+		iounmap(pdi->reg1);
 
-	if (reg0)
-		iounmap(reg0);
+	if (pdi->reg0)
+		iounmap(pdi->reg0);
 
 	if (pdi_iomem)
 		release_mem_region(pdi_iomem->start, pdi_iomem->end - 
 				   pdi_iomem->start);
+
+	if (pdi_netdev)
+		free_netdev(pdi_netdev);
+
 	return 0;
 }
 
