@@ -40,8 +40,6 @@
 
 MODULE_LICENSE("GPL");
 
-static int pdi_cnt = 0;
-
 /*
  * reg0 - packet's size in bytes. To push packet into MAC write
  * packet bytes count into it.
@@ -191,7 +189,7 @@ static int pdi_init_irq(struct platform_device *pdev)
 	int rt;
 	struct pdi *pdi = pdev->dev.platform_data;
 
-	pdi->irq = platform_get_irq(pdev, pdi_cnt);
+	pdi->irq = platform_get_irq(pdev, 0);
 	if (pdi->irq <= 0) {
 		pr_info("pdi: platform_get_irq failed.\n");
 		return -ENXIO;
@@ -219,7 +217,7 @@ static int pdi_init_registers(struct platform_device *pdev)
 	if (!pdi)
 		return -EINVAL;
 
-	pdi->iomem = platform_get_resource(pdev, IORESOURCE_MEM, pdi_cnt);
+	pdi->iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!pdi->iomem) {
 		rt = -ENXIO;
 		pr_info("pdi: platform_get_resource failed.\n");
@@ -350,7 +348,6 @@ static int pdi_probe(struct platform_device *pdev)
 	iowrite32(cpu_to_le32(2), pdi->reg2);
 	wmb();
 
-	pdi_cnt++;
 	return 0;
 err2:
 	iounmap(pdi->reg3);
@@ -405,7 +402,6 @@ static int pdi_remove(struct platform_device *pdev)
 
 	pdev->dev.platform_data = NULL;
 
-	pdi_cnt--;
 	return 0;
 }
 
