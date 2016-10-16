@@ -1,7 +1,7 @@
-create_clock -period 6.400 -name clk_156_25MHz [get_ports clk_156_25MHz]
-create_clock -period 10.000 -name s_axi_aclk [get_ports s_axi_aclk]
-create_clock -period 6.400 -name xgmii_rx_clk [get_ports xgmii_rx_clk]
-create_clock -period 6.400 -name xgmii_tx_clk [get_ports xgmii_tx_clk]
+#create_clock -period 6.400 -name clk_156_25MHz [get_ports clk_156_25MHz]
+#create_clock -period 10.000 -name s_axi_aclk [get_ports s_axi_aclk]
+#create_clock -period 6.400 -name xgmii_rx_clk [get_ports xgmii_rx_clk]
+#create_clock -period 6.400 -name xgmii_tx_clk [get_ports xgmii_tx_clk]
 
 set_property ASYNC_REG true [get_cells {softreset_intra_clk/sig_reg_out_reg[1]}]
 set_property ASYNC_REG true [get_cells {softreset_intra_clk/sig_reg_out_reg[0]}]
@@ -121,11 +121,11 @@ set_property ASYNC_REG true [get_cells {xge_mac_0/tx_data_fifo0/fifo0/ctrl0/wr_g
 set_property ASYNC_REG true [get_cells {xge_mac_0/tx_data_fifo0/fifo0/ctrl0/wr_gray_sync_reg[5]}]
 set_property ASYNC_REG true [get_cells {xge_mac_0/tx_data_fifo0/fifo0/ctrl0/wr_gray_sync_reg[6]}]
 
-set_clock_groups -asynchronous -group [get_clocks s_axi_aclk] -group [get_clocks clk_156_25MHz]
-set_clock_groups -asynchronous -group [get_clocks xgmii_rx_clk] -group [get_clocks xgmii_tx_clk]
+#set_clock_groups -asynchronous -group [get_clocks s_axi_aclk] -group [get_clocks clk_156_25MHz]
+#set_clock_groups -asynchronous -group [get_clocks xgmii_rx_clk] -group [get_clocks xgmii_tx_clk]
 
-set_false_path -from [get_clocks xgmii_rx_clk] -to [get_clocks clk_156_25MHz]
-set_false_path -from [get_clocks xgmii_tx_clk] -to [get_clocks clk_156_25MHz]
+#set_false_path -from [get_clocks xgmii_rx_clk] -to [get_clocks clk_156_25MHz]
+#set_false_path -from [get_clocks xgmii_tx_clk] -to [get_clocks clk_156_25MHz]
 
-set_clock_groups -asynchronous -group [get_clocks clk_156_25MHz] -group [get_clocks xgmii_rx_clk]
-set_clock_groups -asynchronous -group [get_clocks clk_156_25MHz] -group [get_clocks xgmii_tx_clk]
+#set_clock_groups -asynchronous -group [get_clocks clk_156_25MHz] -group [get_clocks xgmii_rx_clk]
+#set_clock_groups -asynchronous -group [get_clocks clk_156_25MHz] -group [get_clocks xgmii_tx_clk]
