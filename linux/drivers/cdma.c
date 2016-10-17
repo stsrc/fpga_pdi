@@ -44,16 +44,19 @@ static void __iomem *TAILDESC = NULL;
 int cdma_set_sg_desc(struct cdma_sg_descriptor *desc, u32 next_desc_ptr,
 		      u32 sa, u32 da, u32 control)
 {
-	if (next_desc_ptr & 0x3F)
+	/* Alignment check */
+	if (next_desc_ptr & 0x3F) {
+		pr_info("next_desc_ptr = %u\n", next_desc_ptr);
 		return -EINVAL;
+	}
 
-	desc->next_desc_ptr = next_desc_ptr;
-	desc->next_desc_ptr_msb = 0;
-	desc->sa = sa;
-	desc->sa_msb = 0;
-	desc->da = da;
-	desc->da_msb = 0;
-	desc->control = control;
+	desc->desc.next_desc_ptr = next_desc_ptr;
+	desc->desc.next_desc_ptr_msb = 0;
+	desc->desc.sa = sa;
+	desc->desc.sa_msb = 0;
+	desc->desc.da = da;
+	desc->desc.da_msb = 0;
+	desc->desc.control = control;
 
 	return 0;
 }
@@ -108,19 +111,113 @@ void cdma_softrst(void)
 }
 EXPORT_SYMBOL(cdma_softrst);
 
-//TODO REMOVE ACTIVE WAIT!!!
-unsigned int cdma_set_cur_tail(dma_addr_t cur, dma_addr_t tail)
+static int cdma_init_hw(void)
 {
+	u32 ret;
+
+	cdma_softrst();
+
+	ret = ioread32(CDMACR);
+	rmb();
+	ret |= 1 << 12; /* IOC_IrqEn */
+	ret |= 1 << 14; /* Err_IrqEn */
+	wmb();
+	iowrite32(ret, CDMACR);
+	wmb();
+	return 0;	
+}
+
+static int cdma_sg_off(void)
+{
+	u32 reg;
+	int ret;
+
+	ret = cdma_wait_for_idle();
+	if (ret)
+		return ret;
+	reg = ioread32(CDMACR);
+	rmb();
+	reg &= ~(1 << 3); /* SGMode off */
+	iowrite32(reg, CDMACR);
+	wmb();
+	ret = cdma_wait_for_idle();
+	return ret;
+}
+
+static int cdma_sg_on(void)
+{
+	u32 reg;
+	int ret;
+
+	ret = cdma_wait_for_idle();
+	if (ret)
+		return ret;
+	reg = ioread32(CDMACR);
+	rmb();
+	reg |= 1 << 3; /* SGMode on */
+	iowrite32(reg, CDMACR);
+	wmb();
+	ret = cdma_wait_for_idle();
+	return ret;
+}
+
+static int cdma_check_sgInc(void)
+{
+	u32 reg;
+	int ret;
+
+	reg = cdma_get_cdmasr();
+	if (reg & (1 << 3))
+		ret = 0;
+	else
+		ret = -EINVAL;
+
+	return ret;
+}
+
+//TODO REMOVE ACTIVE WAIT!!!
+int cdma_set_cur_tail(dma_addr_t cur, dma_addr_t tail)
+{
+	int ret;
+
 	pr_info("CDMA: cdma_set_cur_tail entered.\n");
+
+	ret = cdma_check_sgInc();
+	if (ret) {
+		pr_info("SG mode not included in hardware!\n");
+		return ret;
+	} else {
+		pr_info("SG mode included in hardware.\n");
+	}
+
+	/*
+	 * Alignment check.
+	 */
+	if ((unsigned int)cur & 0x3F || (unsigned int)tail & 0x3F)
+		return -EINVAL;
+
+	pr_info("CDMA: cdma_set_cur_tail 0.\n");
+	if (cdma_sg_off())
+		return -ETIMEDOUT;
+
+	pr_info("CDMA: cdma_set_cur_tail 1.\n");
 	if (cdma_wait_for_idle())
 		return -ETIMEDOUT;
-	pr_info("CDMA: cdma_set_cur_tail 1.\n");
+
+	pr_info("CDMA: cdma_set_cur_tail 2.\n");
 	iowrite32((u32)cur, CURDESC);
 	wmb();
-	pr_info("CDMA: cdma_set_cur_tail 2.\n");
+
+	pr_info("CDMA: cdma_set_cur_tail 3.\n");
+	ret = cdma_sg_on();
+	if (ret)
+		return ret;
+
+	pr_info("CDMA: cdma_set_cur_tail 4.\n");	
 	iowrite32((u32)tail, TAILDESC);
 	wmb();
-	pr_info("CDMA: cdma_set_cur_tail 3.\n");
+
+	pr_info("CDMA: cdma_set_cur_tail 5.\n");	
 	return 0;
 }
 EXPORT_SYMBOL(cdma_set_cur_tail);
@@ -207,25 +304,6 @@ err0:
 	cdma_iomem = NULL;
 	return -ENOMEM;
 }
-
-static int cdma_init_hw(void)
-{
-	u32 ret;
-
-	cdma_softrst();
-
-	ret = ioread32(CDMACR);
-	rmb();
-	ret |= 1 << 12; /* IOC_IrqEn */
-	ret |= 1 << 14; /* Err_IrqEn */
-#error Here is problem
-	ret |= 1 << 3;	/* SG *///XXX: NOT HERE!
-	wmb();
-	iowrite32(ret, CDMACR);
-	wmb();
-	return 0;	
-}
-
 
 static int cdma_probe(struct platform_device *pdev)
 {

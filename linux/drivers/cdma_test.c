@@ -43,24 +43,20 @@ static struct class *cdma_class = NULL;
 
 struct cdma{
 	struct cdma_ring_info *tx_buffers;
-	struct cdma_sg_descriptor desc;
 	struct platform_device *pdev;
 };
 
+struct cdma_sg_descriptor desc;
 struct cdma cdma;
 
 
 static int cdma_init_buffers(void)
 {
-	cdma.tx_buffers = kzalloc(sizeof(struct cdma_ring_info), 
-				 GFP_KERNEL | GFP_DMA);
-
-	if (!cdma.tx_buffers) {
-		pr_info("CDMA_TEST: cdma.tx_buffers alloc failed.\n");
-		return -ENOMEM;
-	}
-
 	return 0;
+}
+
+static void cdma_deinit_buffers(void)
+{
 }
 
 static int cdma_init_dma(struct platform_device *pdev)
@@ -95,42 +91,68 @@ static int cdma_release(struct inode *node, struct file *f)
 static int cdma_write(struct file *f, const char __user *buf, size_t nbytes,
 			loff_t *ppos)
 {
+	int ret;
 	struct device *dev = &cdma.pdev->dev;
-	dma_addr_t source_p, dest_p;
+	dma_addr_t source_p, dest_p, desc_p;
 	cdma.tx_buffers = kmalloc(sizeof(struct cdma_ring_info), 
 				  GFP_KERNEL | GFP_DMA);
 	if (!cdma.tx_buffers) {
-		pr_info("CDMA_TEST: cdma.>tx_buffers could not be allocated!\n");
+		pr_info("CDMA_TEST: cdma.tx_buffers could not be allocated!\n");
 		return nbytes;
 	}
 	
 	cdma.tx_buffers->source = 0x12345678;
 	cdma.tx_buffers->dest = 0x87654321;
 
-	pr_info("PDI: 1. source: %u, dest: %u", 
+	pr_info("cdma_test: 1. source: %u, dest: %u", 
 		cdma.tx_buffers->source, cdma.tx_buffers->dest);
 
 	source_p = dma_map_single(dev, &cdma.tx_buffers->source, 8,
 			 	  DMA_BIDIRECTIONAL);
+	if (source_p == 0) {
+		pr_info("err 0\n");
+		return nbytes;
+	}
 	dest_p = dma_map_single(dev, &cdma.tx_buffers->dest, 8, 
 				DMA_BIDIRECTIONAL);
-	
+	if (dest_p == 0) {
+		pr_info("err 1\n");
+		return nbytes;
+	}
+	desc_p = dma_map_single(dev, &desc, 
+		 sizeof(struct cdma_sg_descriptor), DMA_BIDIRECTIONAL);
+	if (desc_p == 0) {
+		pr_info("err 2\n");
+		return nbytes;
+	}
+
+	ret = cdma_set_sg_desc(&desc, desc_p, source_p, dest_p, 8); 
+	if (ret) 
+		pr_info("cdma_set_sg_desc returned %d\n", ret);
+ 	
 	dma_sync_single_for_device(dev, source_p, 8, DMA_BIDIRECTIONAL);
 	dma_sync_single_for_device(dev, dest_p, 8, DMA_BIDIRECTIONAL);
+	dma_sync_single_for_device(dev, desc_p, 
+				   sizeof(struct cdma_sg_descriptor),
+				   DMA_BIDIRECTIONAL);
 
-	if (cdma_set_sa_da(source_p, dest_p, 8))
-		pr_info("CDMA_TEST: DMA DOES NOT IDLE!\n");
+	ret = cdma_set_cur_tail(desc_p, desc_p);
+	if (ret)
+		pr_info("CDMA_TEST: cdma_set_cur_tail returned %d!\n", ret);
 
 	dma_sync_single_for_cpu(dev, source_p, 8, DMA_BIDIRECTIONAL);
 	dma_sync_single_for_cpu(dev, dest_p, 8, DMA_BIDIRECTIONAL);
-
+	dma_sync_single_for_cpu(dev, desc_p, sizeof(struct cdma_sg_descriptor),
+				DMA_BIDIRECTIONAL);
 	mdelay(100);
 
-	pr_info("PDI: 2. source: %u, dest: %u", 
+	pr_info("cdma_test: 2. source: %u, dest: %u", 
 		cdma.tx_buffers->source, cdma.tx_buffers->dest);
 
-	dma_unmap_single(dev, source_p, sizeof(u64), DMA_BIDIRECTIONAL);
-	dma_unmap_single(dev, dest_p, sizeof(u64), DMA_BIDIRECTIONAL);
+	dma_unmap_single(dev, source_p, 8, DMA_BIDIRECTIONAL);
+	dma_unmap_single(dev, dest_p, 8, DMA_BIDIRECTIONAL);
+	dma_unmap_single(dev, desc_p, sizeof(struct cdma_sg_descriptor),
+			 DMA_BIDIRECTIONAL);
 
 	kfree(cdma.tx_buffers);
 	return nbytes;
@@ -166,6 +188,7 @@ static int cdma_probe(struct platform_device *pdev)
 
 static int cdma_remove(struct platform_device *pdev)
 {
+	cdma_deinit_buffers();
 	return 0;
 }
 
