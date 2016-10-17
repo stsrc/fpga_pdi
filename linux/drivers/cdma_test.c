@@ -92,16 +92,27 @@ static int cdma_write(struct file *f, const char __user *buf, size_t nbytes,
 {
 	int ret;
 	void *test;
+	void *test2;
 	char *tmp;
 	struct cdma_sg_descriptor *desc;
 
 	struct device *dev = &cdma.pdev->dev;
 	dma_addr_t source_p, dest_p, desc_p_0, desc_p_1;
-	cdma.tx_buffers = kmalloc(sizeof(struct cdma_ring_info), 
-				  GFP_KERNEL | GFP_DMA);
-	if (!cdma.tx_buffers) {
+	test2 = kmalloc(1024, GFP_KERNEL | GFP_DMA);
+	if (!test2) {
 		pr_info("CDMA_TEST: cdma.tx_buffers could not be allocated!\n");
 		return nbytes;
+	}
+	cdma.tx_buffers = test2;
+	while((u32)cdma.tx_buffers & 0x0F) {
+		tmp = (char *)cdma.tx_buffers;
+		tmp--;
+		if ((u32)tmp < (u32) test2 - 1024) {
+			pr_info("ARE U STUPID?\n");
+#error WTF IS THIS?
+			return nbytes;
+		}
+		cdma.tx_buffers = (struct cdma_ring_info *)tmp;
 	}
 
 	test = kmalloc(1024, GFP_KERNEL | GFP_DMA);
@@ -114,9 +125,10 @@ static int cdma_write(struct file *f, const char __user *buf, size_t nbytes,
 	desc = (struct cdma_sg_descriptor *)test;
 	while ((u32)desc & 0x3F) {
 		tmp = (char *)desc;
-		tmp++;
-		if ((u32)tmp > (u32)test + 1024) {
+		tmp--;
+		if ((u32)tmp < (u32)test - 1024) {
 			pr_info("ARE U STUPID?\n");
+#error WTF IS THIS?
 			return nbytes;
 		}
 		desc = (struct cdma_sg_descriptor *)tmp;	
@@ -130,18 +142,21 @@ static int cdma_write(struct file *f, const char __user *buf, size_t nbytes,
 
 	source_p = dma_map_single(dev, &cdma.tx_buffers->source, 4,
 			 	  DMA_BIDIRECTIONAL);
+	pr_info("source_p = 0x%x\n", (u32)source_p);
 	if (source_p == 0) {
 		pr_info("err 0\n");
 		return nbytes;
 	}
 	dest_p = dma_map_single(dev, &cdma.tx_buffers->dest, 4, 
 				DMA_BIDIRECTIONAL);
+	pr_info("dest_p = 0x%x\n", (u32)dest_p);
 	if (dest_p == 0) {
 		pr_info("err 1\n");
 		return nbytes;
 	}
 	desc_p_0 = dma_map_single(dev, &desc[0], 
 		 sizeof(struct cdma_sg_descriptor), DMA_BIDIRECTIONAL);
+	pr_info("desc_p_0 = 0x%x\n", (u32)desc_p_0);
 	if (desc_p_0 == 0) {
 		pr_info("err 2\n");
 		return nbytes;
@@ -149,6 +164,7 @@ static int cdma_write(struct file *f, const char __user *buf, size_t nbytes,
 
 	desc_p_1 = dma_map_single(dev, &desc[1], 
 		 sizeof(struct cdma_sg_descriptor), DMA_BIDIRECTIONAL);
+	pr_info("desc_p_1 = 0x%x\n", (u32)desc_p_1);
 	if (desc_p_1 == 0) {
 		pr_info("err 3\n");
 		return nbytes;
@@ -192,7 +208,7 @@ static int cdma_write(struct file *f, const char __user *buf, size_t nbytes,
 	dma_unmap_single(dev, desc_p_1, sizeof(struct cdma_sg_descriptor),
 			 DMA_BIDIRECTIONAL);
 
-	kfree(cdma.tx_buffers);
+	kfree(test2);
 	kfree(test);
 	return nbytes;
 }
