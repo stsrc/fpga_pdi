@@ -83,7 +83,7 @@ int cdma_wait_for_idle(void)
 		rmb();
 		ret = ret & 1 << 1;
 		cnt++;
-	} while ((!ret) && (cnt < 1000));
+	} while ((!ret) && (cnt < 2000));
 
 	if (!ret)
 		return -ETIMEDOUT;
@@ -197,7 +197,11 @@ int cdma_set_cur_tail(dma_addr_t cur, dma_addr_t tail)
 	iowrite32((u32)cur, CURDESC);
 	wmb();
 
-	pr_info("CDMA: cdma_set_cur_tail 3.\n");	
+	pr_info("CDMA: cdma_set_cur_tail 3.\n");
+	if (cdma_wait_for_idle())
+		return -ETIMEDOUT;
+
+	pr_info("CDMA: cdma_set_cur_tail 4.\n");	
 	iowrite32((u32)tail, TAILDESC);
 	wmb();
 

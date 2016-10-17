@@ -115,6 +115,10 @@ static int cdma_write(struct file *f, const char __user *buf, size_t nbytes,
 	while ((u32)desc & 0x3F) {
 		tmp = (char *)desc;
 		tmp++;
+		if ((u32)tmp > (u32)test + 1024) {
+			pr_info("ARE U STUPID?\n");
+			return nbytes;
+		}
 		desc = (struct cdma_sg_descriptor *)tmp;	
 	}
 	
