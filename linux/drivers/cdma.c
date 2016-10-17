@@ -121,6 +121,7 @@ static int cdma_init_hw(void)
 	rmb();
 	ret |= 1 << 12; /* IOC_IrqEn */
 	ret |= 1 << 14; /* Err_IrqEn */
+	ret |= 1 <<  3; /* SG	     */
 	wmb();
 	iowrite32(ret, CDMACR);
 	wmb();
@@ -182,23 +183,11 @@ int cdma_set_cur_tail(dma_addr_t cur, dma_addr_t tail)
 
 	pr_info("CDMA: cdma_set_cur_tail entered.\n");
 
-	ret = cdma_check_sgInc();
-	if (ret) {
-		pr_info("SG mode not included in hardware!\n");
-		return ret;
-	} else {
-		pr_info("SG mode included in hardware.\n");
-	}
-
 	/*
 	 * Alignment check.
 	 */
 	if ((unsigned int)cur & 0x3F || (unsigned int)tail & 0x3F)
 		return -EINVAL;
-
-	pr_info("CDMA: cdma_set_cur_tail 0.\n");
-	if (cdma_sg_off())
-		return -ETIMEDOUT;
 
 	pr_info("CDMA: cdma_set_cur_tail 1.\n");
 	if (cdma_wait_for_idle())
@@ -208,12 +197,7 @@ int cdma_set_cur_tail(dma_addr_t cur, dma_addr_t tail)
 	iowrite32((u32)cur, CURDESC);
 	wmb();
 
-	pr_info("CDMA: cdma_set_cur_tail 3.\n");
-	ret = cdma_sg_on();
-	if (ret)
-		return ret;
-
-	pr_info("CDMA: cdma_set_cur_tail 4.\n");	
+	pr_info("CDMA: cdma_set_cur_tail 3.\n");	
 	iowrite32((u32)tail, TAILDESC);
 	wmb();
 
