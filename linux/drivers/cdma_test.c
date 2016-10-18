@@ -41,6 +41,11 @@ static struct cdev *cdma_cdev = NULL;
 static dev_t cdma_dev;
 static struct class *cdma_class = NULL;
 
+	void *test;
+	void *test2;
+	char *tmp;
+	struct cdma_sg_descriptor *desc;
+
 struct cdma{
 	struct cdma_ring_info *tx_buffers;
 	struct platform_device *pdev;
@@ -51,11 +56,49 @@ struct cdma cdma;
 
 static int cdma_init_buffers(void)
 {
+	test2 = kmalloc(1024, GFP_KERNEL | GFP_DMA);
+	if (!test2) {
+		pr_info("CDMA_TEST: cdma.tx_buffers could not be allocated!\n");
+		return -ENOMEM;
+	}
+	cdma.tx_buffers = test2;
+	while((u32)cdma.tx_buffers & 0x0F) {
+		tmp = (char *)cdma.tx_buffers;
+		tmp--;
+		if ((u32)tmp < (u32) test2 - 1024) {
+			pr_info("ARE U STUPID?\n");
+			kfree(test2);
+			return -ENOMEM;
+		}
+		cdma.tx_buffers = (struct cdma_ring_info *)tmp;
+	}
+
+	test = kmalloc(1024, GFP_KERNEL | GFP_DMA);
+	if (!test) {
+		pr_info("cdma_test: test problem.\n");
+		kfree(test2);
+		return -ENOMEM;
+	}
+
+	desc = (struct cdma_sg_descriptor *)test;
+	while ((u32)desc & 0x3F) {
+		tmp = (char *)desc;
+		tmp--;
+		if ((u32)tmp < (u32)test - 1024) {
+			pr_info("ARE U STUPID?\n");
+			kfree(test2);
+			kfree(test);
+			return -ENOMEM;
+		}
+		desc = (struct cdma_sg_descriptor *)tmp;	
+	}
 	return 0;
 }
 
 static void cdma_deinit_buffers(void)
 {
+	kfree(test2);
+	kfree(test);
 }
 
 static int cdma_init_dma(struct platform_device *pdev)
@@ -91,49 +134,10 @@ static int cdma_write(struct file *f, const char __user *buf, size_t nbytes,
 			loff_t *ppos)
 {
 	int ret;
-	void *test;
-	void *test2;
-	char *tmp;
-	struct cdma_sg_descriptor *desc;
 
 	struct device *dev = &cdma.pdev->dev;
 	dma_addr_t source_p, dest_p, desc_p_0, desc_p_1;
-	test2 = kmalloc(1024, GFP_KERNEL | GFP_DMA);
-	if (!test2) {
-		pr_info("CDMA_TEST: cdma.tx_buffers could not be allocated!\n");
-		return nbytes;
-	}
-	cdma.tx_buffers = test2;
-	while((u32)cdma.tx_buffers & 0x0F) {
-		tmp = (char *)cdma.tx_buffers;
-		tmp--;
-		if ((u32)tmp < (u32) test2 - 1024) {
-			pr_info("ARE U STUPID?\n");
-#error WTF IS THIS?
-			return nbytes;
-		}
-		cdma.tx_buffers = (struct cdma_ring_info *)tmp;
-	}
 
-	test = kmalloc(1024, GFP_KERNEL | GFP_DMA);
-	if (!test) {
-		pr_info("cdma_test: test problem.\n");
-		kfree(cdma.tx_buffers);
-		return nbytes;
-	}
-
-	desc = (struct cdma_sg_descriptor *)test;
-	while ((u32)desc & 0x3F) {
-		tmp = (char *)desc;
-		tmp--;
-		if ((u32)tmp < (u32)test - 1024) {
-			pr_info("ARE U STUPID?\n");
-#error WTF IS THIS?
-			return nbytes;
-		}
-		desc = (struct cdma_sg_descriptor *)tmp;	
-	}
-	
 	cdma.tx_buffers->source = 0x12345678;
 	cdma.tx_buffers->dest = 0x87654321;
 
@@ -208,8 +212,6 @@ static int cdma_write(struct file *f, const char __user *buf, size_t nbytes,
 	dma_unmap_single(dev, desc_p_1, sizeof(struct cdma_sg_descriptor),
 			 DMA_BIDIRECTIONAL);
 
-	kfree(test2);
-	kfree(test);
 	return nbytes;
 }
 

@@ -57,7 +57,7 @@ int cdma_set_sg_desc(struct cdma_sg_descriptor *desc, u32 next_desc_ptr,
 	desc->desc.da = da;
 	desc->desc.da_msb = 0;
 	desc->desc.control = control;
-
+	desc->desc.status &= ~(0x0F << 28);
 	return 0;
 }
 EXPORT_SYMBOL(cdma_set_sg_desc);
@@ -121,7 +121,7 @@ static int cdma_init_hw(void)
 	rmb();
 	ret |= 1 << 12; /* IOC_IrqEn */
 	ret |= 1 << 14; /* Err_IrqEn */
-	ret |= 1 <<  3; /* SG	     */
+	ret |= 1 <<  3; /* SG */
 	wmb();
 	iowrite32(ret, CDMACR);
 	wmb();
@@ -165,7 +165,7 @@ static int cdma_sg_on(void)
 static int cdma_check_sgInc(void)
 {
 	u32 reg;
-	int ret;
+	int ret = 0;
 
 	reg = cdma_get_cdmasr();
 	if (reg & (1 << 3))
@@ -179,8 +179,6 @@ static int cdma_check_sgInc(void)
 //TODO REMOVE ACTIVE WAIT!!!
 int cdma_set_cur_tail(dma_addr_t cur, dma_addr_t tail)
 {
-	int ret;
-
 	pr_info("CDMA: cdma_set_cur_tail entered.\n");
 
 	/*
@@ -188,24 +186,25 @@ int cdma_set_cur_tail(dma_addr_t cur, dma_addr_t tail)
 	 */
 	if ((unsigned int)cur & 0x3F || (unsigned int)tail & 0x3F)
 		return -EINVAL;
-
+	cdma_sg_off();
+	cdma_sg_on();
 	pr_info("CDMA: cdma_set_cur_tail 1.\n");
 	if (cdma_wait_for_idle())
 		return -ETIMEDOUT;
 
-	pr_info("CDMA: cdma_set_cur_tail 2.\n");
+	pr_info("CDMA: cdma_set_cur_tail 3.\n");
 	iowrite32((u32)cur, CURDESC);
 	wmb();
 
-	pr_info("CDMA: cdma_set_cur_tail 3.\n");
+	pr_info("CDMA: cdma_set_cur_tail 4.\n");
 	if (cdma_wait_for_idle())
 		return -ETIMEDOUT;
 
-	pr_info("CDMA: cdma_set_cur_tail 4.\n");	
+	pr_info("CDMA: cdma_set_cur_tail 6.\n");	
 	iowrite32((u32)tail, TAILDESC);
 	wmb();
 
-	pr_info("CDMA: cdma_set_cur_tail 5.\n");	
+	pr_info("CDMA: cdma_set_cur_tail 7.\n");	
 	return 0;
 }
 EXPORT_SYMBOL(cdma_set_cur_tail);
@@ -297,7 +296,8 @@ static int cdma_probe(struct platform_device *pdev)
 {
 	int rt;
 
-	pr_info("CDMA: cdma_probe called!\n");	
+	pr_info("CDMA: cdma_probe called!\n");
+
 	rt = cdma_init_irq(pdev);
 	if (rt)
 		return rt;
@@ -308,6 +308,16 @@ static int cdma_probe(struct platform_device *pdev)
 		cdma_irq = - 1;
 		return rt;
 	}
+
+
+	rt = cdma_check_sgInc();
+	
+	if (rt) {
+		pr_info("CDMA: HW CDMA does not have SG part of design!\n");
+		pr_info("Aborting initalize of CDMA. CDMA will not work!\n");
+		return -ENODEV;
+	}
+
 	pr_info("CDMA: cdma_probe 2!\n");	
 	cdma_init_hw();
 	pr_info("CDMA: cdma_probe 3!\n");	
