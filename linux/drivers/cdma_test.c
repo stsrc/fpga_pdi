@@ -75,14 +75,14 @@ static int cdma_init_buffers(struct device *dev)
 		desc[i] = (struct cdma_sg_descriptor *)dma_pool_zalloc(pool, 
 			   GFP_KERNEL, &desc_p[i]);
 
-		pr_info("(u32)desc_p[%d] = 0x%u\n", i, (u32)desc_p[i]);
+		pr_info("(u32)desc_p[%d] = 0x%x\n", i, (u32)desc_p[i]);
 
 		if (!desc[i]) {
 			pr_info("cdma_test: dma_pool_zalloc could not allocate"
 				" memory.\n");
 
 			for (int j = 0; j < i; j++)
-				dma_pool_free(pool, (void *)desc[i], desc_p[i]);
+				dma_pool_free(pool, (void *)desc[j], desc_p[j]);
 
 			dma_pool_destroy(pool);
 			return -ENOMEM;
@@ -177,10 +177,10 @@ static int cdma_write(struct file *f, const char __user *buf, size_t nbytes,
 		return nbytes;
 	}
 
-	ret = cdma_set_sg_desc(desc[0], desc_p[0], source_p, dest_p, 4); 
+	ret = cdma_set_sg_desc(desc[0], desc_p[1], source_p, dest_p, 4); 
 	if (ret) 
 		pr_info("cdma_set_sg_desc 1 returned %d\n", ret);
-	ret = cdma_set_sg_desc(desc[1], desc_p[1], source_p, dest_p, 4); 
+	ret = cdma_set_sg_desc(desc[1], desc_p[0], source_p, dest_p, 4); 
 	if (ret) 
 		pr_info("cdma_set_sg_desc 2 returned %d\n", ret);
  	
