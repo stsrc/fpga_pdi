@@ -46,7 +46,7 @@ int cdma_set_sg_desc(struct cdma_sg_descriptor *desc, u32 next_desc_ptr,
 {
 	/* Alignment check */
 	if (next_desc_ptr & 0x3F) {
-		pr_info("next_desc_ptr = %u\n", next_desc_ptr);
+		pr_info("next_desc_ptr = 0x%x\n", next_desc_ptr);
 		return -EINVAL;
 	}
 

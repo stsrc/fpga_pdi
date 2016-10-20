@@ -28,7 +28,9 @@
 
 #include <linux/spinlock.h>
 
-#include <linux/dma/xilinx_dma.h>
+#include <linux/dmapool.h>
+
+#include "cdma.h"
 
 #define DRIVER_NAME "pdi"
 /* 
@@ -55,14 +57,26 @@ MODULE_LICENSE("GPL");
  * reg3 - Counter of not read packets yet. Each read zeroes this reg.
  */
 struct pdi {
+	struct device *dev;
 	struct net_device *netdev;
 	struct resource *ports;
 	struct resource *iomem;
 	int irq;
+
 	void __iomem *reg0;
 	void __iomem *reg1;
 	void __iomem *reg2;
 	void __iomem *reg3;
+
+	dma_addr_t reg0_dma;
+	dma_addr_t reg1_dma;
+
+	struct dma_pool *pool;
+
+	struct cdma_sg_descriptor *desc[64];
+	dma_addr_t desc_p[64];
+	u32 bytes_cnt[64];
+	u32 desc_cnt;
 };
 
 /*
@@ -70,15 +84,16 @@ struct pdi {
  */
 static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	uint32_t data = 0;
+	int ret;
 	uint32_t len = 0;
+	uint32_t cnt = 0;
 	/* 
 	 * to_add - padding bytes count. 
 	 * FPGA eth 'internals' are 8 bytes aligned. 
 	 */
 	unsigned int to_add = 0;
-	unsigned char *data_ptr = NULL;
 	struct pdi *pdi = (struct pdi *)netdev_priv(dev);
+	dma_addr_t mapping[2];
 
 	len = skb->len;
 
@@ -94,22 +109,58 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		skb_put(skb, to_add);
 	}
 	
-	data_ptr = skb->data;
-
-	for (int i = 0; i < skb->len / 4; i++) {
-		data = 0;
-
-		for (int i = 0; i < 4; i++) {
-			data |=	*data_ptr << (8 * i);
-			data_ptr++;
-		}	
-		iowrite32(cpu_to_le32(data), pdi->reg1);
+	if (pdi->desc_cnt == 64) {
+		pr_info("NO MORE TRANSMISSIONS!\n");
+		dev_kfree_skb(skb);
+		return NETDEV_TX_OK;
 	}
-	wmb();
-	iowrite32(cpu_to_le32(len), pdi->reg0);
-	dev->stats.tx_packets++;
-	dev->stats.tx_bytes += (unsigned long)len;
-	dev_kfree_skb(skb);
+
+
+
+	/******************** NEW PART ********************/	
+
+	cnt = pdi->desc_cnt;
+
+	mapping[0] = dma_map_single(pdi->dev, skb->data, skb->len, DMA_TO_DEVICE);
+	if (dma_mapping_error(pdi->dev, mapping[0])) {
+		pr_info("pdi: dma_map_single failed!\n");
+		return NETDEV_TX_BUSY;
+	}
+
+	mapping[1] = dma_map_single(pdi->dev, &pdi->bytes_cnt[cnt], 
+				    sizeof(u32), DMA_TO_DEVICE);
+	if (dma_mapping_error(pdi->dev, mapping[1])) {
+		pr_info("pdi: dma_map_single failed!\n");
+		return NETDEV_TX_BUSY;
+	}
+
+	ret = cdma_set_sg_desc(pdi->desc[cnt], pdi->desc_p[cnt + 1], mapping[0], 
+			       pdi->reg1_dma, skb->len);
+	if (ret)
+		pr_info("pdi: cdma_set_sg_desc returned %d\n", ret);
+
+
+	ret = cdma_set_sg_desc(pdi->desc[cnt + 1], pdi->desc_p[cnt], mapping[1], 
+			       pdi->reg0_dma, sizeof(u32));
+	if (ret)
+		pr_info("pdi: cdma_set_sg_desc returned %d\n", ret);
+	
+	dma_sync_single_for_device(pdi->dev, mapping[0], skb->len, DMA_TO_DEVICE);
+	dma_sync_single_for_device(pdi->dev, mapping[1], sizeof(u32), DMA_TO_DEVICE);
+
+	ret = cdma_set_cur_tail(pdi->desc_p[cnt], pdi->desc_p[cnt + 1]);
+
+	if (ret)
+		pr_info("pdi: cdma_set_cur_tail returned %d\n", ret);
+	
+	mdelay(1000);
+	
+	dma_unmap_single(pdi->dev, mapping[0], skb->len, DMA_TO_DEVICE);
+	dma_unmap_single(pdi->dev, mapping[1], sizeof(u32), DMA_TO_DEVICE);
+	dev_kfree_skb(skb);	
+			
+	pdi->desc_cnt += 2;
+
 	return NETDEV_TX_OK;
 }
 
@@ -206,6 +257,51 @@ static int pdi_init_irq(struct platform_device *pdev)
 	return 0;
 }
 
+static int pdi_init_dma_buffers(struct platform_device *pdev)
+{
+	struct pdi *pdi = pdev->dev.platform_data;
+	
+	pdi->pool = dma_pool_create(DRIVER_NAME, pdi->dev, sizeof(struct 
+			cdma_sg_descriptor), 0x40, 0);
+	 
+	if (!pdi->pool) {
+		pr_info("pdi: dma_pool_create could not allocate memory."
+			"\n");
+		return -ENOMEM;
+	}
+
+	for (int i = 0; i < 64; i++) {
+		pdi->desc_p[i] = 0;
+		pdi->desc[i] = dma_pool_zalloc(pdi->pool, GFP_KERNEL, 
+					       &pdi->desc_p[i]);
+
+		pr_info("(u32)desc_p[%d] = 0x%x\n", i, (u32)pdi->desc_p[i]);
+
+		if (!pdi->desc[i]) {
+			pr_info("cdma_test: dma_pool_zalloc could not allocate"
+				" memory.\n");
+
+			for (int j = 0; j < i; j++)
+				dma_pool_free(pdi->pool, pdi->desc[j], 
+						pdi->desc_p[j]);
+
+			dma_pool_destroy(pdi->pool);
+			return -ENOMEM;
+		}	
+	}
+	return 0;
+}
+
+static void pdi_deinit_dma_buffers(struct platform_device *pdev)
+{
+	struct pdi *pdi = pdev->dev.platform_data;
+
+	for (int i = 0; i < 64; i++)
+		dma_pool_free(pdi->pool, pdi->desc[i], pdi->desc_p[i]);
+
+	dma_pool_destroy(pdi->pool);
+}
+
 /*
  * Function maps registers into memory.
  */
@@ -247,8 +343,24 @@ static int pdi_init_registers(struct platform_device *pdev)
 	pdi->reg3 = ioremap(pdi->iomem->start + 12, 4);
 	if (!pdi->reg3)
 		goto err4;
+
+	pdi->reg0_dma = dma_map_single(pdi->dev, pdi->reg0, 4, 
+					DMA_TO_DEVICE);
+	if (!pdi->reg0_dma)
+		goto err5;
+
+	pdi->reg1_dma = dma_map_single(pdi->dev, pdi->reg1, 4, 
+					DMA_TO_DEVICE);
+	if (!pdi->reg1_dma)
+		goto err6;
+
 	return 0;
 
+err6 :
+	dma_unmap_single(pdi->dev, pdi->reg0_dma, 4, DMA_TO_DEVICE);
+err5 :
+	iounmap(pdi->reg3);
+	pdi->reg2 = NULL;
 err4 :
 	iounmap(pdi->reg2);
 	pdi->reg2 = NULL;
@@ -319,8 +431,12 @@ static int pdi_probe(struct platform_device *pdev)
 	}
 
 	pdi = netdev_priv(netdev);
+
+	memset(pdi, 0, sizeof(struct pdi));
+
 	pdi->netdev = netdev;
 	pdev->dev.platform_data = pdi;
+	pdi->dev = &pdev->dev;
 
 	rt = pdi_init_irq(pdev);
 	if (rt) 
@@ -333,6 +449,10 @@ static int pdi_probe(struct platform_device *pdev)
 	rt = pdi_init_ethernet(pdev);
 	if (rt) 
 		goto err2;
+
+	rt = pdi_init_dma_buffers(pdev);
+	if (rt)
+		goto err3;
 
 	/* Software reset on xgbe part of FPGA*/
 	iowrite32(cpu_to_le32(1), pdi->reg2);
@@ -349,7 +469,12 @@ static int pdi_probe(struct platform_device *pdev)
 	wmb();
 
 	return 0;
+
+err3:
+	unregister_netdev(pdi->netdev);
 err2:
+	dma_unmap_single(pdi->dev, pdi->reg0_dma, 4, DMA_TO_DEVICE);
+	dma_unmap_single(pdi->dev, pdi->reg1_dma, 4, DMA_TO_DEVICE);
 	iounmap(pdi->reg3);
 	iounmap(pdi->reg2);
 	iounmap(pdi->reg1);
@@ -375,11 +500,19 @@ static int pdi_remove(struct platform_device *pdev)
 	if (!pdi)
 		return 0;
 
+	pdi_deinit_dma_buffers(pdev);
+
 	if (pdi->irq != -1)
 		free_irq(pdi->irq, pdi);
 
 	if (pdi->netdev)
 		unregister_netdev(pdi->netdev);
+	
+	if (pdi->reg1_dma)
+		dma_unmap_single(pdi->dev, pdi->reg1_dma, 4, DMA_TO_DEVICE);
+
+	if (pdi->reg0_dma)
+		dma_unmap_single(pdi->dev, pdi->reg0_dma, 4, DMA_TO_DEVICE);
 
 	if (pdi->reg3)
 		iounmap(pdi->reg3);

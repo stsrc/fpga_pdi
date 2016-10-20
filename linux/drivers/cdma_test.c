@@ -176,12 +176,7 @@ static int cdma_write(struct file *f, const char __user *buf, size_t nbytes,
  	
 	dma_sync_single_for_device(dev, source_p, 4, DMA_BIDIRECTIONAL);
 	dma_sync_single_for_device(dev, dest_p, 4, DMA_BIDIRECTIONAL);
-	dma_sync_single_for_device(dev, desc_p[0],
-				   sizeof(struct cdma_sg_descriptor),
-				   DMA_BIDIRECTIONAL);
-	dma_sync_single_for_device(dev, desc_p[1], 
-				   sizeof(struct cdma_sg_descriptor),
-				   DMA_BIDIRECTIONAL);
+
 
 	ret = cdma_set_cur_tail(desc_p[0], desc_p[1]);
 	if (ret)
@@ -190,10 +185,7 @@ static int cdma_write(struct file *f, const char __user *buf, size_t nbytes,
 	mdelay(100);
 	dma_sync_single_for_cpu(dev, source_p, 4, DMA_BIDIRECTIONAL);
 	dma_sync_single_for_cpu(dev, dest_p, 4, DMA_BIDIRECTIONAL);
-	dma_sync_single_for_cpu(dev, desc_p[0], sizeof(struct cdma_sg_descriptor),
-				DMA_BIDIRECTIONAL);
-	dma_sync_single_for_cpu(dev, desc_p[1], sizeof(struct cdma_sg_descriptor),
-				DMA_BIDIRECTIONAL);
+
 
 	pr_info("cdma_test: 2. source: %x, dest: %x", 
 		cdma.tx_buffers->source, cdma.tx_buffers->dest);
