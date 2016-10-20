@@ -95,16 +95,6 @@ static int cdma_init_buffers(struct device *dev)
 		return -ENOMEM;
 	}
 	cdma.tx_buffers = test2;
-	while((u32)cdma.tx_buffers & 0x0F) {
-		tmp = (char *)cdma.tx_buffers;
-		tmp--;
-		if ((u32)tmp < (u32) test2 - 1024) {
-			pr_info("ARE U STUPID?\n");
-			kfree(test2);
-			return -ENOMEM;
-		}
-		cdma.tx_buffers = (struct cdma_ring_info *)tmp;
-	}
 
 	return 0;
 }
