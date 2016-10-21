@@ -12,8 +12,8 @@
 #define BUFLEN 10000
 #define SERVER_PORT 8889
 
-void generate_msg(char *buf, int buf_siz) {
-	for (int i = 0; i < buf_siz; i++)
+void generate_msg(char *buf, int msg_size) {
+	for (int i = 0; i < msg_size; i++)
 		buf[i] = (char)i + (char)rand();
 }
 
