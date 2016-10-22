@@ -17,17 +17,27 @@ void generate_msg(char *buf, int msg_size) {
 		buf[i] = (char)i + (char)rand();
 }
 
-int arg_parse(int argc, char *argv[], char *Int, char *server_ip) 
+int arg_parse(int argc, char *argv[], char *Int, char *server_ip, 
+	      int *max_packet) 
 {
-	if (argc != 3) {
+	if (argc != 4) {
 		printf("Wrong input args.\n"
 			"First arg: Interface to bound.\n"
-			"Second arg: server ip.\n");
+			"Second arg: server ip.\n"
+			"Thir arg: Maximum packet size.\n");
 		return -EINVAL;
 	}
 
 	sscanf(argv[1], "%s", Int);
 	sscanf(argv[2], "%s", server_ip);
+	sscanf(argv[3], "%d", max_packet);
+
+	if (*max_packet >= BUFLEN) {
+		printf("Wrong maximum packet size. It is bigger than internal"
+			" buffer!\n");
+		return -EINVAL;		
+	}
+
 	return 0;
 }
 
@@ -40,13 +50,13 @@ int main(int argc, char *argv[])
 
 	char Int[20];
 	char server_ip[20];
-	int rt;
+	int rt, max_packet, packet_size;
 	
 	srand(time(0));
 	memset((char *)&srv_tcp, 0, sizeof(struct sockaddr_in));
 	memset(buf, 0, sizeof(buf));
 
-	rt = arg_parse(argc, argv, Int, server_ip);
+	rt = arg_parse(argc, argv, Int, server_ip, &max_packet);
 	if (rt < 0)
 		return rt;	
 
@@ -96,21 +106,21 @@ int main(int argc, char *argv[])
 		}
 		printf("Server has connected to the client.\n\n");
 		while(1) {
-			int packet_size = rand() % BUFLEN;
 
 			rt = recv(tcp_c_sock, buf, BUFLEN, 0);
 
-			if (rt < 0) {
+			if (rt <= 0) {
 				printf("Client terminated connection.\n\n");
 				break;
 			}
 
-			printf("Server received packet of %d size.\n", rt);			
-
+			printf("Server received packet of %d size.\n", rt);		
+	
+			packet_size = 1 + rand() % (max_packet - 1);
 			generate_msg(buf, packet_size);
 
 			rt = send(tcp_c_sock, buf, packet_size, 0); 
-			if (rt < 0) { 
+			if (rt <= 0) { 
 				printf("Client terminated connection.\n\n");
 				break;
 			}	

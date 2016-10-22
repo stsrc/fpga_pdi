@@ -136,7 +136,7 @@ fifo_cnt <= std_logic_vector(cnt);
 	elsif (pkt_rx_val = '0') then
 		tmp_state <= "01";
 		cnt_temp <= cnt;
-		pkt_rx_ren <= '1'; --IS IT OK?
+		pkt_rx_ren <= '1';
 	elsif (pkt_rx_val = '1' and pkt_rx_eop = '0') then
 		tmp_state <= "01";
 		pkt_rx_ren <= '1';

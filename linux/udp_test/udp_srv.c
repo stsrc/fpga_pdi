@@ -17,17 +17,34 @@ void generate_msg(char *buf, int msg_size) {
 		buf[i] = (char)i + (char)rand();
 }
 
-int arg_parse(int argc, char *argv[], char *Int, char *server_ip) 
+int arg_parse(int argc, char *argv[], char *Int, char *server_ip, 
+	      int *max_packet, int *repeat) 
 {
-	if (argc != 3) {
+	if (argc < 4) {
 		printf("Wrong input args.\n"
 			"First arg: Interface to bound.\n"
-			"Second arg: server ip.\n");
+			"Second arg: server ip.\n"
+			"Third arg: Maximum packet size.\n"
+			"Fourth arg (optional): Repetition count. Must be the"
+			" same as in the client.\n");
 		return -EINVAL;
 	}
 
 	sscanf(argv[1], "%s", Int);
 	sscanf(argv[2], "%s", server_ip);
+	sscanf(argv[3], "%d", max_packet);
+	
+	if (argc == 5)
+		sscanf(argv[4], "%d", repeat);
+	else
+		*repeat = 1;
+
+	if (*max_packet >= BUFLEN) {
+		printf("Wrong maximum packet size. It is bigger than internal"
+			" buffer!\n");
+		return -EINVAL;		
+	}
+
 	return 0;
 }
 
@@ -36,14 +53,14 @@ int main(int argc, char *argv[]) {
 	struct ifreq ifr;
 	char buf[BUFLEN];
 	int slen = sizeof(si_other);
-	int s, rt;
+	int s, rt, max_packet, packet_size, repeat;
 
 	char Int[20];
 	char server_ip[20];
 
 	srand(time(0));
 
-	rt = arg_parse(argc, argv, Int, server_ip);
+	rt = arg_parse(argc, argv, Int, server_ip, &max_packet, &repeat);
 	if (rt < 0)
 		return rt;
 
@@ -71,24 +88,31 @@ int main(int argc, char *argv[]) {
 	}
 	
 	while(1) {
-		int packet_size = rand() % BUFLEN;
-		rt = recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *)&si_other,
-			      &slen);
-		if (rt == -1) {
-			perror("recvfrom");
-			close(s);
-			return -1;
-		}
-		printf("Server received packet with %d bytes.\n", rt);
+		for (int i = 0; i < repeat; i++) {
+			rt = recvfrom(s, buf, BUFLEN, 0, 
+				(struct sockaddr *)&si_other, &slen);
 
-		generate_msg(buf, packet_size);
-		rt = sendto(s,  buf, packet_size, 0, (struct sockaddr *)&si_other,
-			    slen);
-		if (rt < 0) {
-			perror("sendto");
-			close(s);
-			return -1;
-		}	
-		printf("Server sent packet with %d bytes.\n", packet_size);
+			if (rt <= 0) {
+				perror("recvfrom");
+				close(s);
+				return -1;
+			}	
+
+			printf("Server received packet with %d bytes.\n", rt);
+		}
+		
+		for (int i = 0; i < repeat; i++) {
+			packet_size = 1 + rand() % (max_packet - 1);
+			generate_msg(buf, packet_size);
+
+			rt = sendto(s,  buf, packet_size, 0, (struct sockaddr *)&si_other,
+				    slen);
+			if (rt <= 0) {
+				perror("sendto");
+				close(s);
+				return -1;
+			}	
+			printf("Server sent packet with %d bytes.\n", packet_size);
+		}
 	}
 }

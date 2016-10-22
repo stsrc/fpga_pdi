@@ -51,13 +51,15 @@ process begin
 	wait for 10 ns;
 	clk_in_resetn <= '1';
 	clk_out_resetn <= '1';
-	wait for 10 ns;
+	while (true) loop
+		wait for 10 * 6.4 ns;
+		flag_in <= '1';
+		wait for 6.4 ns;
+		flag_in <= '0';
+	end loop;	
+	wait for 64 ns;
 	flag_in <= '1';
-	wait for 10 ns;
-	flag_in <= '0';
-	wait for 100 ns;
-	flag_in <= '1';
-	wait for 100 ns;
+	wait for 6.4 ns;
 	flag_in <= '0';
 	wait;
 end process;

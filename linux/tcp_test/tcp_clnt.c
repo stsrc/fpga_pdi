@@ -18,20 +18,30 @@ void generate_msg(char *buf, int msg_size) {
 }
 
 int arg_parse(int argc, char *argv[], int *transm_time, char *Int, 
-	      char *server_ip) 
+	      char *server_ip, int *max_packet) 
 {
-	if (argc != 4) {
+	if (argc != 5) {
 		printf("Wrong input args.\n"
-			"First arg: transmission time in seconds.\n"
-			"Second arg: Interface to bound.\n"
-			"Third arg: server ip.\n");
+			"First arg: Interface to bound.\n"
+			"Second arg: server ip.\n"
+			"Third arg: transmission time in seconds.\n"
+			"Fourth arg: maximum packet size.\n"
+		      );
 
 		return -EINVAL;
 	}
 
-	sscanf(argv[1], "%d", transm_time);
-	sscanf(argv[2], "%s", Int);
-	sscanf(argv[3], "%s", server_ip);
+	sscanf(argv[1], "%s", Int);
+	sscanf(argv[2], "%s", server_ip);
+	sscanf(argv[3], "%d", transm_time);
+	sscanf(argv[4], "%d", max_packet);
+	
+	if (*max_packet >= BUFLEN) {
+		printf("Wrong maximum packet size. It is bigger than internal"
+			" buffer!\n");
+		return -EINVAL;		
+	}
+
 	return 0;
 }
 
@@ -41,15 +51,15 @@ int main(int argc, char *argv[]) {
 	char server_ip[20];
 
 	int tcp_sock;
-	int rt;
-	int transm_time, actual_time;
+	int rt, max_packet;
+	int transm_time, actual_time, packet_size;
 	struct sockaddr_in srv_tcp;
 	struct ifreq ifr;
 	struct timespec t1, t2;
 
 	memset((char *)&srv_tcp, 0, sizeof(struct sockaddr_in));
 
-	rt = arg_parse(argc, argv, &transm_time, Int, server_ip);
+	rt = arg_parse(argc, argv, &transm_time, Int, server_ip, &max_packet);
 
 	if (rt < 0)
 		return rt;
@@ -80,17 +90,17 @@ int main(int argc, char *argv[]) {
 
 	clock_gettime(CLOCK_MONOTONIC, &t1);
 	while(actual_time < transm_time) { 
-		int packet_size = rand() % BUFLEN;
+		packet_size = 1 + rand() % (max_packet - 1);
 		generate_msg(buf, packet_size);
 		rt = send(tcp_sock, buf, packet_size, 0);
-		if (rt < 0) {
+		if (rt <= 0) {
 			perror("send");
 			close(tcp_sock);
 			return -1;
 		}	
 		printf("Sent packet of %d size.\n", packet_size);
 		rt = recv(tcp_sock, buf, BUFLEN, 0);
-		if (rt < 0) {
+		if (rt <= 0) {
 			perror("send");
 			close(tcp_sock);
 			return -1;

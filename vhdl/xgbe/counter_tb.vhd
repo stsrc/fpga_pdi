@@ -38,9 +38,9 @@ counter_0 : counter
 	);
 
 process begin
-	clk <= '0';
-	wait for 5 ns;
 	clk <= '1';
+	wait for 5 ns;
+	clk <= '0';
 	wait for 5 ns;
 end process;
 
@@ -52,22 +52,14 @@ process begin
 end process;
 
 process begin
-    wait for 30 ns;
-    incr <= '1';
-    wait for 10 ns;
-    incr <= '0';
-end process;
-
-process begin
-	wait for 10 ns;
-	wait for 100 ns;
+	wait for 11 ns;
+	incr <= '1';
+	wait for 50 ns;
+	incr <= '0';
 	get_val <= '1';
 	wait for 10 ns;
 	get_val <= '0';
-    wait for 200 ns;
-    get_val <= '1';
-    wait for 40 ns;
-    get_val <= '0';
+	wait;
 end process;
 
 end arch_tb;
