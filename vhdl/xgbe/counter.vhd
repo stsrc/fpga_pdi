@@ -23,17 +23,17 @@ architecture counter_arch of counter is
 	signal incr_state : std_logic := '0';
 
 begin
-    	
+    	cnt_out <= std_logic_vector(cnt);
+	
 	process(clk) is
 	begin
 		if (rising_edge(clk)) then
 			if (resetn = '0') then
-				cnt <= (others => '0');
 				int_gen_cnt <= (others => '0');
 				interrupt <= '0';
-				cnt_out <= (others => '0');
+				cnt <= (others => '0');
 			else
-				cnt_out <= std_logic_vector(cnt);
+
 				cnt <= cnt;
 
 				if (get_val = '1') then

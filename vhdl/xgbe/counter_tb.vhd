@@ -52,13 +52,103 @@ process begin
 end process;
 
 process begin
-	wait for 11 ns;
+	wait for 10.5 ns;
 	incr <= '1';
 	wait for 50 ns;
+	incr <= '0';
+	assert unsigned(cnt_out) = 5 report "1. cnt out value is not correct." severity failure;
+	
+	wait for 50 ns;
+
+	wait for 10 ns;
+	get_val <= '1';
+	wait for 10 ns;
+	get_val <= '0';
+	assert unsigned(cnt_out) = 0 report "3. cnt out value is not correct." severity failure;
+
+	wait for 10 ns;
+	incr <= '1';
+	wait for 50 ns;
+	incr <= '0';
+	
+	wait for 50 ns;
+
+	get_val <= '1';
+	wait for 10 ns;
+	get_val <= '0';
+	incr <= '1';
+	wait for 10 ns;
+	incr <= '0';
+	assert unsigned(cnt_out) = 1 report "3. cnt out value is not correct." severity failure;
+
+	wait for 10 ns;
+	incr <= '1';
+	wait for 40 ns;
+	incr <= '0';
+	assert unsigned(cnt_out) = 5 report "3. cnt out value is not correct." severity failure;
+
+	wait for 50 ns;
+
+	get_val <= '1';
+	incr <= '1';
+	wait for 10 ns;
+	get_val <= '0';
+	incr <= '0';
+	assert unsigned(cnt_out) = 1 report "3. cnt out value is not correct." severity failure;	
+
+	wait for 10 ns;
+	incr <= '1';
+	wait for 40 ns;
+	incr <= '0';
+	assert unsigned(cnt_out) = 5 report "3. cnt out value is not correct." severity failure;
+
+	wait for 50 ns;
+	
+	incr <= '1';
+	wait for 10 ns;
 	incr <= '0';
 	get_val <= '1';
 	wait for 10 ns;
 	get_val <= '0';
+	assert unsigned(cnt_out) = 1 report "3. cnt out value is not correct." severity failure;	
+
+
+	wait for 10 ns;
+	incr <= '1';
+	wait for 30 ns;
+	incr <= '0';
+	assert unsigned(cnt_out) = 4 report "3. cnt out value is not correct." severity failure;
+
+	wait for 50 ns;
+	
+	incr <= '1';
+	wait for 10 ns;
+	incr <= '0';
+	wait for 10 ns;
+	get_val <= '1';
+	assert unsigned(cnt_out) = 5 report "3. cnt out value is not correct." severity failure;
+	wait for 10 ns;
+	get_val <= '0';
+	assert unsigned(cnt_out) = 0 report "3. cnt out value is not correct." severity failure;	
+
+
+	wait for 10 ns;
+	incr <= '1';
+	wait for 50 ns;
+	incr <= '0';
+	assert unsigned(cnt_out) = 5 report "3. cnt out value is not correct." severity failure;
+
+	wait for 50 ns;
+	
+	incr <= '1';
+	wait for 10 ns;
+	get_val <= '1';
+	wait for 10 ns;
+	incr <= '0';
+	get_val <= '0';
+	assert unsigned(cnt_out) = 2 report "3. cnt out value is not correct." severity failure;	
+
+	
 	wait;
 end process;
 
