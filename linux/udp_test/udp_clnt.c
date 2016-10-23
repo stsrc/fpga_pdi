@@ -19,7 +19,8 @@ void generate_msg(char *buf, int msg_size) {
 }
 
 int arg_parse(int argc, char *argv[], int *transm_time, char *Int, 
-	      char *server_ip, int *max_packet, int *repeat) 
+	      char *server_ip, int *max_packet, int *repeat_send,
+	      int *repeat_rcv) 
 {
 	if (argc < 5) {
 		printf("Wrong input arguments count.\n"
@@ -27,8 +28,8 @@ int arg_parse(int argc, char *argv[], int *transm_time, char *Int,
 			"Second - Server IP.\n"
 			"Third 	- Transmission time.\n"
 			"Fourth - Maximum packet size.\n"
-			"Fifth arg (optional): Repetition count. Must be the"
-			" same as in the client.\n");
+			"Fifth arg (optional): send repetition count.\n"
+			"Sixth arg (optional): receive repetition count.\n");
 		return -EINVAL;
 	}
 	sscanf(argv[1], "%s", Int);
@@ -36,11 +37,15 @@ int arg_parse(int argc, char *argv[], int *transm_time, char *Int,
 	sscanf(argv[3], "%d", transm_time);	
 	sscanf(argv[4], "%d", max_packet);
 	
-	if (argc == 6)
-		sscanf(argv[5], "%d", repeat);
+	if (argc >= 6)
+		sscanf(argv[5], "%d", repeat_send);
 	else
-		*repeat = 1;
-
+		*repeat_send = 1;
+	
+	if (argc == 7)
+		sscanf(argv[6], "%d", repeat_rcv);
+	else
+		*repeat_rcv = 1;
 	
 	if (*max_packet >= BUFLEN) {
 		printf("Wrong maximum packet size. It is bigger than internal"
@@ -61,10 +66,11 @@ int main(int argc, char *argv[]) {
 
 	char Int[20];
 	char server_ip[20];
-	int transm_time, actual_time, max_packet, repeat, packet_size;	
+	int transm_time, actual_time, max_packet, repeat_send, packet_size;
+	int repeat_rcv;
 
 	rt = arg_parse(argc, argv, &transm_time, Int, server_ip, &max_packet,
-		       &repeat);
+		       &repeat_send, &repeat_rcv);
 	if (rt < 0)
 		return rt;
 
@@ -95,7 +101,7 @@ int main(int argc, char *argv[]) {
 	clock_gettime(CLOCK_MONOTONIC, &t1);
 
 	while(actual_time < transm_time) {
-		for (int i = 0; i < repeat; i++) {
+		for (int i = 0; i < repeat_send; i++) {
 			packet_size = 1 + rand() % (max_packet - 1);
 			generate_msg(buf, packet_size);
 			rt = send(sockfd, buf, packet_size, 0);
@@ -106,7 +112,7 @@ int main(int argc, char *argv[]) {
 			printf("Sent packet with %d bytes.\n", packet_size);
 		}
 
-		for (int i = 0; i < repeat; i++) {
+		for (int i = 0; i < repeat_rcv; i++) {
 			rt = recv(sockfd, buf, BUFLEN, 0);
 			if (rt <= 0) {
 				close(sockfd);

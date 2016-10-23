@@ -18,15 +18,16 @@ void generate_msg(char *buf, int msg_size) {
 }
 
 int arg_parse(int argc, char *argv[], char *Int, char *server_ip, 
-	      int *max_packet, int *repeat) 
+	      int *max_packet, int *repeat_send, int *repeat_rcv) 
 {
 	if (argc < 4) {
 		printf("Wrong input args.\n"
 			"First arg: Interface to bound.\n"
 			"Second arg: server ip.\n"
 			"Third arg: Maximum packet size.\n"
-			"Fourth arg (optional): Repetition count. Must be the"
-			" same as in the client.\n");
+			"Fourth arg (optional): send repetition count.\n"
+			"Fifth arg (optional): receive repetition count.\n"
+		);
 		return -EINVAL;
 	}
 
@@ -34,10 +35,15 @@ int arg_parse(int argc, char *argv[], char *Int, char *server_ip,
 	sscanf(argv[2], "%s", server_ip);
 	sscanf(argv[3], "%d", max_packet);
 	
-	if (argc == 5)
-		sscanf(argv[4], "%d", repeat);
+	if (argc >= 5)
+		sscanf(argv[4], "%d", repeat_send);
 	else
-		*repeat = 1;
+		*repeat_send = 1;
+
+	if (argc == 6)
+		sscanf(argv[5], "%d", repeat_rcv);
+	else
+		*repeat_rcv = 1;
 
 	if (*max_packet >= BUFLEN) {
 		printf("Wrong maximum packet size. It is bigger than internal"
@@ -53,14 +59,15 @@ int main(int argc, char *argv[]) {
 	struct ifreq ifr;
 	char buf[BUFLEN];
 	int slen = sizeof(si_other);
-	int s, rt, max_packet, packet_size, repeat;
+	int s, rt, max_packet, packet_size, repeat_send, repeat_rcv;
 
 	char Int[20];
 	char server_ip[20];
 
 	srand(time(0));
 
-	rt = arg_parse(argc, argv, Int, server_ip, &max_packet, &repeat);
+	rt = arg_parse(argc, argv, Int, server_ip, &max_packet, &repeat_send,
+		       &repeat_rcv);
 	if (rt < 0)
 		return rt;
 
@@ -88,7 +95,7 @@ int main(int argc, char *argv[]) {
 	}
 	
 	while(1) {
-		for (int i = 0; i < repeat; i++) {
+		for (int i = 0; i < repeat_rcv; i++) {
 			rt = recvfrom(s, buf, BUFLEN, 0, 
 				(struct sockaddr *)&si_other, &slen);
 
@@ -101,7 +108,7 @@ int main(int argc, char *argv[]) {
 			printf("Server received packet with %d bytes.\n", rt);
 		}
 		
-		for (int i = 0; i < repeat; i++) {
+		for (int i = 0; i < repeat_send; i++) {
 			packet_size = 1 + rand() % (max_packet - 1);
 			generate_msg(buf, packet_size);
 

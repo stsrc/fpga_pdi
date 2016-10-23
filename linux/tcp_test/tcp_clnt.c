@@ -18,14 +18,17 @@ void generate_msg(char *buf, int msg_size) {
 }
 
 int arg_parse(int argc, char *argv[], int *transm_time, char *Int, 
-	      char *server_ip, int *max_packet) 
+	      char *server_ip, int *max_packet, int *repeat_send, 
+	      int *repeat_rcv) 
 {
-	if (argc != 5) {
+	if (argc < 5) {
 		printf("Wrong input args.\n"
 			"First arg: Interface to bound.\n"
 			"Second arg: server ip.\n"
 			"Third arg: transmission time in seconds.\n"
 			"Fourth arg: maximum packet size.\n"
+			"Fifth arg (optional): send repetition count.\n" 
+			"Sixth arg (optional): receive repetition count.\n" 
 		      );
 
 		return -EINVAL;
@@ -35,6 +38,16 @@ int arg_parse(int argc, char *argv[], int *transm_time, char *Int,
 	sscanf(argv[2], "%s", server_ip);
 	sscanf(argv[3], "%d", transm_time);
 	sscanf(argv[4], "%d", max_packet);
+
+	if (argc >= 6)
+		sscanf(argv[5], "%d", repeat_send);
+	else
+		*repeat_send = 1;
+
+	if (argc == 7)
+		sscanf(argv[6], "%d", repeat_rcv);
+	else
+		*repeat_rcv = 1;
 	
 	if (*max_packet >= BUFLEN) {
 		printf("Wrong maximum packet size. It is bigger than internal"
@@ -51,7 +64,7 @@ int main(int argc, char *argv[]) {
 	char server_ip[20];
 
 	int tcp_sock;
-	int rt, max_packet;
+	int rt, max_packet, repeat_send, repeat_rcv;
 	int transm_time, actual_time, packet_size;
 	struct sockaddr_in srv_tcp;
 	struct ifreq ifr;
@@ -59,7 +72,8 @@ int main(int argc, char *argv[]) {
 
 	memset((char *)&srv_tcp, 0, sizeof(struct sockaddr_in));
 
-	rt = arg_parse(argc, argv, &transm_time, Int, server_ip, &max_packet);
+	rt = arg_parse(argc, argv, &transm_time, Int, server_ip, &max_packet, 
+		       &repeat_send, &repeat_rcv);
 
 	if (rt < 0)
 		return rt;
@@ -90,22 +104,29 @@ int main(int argc, char *argv[]) {
 
 	clock_gettime(CLOCK_MONOTONIC, &t1);
 	while(actual_time < transm_time) { 
-		packet_size = 1 + rand() % (max_packet - 1);
-		generate_msg(buf, packet_size);
-		rt = send(tcp_sock, buf, packet_size, 0);
-		if (rt <= 0) {
-			perror("send");
-			close(tcp_sock);
-			return -1;
-		}	
-		printf("Sent packet of %d size.\n", packet_size);
-		rt = recv(tcp_sock, buf, BUFLEN, 0);
-		if (rt <= 0) {
-			perror("send");
-			close(tcp_sock);
-			return -1;
+
+		for (int i = 0; i < repeat_send; i++) {
+			packet_size = 1 + rand() % (max_packet - 1);
+			generate_msg(buf, packet_size);
+			rt = send(tcp_sock, buf, packet_size, 0);
+			if (rt <= 0) {
+				perror("send");
+				close(tcp_sock);
+				return -1;
+			}	
+			printf("Sent packet of %d size.\n", packet_size);
 		}
-		printf("Received packet of %d size.\n", rt);
+
+		for (int i = 0; i < repeat_rcv; i++) {
+			rt = recv(tcp_sock, buf, BUFLEN, 0);
+			if (rt <= 0) {
+				perror("send");
+				close(tcp_sock);
+				return -1;
+			}
+			printf("Received packet of %d size.\n", rt);
+		}
+
 		clock_gettime(CLOCK_MONOTONIC, &t2);
 		actual_time = t2.tv_sec - t1.tv_sec;
 	}
