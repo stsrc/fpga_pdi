@@ -75,6 +75,8 @@ struct pdi {
 
 	struct cdma_sg_descriptor *desc[64];
 	dma_addr_t desc_p[64];
+	struct sk_buff *skb[64];
+
 	u32 *bytes_cnt;
 	u32 desc_cnt;
 };
@@ -87,7 +89,6 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int ret;
 	uint32_t len = 0;
 	uint32_t cnt = 0;
-	char *buf = 0;
 	/* 
 	 * to_add - padding bytes count. 
 	 * FPGA eth 'internals' are 8 bytes aligned. 
@@ -122,17 +123,9 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	cnt = pdi->desc_cnt;
 	pdi->bytes_cnt[cnt] = len;
-
-	buf = kzalloc(skb->len, GFP_KERNEL | GFP_DMA);
-	if (!buf) {
-		dev_kfree_skb(skb);	
-		return NETDEV_TX_OK;
-	}
-
-	for (int i = 0; i < skb->len; i++)
-		buf[i] = skb->data[i];
-	
-	mapping[0] = dma_map_single(pdi->dev, buf, skb->len, DMA_TO_DEVICE);
+	pdi->skb[cnt] = skb;
+		
+	mapping[0] = dma_map_single(pdi->dev, skb->data, skb->len, DMA_TO_DEVICE);
 	if (dma_mapping_error(pdi->dev, mapping[0])) {
 		pr_info("pdi: dma_map_single failed!\n");
 		dev_kfree_skb(skb);	
@@ -178,7 +171,6 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	dma_unmap_single(pdi->dev, mapping[1], sizeof(u32), DMA_TO_DEVICE);
 
 	dev_kfree_skb(skb);	
-	kfree(buf);
 	pdi->desc_cnt += 2;
 
 	return NETDEV_TX_OK;
