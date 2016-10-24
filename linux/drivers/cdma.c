@@ -96,6 +96,12 @@ int cdma_set_sg_desc(struct cdma_sg_descriptor *desc, u32 next_desc_ptr,
 }
 EXPORT_SYMBOL(cdma_set_sg_desc);
 
+int cdma_check_sg_finished(struct cdma_sg_descriptor *desc)
+{
+	return desc->desc.status & (1 << 31);
+}
+EXPORT_SYMBOL(cdma_check_sg_finished);
+
 unsigned int cdma_get_cdmasr(void)
 {
 	unsigned int ret;

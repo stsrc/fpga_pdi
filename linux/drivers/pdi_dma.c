@@ -1,5 +1,6 @@
 //TODO more then one card!!!
 //TODO DETECTION OF ALREADY USED DEVICE, ETC!
+//TODO netdev, dev, pdev - think/read about it.
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/string.h>
@@ -59,6 +60,7 @@ MODULE_LICENSE("GPL");
 struct pdi {
 	struct device *dev;
 	struct net_device *netdev;
+	struct napi_struct napi;
 	struct resource *ports;
 	struct resource *iomem;
 	int irq;
@@ -76,9 +78,11 @@ struct pdi {
 	struct cdma_sg_descriptor *desc[64];
 	dma_addr_t desc_p[64];
 	struct sk_buff *skb[64];
+	dma_addr_t mapping[64];
 
 	u32 *bytes_cnt;
 	u32 desc_cnt;
+	u32 desc_cons;
 };
 
 /*
@@ -95,7 +99,6 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	unsigned int to_add = 0;
 	struct pdi *pdi = (struct pdi *)netdev_priv(dev);
-	dma_addr_t mapping[2];
 
 	len = skb->len;
 
@@ -125,37 +128,38 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	pdi->bytes_cnt[cnt] = len;
 	pdi->skb[cnt] = skb;
 		
-	mapping[0] = dma_map_single(pdi->dev, skb->data, skb->len, DMA_TO_DEVICE);
-	if (dma_mapping_error(pdi->dev, mapping[0])) {
+	pdi->mapping[cnt] = dma_map_single(pdi->dev, skb->data, skb->len, DMA_TO_DEVICE);
+	if (dma_mapping_error(pdi->dev, pdi->mapping[cnt])) {
 		pr_info("pdi: dma_map_single failed!\n");
 		dev_kfree_skb(skb);	
 		return NETDEV_TX_BUSY;
 	}
 
-	mapping[1] = dma_map_single(pdi->dev, &pdi->bytes_cnt[cnt], 
+	pdi->mapping[cnt + 1] = dma_map_single(pdi->dev, &pdi->bytes_cnt[cnt], 
 				    sizeof(u32), DMA_TO_DEVICE);
-	if (dma_mapping_error(pdi->dev, mapping[1])) {
+	if (dma_mapping_error(pdi->dev, pdi->mapping[cnt + 1])) {
 		pr_info("pdi: dma_map_single failed!\n");
 		dev_kfree_skb(skb);  //TODO SHOULD IT BE HERE?	
 		return NETDEV_TX_BUSY;
 	}
 
-	ret = cdma_set_sg_desc(pdi->desc[cnt], pdi->desc_p[cnt + 1], mapping[0], 
+	ret = cdma_set_sg_desc(pdi->desc[cnt], pdi->desc_p[cnt + 1], pdi->mapping[cnt], 
 			       pdi->iomem->start + 4, skb->len);
 	if (ret)
 		pr_info("pdi: cdma_set_sg_desc returned %d\n", ret);
 
-	pr_info("pdi->reg0_dma = 0x%x\n", pdi->reg0_dma);
-	pr_info("pdi->reg0_dma - real_addr = 0x%x\n", 
-		pdi->reg0_dma - 0x44A00000);
-
-	ret = cdma_set_sg_desc(pdi->desc[cnt + 1], pdi->desc_p[cnt], mapping[1], 
+	ret = cdma_set_sg_desc(pdi->desc[cnt + 1], pdi->desc_p[cnt], pdi->mapping[cnt + 1], 
 			       pdi->iomem->start, sizeof(u32));
+	/* 
+	 * TODO pdi->iomem->start - why pdi->reg0_dma is not working (address 
+	 * problem?) 
+	 */
+
 	if (ret)
 		pr_info("pdi: cdma_set_sg_desc returned %d\n", ret);
 
-	dma_sync_single_for_device(pdi->dev, mapping[0], skb->len, DMA_TO_DEVICE);
-	dma_sync_single_for_device(pdi->dev, mapping[1], sizeof(u32), DMA_TO_DEVICE);
+	dma_sync_single_for_device(pdi->dev, pdi->mapping[cnt], skb->len, DMA_TO_DEVICE);
+	dma_sync_single_for_device(pdi->dev, pdi->mapping[cnt + 1], sizeof(u32), DMA_TO_DEVICE);
 
 	ret = cdma_set_keyhole(CDMA_KH_WRITE);
 	if (ret)
@@ -166,17 +170,51 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		pr_info("pdi: cdma_set_cur_tail returned %d\n", ret);
 	
 	mdelay(100);
-	
-	dma_unmap_single(pdi->dev, mapping[0], skb->len, DMA_TO_DEVICE);
-	dma_unmap_single(pdi->dev, mapping[1], sizeof(u32), DMA_TO_DEVICE);
-
-	dev_kfree_skb(skb);	
 	pdi->desc_cnt += 2;
+	netdev_sent_queue(dev, skb->len);
 
 	return NETDEV_TX_OK;
 }
 
+static atomic_t enable_int;
+static atomic_t to_read;
+
 static irqreturn_t pdi_int_handler(int irq, void *data)
+{
+	struct pdi *pdi = (struct pdi *)data;
+
+	atomic_add(ioread32(pdi->reg3), &to_read);
+
+	if (atomic_read(&enable_int)) {
+		atomic_set(&enable_int, 0);
+		napi_schedule(&pdi->napi);
+	}
+	return IRQ_HANDLED;
+}
+
+static int pdi_init_irq(struct platform_device *pdev)
+{
+	int rt;
+	struct pdi *pdi = pdev->dev.platform_data;
+
+	pdi->irq = platform_get_irq(pdev, 0);
+	if (pdi->irq <= 0) {
+		pr_info("pdi: platform_get_irq failed.\n");
+		return -ENXIO;
+	}
+
+	rt = request_irq(pdi->irq, pdi_int_handler, IRQF_SHARED, DRIVER_NAME, 
+			 pdi);
+	if (rt) {
+		pr_info("pdi: request_irq failed.\n");
+		pdi->irq = -1;	
+		return -ENXIO;
+	}
+
+	return 0;
+}
+
+static int pdi_rx(struct pdi *pdi)
 {
 	u32 packets_cnt = 0;
 	unsigned int data_in = 0;
@@ -185,13 +223,15 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 	struct sk_buff *skb = NULL;
 	unsigned char *buf = NULL;
 	int ret = 0;
-	struct pdi *pdi = (struct pdi *)data;
-	
-	packets_cnt = le32_to_cpu(ioread32(pdi->reg3));
+ 	
+	pr_info("pdi: pdi_poll called.\n");
 
+	packets_cnt = atomic_read(&to_read);
+	atomic_sub(packets_cnt, &to_read);
+	
 	if (!packets_cnt) {
-		pr_info("PDI: IRQ: interrupt falsely triggered!!!\n");
-		return IRQ_HANDLED;		
+		pr_info("PDI: poll falsely triggered!!!\n");
+		return 0;		
 	}
 
 	for (u32 i = 0; i < packets_cnt; i++) {
@@ -201,11 +241,12 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 
 		skb = dev_alloc_skb(data_len + NET_IP_ALIGN);
 		if (!skb) {
+			/* TODO - do something with it */
 			pr_info("alloc_skb failed! Packet not received! "
 				"FPGA IN ERROR STATE\n");
 			pdi->netdev->stats.rx_errors++;
 			pdi->netdev->stats.rx_dropped++;
-			return IRQ_HANDLED;
+			return 0;
 		}
 
 		skb_reserve(skb, NET_IP_ALIGN);
@@ -240,33 +281,52 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 			ioread32(pdi->reg1);
 
 		skb->protocol = eth_type_trans(skb, pdi->netdev); 	
-		ret = netif_rx(skb);
+		ret = netif_receive_skb(skb);
 		pdi->netdev->stats.rx_bytes += (unsigned long)data_len;
 	}
 	pdi->netdev->stats.rx_packets += (unsigned long)packets_cnt;
-	return IRQ_HANDLED;
+	return packets_cnt;
 }
 
-static int pdi_init_irq(struct platform_device *pdev)
+static int pdi_complete_xmit(struct pdi *pdi)
 {
-	int rt;
-	struct pdi *pdi = pdev->dev.platform_data;
+	struct sk_buff *skb; 
+	u32 i = 0;
 
-	pdi->irq = platform_get_irq(pdev, 0);
-	if (pdi->irq <= 0) {
-		pr_info("pdi: platform_get_irq failed.\n");
-		return -ENXIO;
+	for (i = pdi->desc_cons; i < pdi->desc_cnt; i += 2) {
+		pr_info("i = %d; pdi->desc_cons = %d; pdi->desc_cnt = %d\n", i,
+		pdi->desc_cons, pdi->desc_cnt);
+
+		if (!(cdma_check_sg_finished(pdi->desc[i]) &&
+		    cdma_check_sg_finished(pdi->desc[i + 1]))) {
+			pr_info("cdma_check_sg_finished failed.\n");
+			break;
+		}
+		pr_info("cdma_check_sg_finished not failed.\n");
+		skb = pdi->skb[i];
+
+		dma_unmap_single(pdi->dev, pdi->mapping[i], skb->len, 
+				 DMA_TO_DEVICE);
+		dma_unmap_single(pdi->dev, pdi->mapping[i + 1], sizeof(u32),
+				 DMA_TO_DEVICE);
+
+		netdev_completed_queue(pdi->netdev, 1, skb->len);
+		dev_kfree_skb(skb);
 	}
-
-	rt = request_irq(pdi->irq, pdi_int_handler, IRQF_SHARED, DRIVER_NAME, 
-			 pdi);
-	if (rt) {
-		pr_info("pdi: request_irq failed.\n");
-		pdi->irq = -1;	
-		return -ENXIO;
-	}
-
+	
+	pdi->desc_cons = i;
 	return 0;
+}
+
+static int pdi_poll(struct napi_struct *napi, int budget)
+{
+	int ret;
+	struct pdi *pdi = container_of(napi, struct pdi, napi);
+	ret = pdi_rx(pdi);
+	pdi_complete_xmit(pdi);
+	napi_complete(&pdi->napi);
+	atomic_set(&enable_int, 1);
+	return ret;
 }
 
 static int pdi_init_dma_buffers(struct platform_device *pdev)
@@ -425,6 +485,8 @@ static int pdi_init_ethernet(struct platform_device *pdev)
 	
 	pdi->netdev->netdev_ops = &pdi_netdev_ops;
 
+	netif_napi_add(pdi->netdev, &pdi->napi, pdi_poll, 4);
+
 	rt = register_netdev(pdi->netdev);
 	
 	if (rt) {
@@ -460,6 +522,8 @@ static int pdi_probe(struct platform_device *pdev)
 
 	memset(pdi, 0, sizeof(struct pdi));
 
+	//SET_NETDEV_DEV(netdev, pdev);
+
 	pdi->netdev = netdev;
 	pdev->dev.platform_data = pdi;
 	pdi->dev = &pdev->dev;
@@ -489,15 +553,23 @@ static int pdi_probe(struct platform_device *pdev)
 	 * little delay is used once.
 	 */
 	mdelay(1);
-
+	
 	/* Data reception enable on FPGA */
 	iowrite32(cpu_to_le32(2), pdi->reg2);
 	wmb();
+
+	atomic_set(&to_read, 0);
+	atomic_set(&enable_int, 1);
+
+	/* Move both functions to netdev open. */
+	netif_start_queue(netdev);	
+	napi_enable(&pdi->napi);
 
 	return 0;
 
 err3:
 	unregister_netdev(pdi->netdev);
+	netif_napi_del(&pdi->napi);
 err2:
 	dma_unmap_single(pdi->dev, pdi->reg0_dma, 4, DMA_TO_DEVICE);
 	dma_unmap_single(pdi->dev, pdi->reg1_dma, 4, DMA_TO_DEVICE);
@@ -523,6 +595,8 @@ static int pdi_remove(struct platform_device *pdev)
 	iowrite32(0, pdi->reg2);
 	wmb();
 
+	napi_disable(&pdi->napi);
+	
 	if (!pdi)
 		return 0;
 
@@ -531,8 +605,10 @@ static int pdi_remove(struct platform_device *pdev)
 	if (pdi->irq != -1)
 		free_irq(pdi->irq, pdi);
 
-	if (pdi->netdev)
+	if (pdi->netdev) {
 		unregister_netdev(pdi->netdev);
+		netif_napi_del(&pdi->napi);
+	}
 	
 	if (pdi->reg1_dma)
 		dma_unmap_single(pdi->dev, pdi->reg1_dma, 4, DMA_TO_DEVICE);

@@ -43,5 +43,6 @@ void cdma_softrst(void);
 int cdma_wait_for_idle(void);
 int cdma_set_sg_desc(struct cdma_sg_descriptor *desc, u32 next_desc_ptr,
 		      u32 sa, u32 da, u32 control);
+int cdma_check_sg_finished(struct cdma_sg_descriptor *desc);
 
 #endif
