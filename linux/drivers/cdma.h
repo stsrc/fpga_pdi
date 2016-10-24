@@ -10,6 +10,13 @@
 
 MODULE_LICENSE("GPL");
 
+enum cdma_keyhole {
+	CDMA_KH_READ,
+	CDMA_KH_WRITE,
+	CDMA_KH_BOTH,
+	CDMA_KH_NONE
+};
+
 /*
  * Transfer descriptors must be aligned on 16 32-bit word alignment.
  */
@@ -28,6 +35,8 @@ struct cdma_sg_descriptor {
 	struct cdma_sg_desc desc;
 }__attribute__((aligned(64)));
 
+
+int cdma_set_keyhole(enum cdma_keyhole keyhole);
 int cdma_set_cur_tail(dma_addr_t cur, dma_addr_t tail);
 unsigned int cdma_get_cdmasr(void);
 void cdma_softrst(void);

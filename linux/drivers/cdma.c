@@ -41,6 +41,40 @@ static void __iomem *CDMASR = NULL;
 static void __iomem *CURDESC = NULL;
 static void __iomem *TAILDESC = NULL;
 
+int cdma_set_keyhole(enum cdma_keyhole keyhole) {
+	int ret;
+	u32 reg;
+
+	ret = cdma_wait_for_idle();	
+	if (ret)
+		return ret;
+
+	reg = ioread32(CDMACR);
+	reg &= ~((1 << 5) || (1 << 4));
+
+	switch (keyhole) {
+	case CDMA_KH_READ:
+		reg |= 1 << 4;	
+		break;
+	case CDMA_KH_WRITE:
+		reg |= 1 << 5;
+		break;
+	case CDMA_KH_BOTH :
+		reg |= (1 << 4) | (1 << 5);
+		break;
+	case CDMA_KH_NONE:
+		break;
+	default:
+		break;
+	}
+
+	iowrite32(reg, CDMACR);
+	wmb();
+
+	return 0;
+}
+EXPORT_SYMBOL(cdma_set_keyhole);
+
 int cdma_set_sg_desc(struct cdma_sg_descriptor *desc, u32 next_desc_ptr,
 		      u32 sa, u32 da, u32 control)
 {

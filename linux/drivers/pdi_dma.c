@@ -147,25 +147,28 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_BUSY;
 	}
 
-	ret = cdma_set_sg_desc(pdi->desc[cnt], pdi->desc_p[cnt + 1], mapping[1], 
-			       0x44A00000, sizeof(u32));
+	ret = cdma_set_sg_desc(pdi->desc[cnt], pdi->desc_p[cnt + 1], mapping[0], 
+			       pdi->iomem->start + 4, skb->len);
 	if (ret)
 		pr_info("pdi: cdma_set_sg_desc returned %d\n", ret);
 
 	pr_info("pdi->reg0_dma = 0x%x\n", pdi->reg0_dma);
+	pr_info("pdi->reg0_dma - real_addr = 0x%x\n", 
+		pdi->reg0_dma - 0x44A00000);
 
 	ret = cdma_set_sg_desc(pdi->desc[cnt + 1], pdi->desc_p[cnt], mapping[1], 
-			       0x44A00000, sizeof(u32));
+			       pdi->iomem->start, sizeof(u32));
 	if (ret)
 		pr_info("pdi: cdma_set_sg_desc returned %d\n", ret);
 
-	dma_sync_single_for_device(pdi->dev, pdi->reg0_dma, 4, DMA_TO_DEVICE);
-	dma_sync_single_for_device(pdi->dev, pdi->reg1_dma, 4, DMA_TO_DEVICE);	
 	dma_sync_single_for_device(pdi->dev, mapping[0], skb->len, DMA_TO_DEVICE);
 	dma_sync_single_for_device(pdi->dev, mapping[1], sizeof(u32), DMA_TO_DEVICE);
 
-	ret = cdma_set_cur_tail(pdi->desc_p[cnt], pdi->desc_p[cnt + 1]);
+	ret = cdma_set_keyhole(CDMA_KH_WRITE);
+	if (ret)
+		pr_info("pdi: cdma_set_keyhole returned %d\n", ret);
 
+	ret = cdma_set_cur_tail(pdi->desc_p[cnt], pdi->desc_p[cnt + 1]);
 	if (ret)
 		pr_info("pdi: cdma_set_cur_tail returned %d\n", ret);
 	
