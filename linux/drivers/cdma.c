@@ -1,7 +1,6 @@
 /*
  * Warning! This driver is in conflict with xilinx_cdma.ko driver!
- * Ensure that xilinx_cdma.ko is removed before inserting this driver.
- * Good luck and have fun.
+ * Ensure that xilinx_cdma.ko is removed before inserting this driver. 
  */
 
 #include <linux/errno.h>
@@ -79,10 +78,8 @@ int cdma_set_sg_desc(struct cdma_sg_descriptor *desc, u32 next_desc_ptr,
 		      u32 sa, u32 da, u32 control)
 {
 	/* Alignment check */
-	if (next_desc_ptr & 0x3F) {
-		pr_info("next_desc_ptr = 0x%x\n", next_desc_ptr);
+	if (next_desc_ptr & 0x3F)
 		return -EINVAL;
-	}
 
 	desc->desc.next_desc_ptr = next_desc_ptr;
 	desc->desc.next_desc_ptr_msb = 0;
@@ -219,32 +216,27 @@ static int cdma_check_sgInc(void)
 //TODO REMOVE ACTIVE WAIT!!!
 int cdma_set_cur_tail(dma_addr_t cur, dma_addr_t tail)
 {
-	pr_info("CDMA: cdma_set_cur_tail entered.\n");
-
 	/*
 	 * Alignment check.
 	 */
 	if ((unsigned int)cur & 0x3F || (unsigned int)tail & 0x3F)
 		return -EINVAL;
+
 	cdma_sg_off();
 	cdma_sg_on();
-	pr_info("CDMA: cdma_set_cur_tail 1.\n");
+
 	if (cdma_wait_for_idle())
 		return -ETIMEDOUT;
 
-	pr_info("CDMA: cdma_set_cur_tail 3.\n");
 	iowrite32((u32)cur, CURDESC);
 	wmb();
 
-	pr_info("CDMA: cdma_set_cur_tail 4.\n");
 	if (cdma_wait_for_idle())
 		return -ETIMEDOUT;
 
-	pr_info("CDMA: cdma_set_cur_tail 6.\n");	
 	iowrite32((u32)tail, TAILDESC);
 	wmb();
 
-	pr_info("CDMA: cdma_set_cur_tail 7.\n");	
 	return 0;
 }
 EXPORT_SYMBOL(cdma_set_cur_tail);
@@ -325,7 +317,7 @@ err1:
 	iounmap(CDMACR);
 	CDMACR = NULL;
 err0:
-	pr_info("ioremap failed.\n");
+	pr_info("cdma: ioremap failed.\n");
 	release_mem_region(cdma_iomem->start, cdma_iomem->end - 
 			   cdma_iomem->start);
 	cdma_iomem = NULL;
@@ -336,19 +328,16 @@ static int cdma_probe(struct platform_device *pdev)
 {
 	int rt;
 
-	pr_info("CDMA: cdma_probe called!\n");
-
 	rt = cdma_init_irq(pdev);
 	if (rt)
 		return rt;
-	pr_info("CDMA: cdma_probe 1!\n");	
+
 	rt = cdma_init_registers(pdev);
 	if (rt) {
 		free_irq(cdma_irq, NULL);
 		cdma_irq = - 1;
 		return rt;
 	}
-
 
 	rt = cdma_check_sgInc();
 	
@@ -358,9 +347,8 @@ static int cdma_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	pr_info("CDMA: cdma_probe 2!\n");	
 	cdma_init_hw();
-	pr_info("CDMA: cdma_probe 3!\n");	
+
 	return 0;
 }
 
@@ -391,10 +379,8 @@ static int __init cdma_init(void)
 	int rt;
 	
 	rt = platform_driver_register(&cdma_platform_driver);
-	if (rt) {
-		pr_info("platform_driver_register failed.\n");
-		platform_driver_unregister(&cdma_platform_driver);
-	}
+	if (rt) 
+		pr_info("cdma: platform_driver_register failed.\n");
 
 	return rt; 
 }
