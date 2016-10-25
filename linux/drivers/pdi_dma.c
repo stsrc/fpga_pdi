@@ -1,7 +1,8 @@
-//TODO more then one card!!!
-//TODO DETECTION OF ALREADY USED DEVICE, ETC!
+//TODO 
 //TODO netdev, dev, pdev - think/read about it.
 //TODO spinlocks, semaphores, race conditions etc.
+//TODO more then one card!!!
+//TODO DETECTION OF ALREADY USED DEVICE, ETC!
 
 /*
  * DMA part of driver based on b44 driver.
@@ -76,14 +77,13 @@ struct ring_info {
 struct dma_ring {
 	//TODO should be only struct cdma_sg_descriptor *desc, not *desc[64]!
 	struct cdma_sg_descriptor *desc[64];
-	struct ring_info buffer[64];
 	dma_addr_t desc_p[64];
+	struct ring_info buffer[64];
 
 	u32 desc_cur;
 	u32 desc_cons;
 
-	//TODO const u32 desc_max
-	u32 desc_max;
+	const u32 desc_max;
 };
 
 struct pdi {
@@ -561,7 +561,7 @@ static int pdi_probe(struct platform_device *pdev)
 
 	//SET_NETDEV_DEV(netdev, pdev);//TODO
 
-	pdi->tx_ring.desc_max = 64;
+	*(u32 *)&pdi->tx_ring.desc_max = 64;
 
 	pdi->netdev = netdev;
 	pdev->dev.platform_data = pdi;
