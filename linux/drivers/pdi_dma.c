@@ -70,7 +70,7 @@ struct ring_info {
 		struct sk_buff *skb;
 		u32 *cnt;
 	} data;
-	dma_addr_t mapping;
+	dma_addr_t map;
 };
 
 struct dma_ring {
@@ -105,8 +105,6 @@ struct pdi {
 	struct dma_pool *pool;
 
 	struct dma_ring tx_ring; 
-
-	dma_addr_t mapping[64];
 };
 
 /*
@@ -167,30 +165,33 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	tx_ring->buffer[cnt].data.skb = skb;
 	*tx_ring->buffer[cnt + 1].data.cnt = len;
 	
-	pdi->mapping[cnt] = dma_map_single(pdi->dev, skb->data, skb->len, 
-					   DMA_TO_DEVICE);
-	if (dma_mapping_error(pdi->dev, pdi->mapping[cnt])) {
+	tx_ring->buffer[cnt].map = dma_map_single(pdi->dev, skb->data,
+					skb->len, DMA_TO_DEVICE);
+
+	if (dma_mapping_error(pdi->dev, tx_ring->buffer[cnt].map)) {
 		pr_info("pdi: dma_map_single failed!\n");
 		dev_kfree_skb(skb);	
 		return NETDEV_TX_BUSY;
 	}
 
-	pdi->mapping[cnt + 1] = dma_map_single(pdi->dev, tx_ring->buffer[cnt + 1].data.cnt, 
-				    sizeof(u32), DMA_TO_DEVICE);
-	if (dma_mapping_error(pdi->dev, pdi->mapping[cnt + 1])) {
+	tx_ring->buffer[cnt + 1].map = dma_map_single(pdi->dev, 
+					tx_ring->buffer[cnt + 1].data.cnt, 
+				   	sizeof(u32), DMA_TO_DEVICE);
+
+	if (dma_mapping_error(pdi->dev, tx_ring->buffer[cnt + 1].map)) {
 		pr_info("pdi: dma_map_single failed!\n");
 		dev_kfree_skb(skb);  //TODO SHOULD IT BE HERE?	
 		return NETDEV_TX_BUSY;
 	}
 
 	ret = cdma_set_sg_desc(tx_ring->desc[cnt], tx_ring->desc_p[cnt + 1],
-			       pdi->mapping[cnt], pdi->iomem->start + 4, 
+			       tx_ring->buffer[cnt].map, pdi->iomem->start + 4, 
 			       skb->len);
 	if (ret)
 		pr_info("pdi: cdma_set_sg_desc returned %d\n", ret);
 
 	ret = cdma_set_sg_desc(tx_ring->desc[cnt + 1], tx_ring->desc_p[cnt], 
-			       pdi->mapping[cnt + 1], pdi->iomem->start,
+			       tx_ring->buffer[cnt + 1].map, pdi->iomem->start,
 			       sizeof(u32));
 	/* 
 	 * TODO pdi->iomem->start - why pdi->reg0_dma is not working (address 
@@ -200,9 +201,9 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (ret)
 		pr_info("pdi: cdma_set_sg_desc returned %d\n", ret);
 
-	dma_sync_single_for_device(pdi->dev, pdi->mapping[cnt], skb->len, 
-				   DMA_TO_DEVICE);
-	dma_sync_single_for_device(pdi->dev, pdi->mapping[cnt + 1], 
+	dma_sync_single_for_device(pdi->dev, tx_ring->buffer[cnt].map, 
+				   skb->len, DMA_TO_DEVICE);
+	dma_sync_single_for_device(pdi->dev, tx_ring->buffer[cnt + 1].map, 
 				   sizeof(u32), DMA_TO_DEVICE);
 
 	ret = cdma_set_keyhole(CDMA_KH_WRITE);
@@ -241,10 +242,11 @@ static int pdi_complete_xmit(struct pdi *pdi)
 		skb = tx_ring->buffer[i].data.skb;
 		cnt = tx_ring->buffer[i + 1].data.cnt;
 
-		dma_unmap_single(pdi->dev, pdi->mapping[i], skb->len, 
+		dma_unmap_single(pdi->dev, tx_ring->buffer[i].map, skb->len, 
 				 DMA_TO_DEVICE);
-		dma_unmap_single(pdi->dev, pdi->mapping[i + 1], sizeof(u32),
-				 DMA_TO_DEVICE);
+
+		dma_unmap_single(pdi->dev, tx_ring->buffer[i + 1].map, 
+				 sizeof(u32), DMA_TO_DEVICE);
 
 		netdev_completed_queue(pdi->netdev, 1, skb->len);
 		dev_kfree_skb(skb);
