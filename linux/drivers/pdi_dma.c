@@ -73,7 +73,7 @@ struct ring_info {
 	dma_addr_t mapping;
 };
 
-struct dma_desc {
+struct dma_ring {
 	//TODO should be only struct cdma_sg_descriptor *desc, not *desc[64]!
 	struct cdma_sg_descriptor *desc[64];
 	dma_addr_t desc_p[64];
@@ -102,7 +102,7 @@ struct pdi {
 	struct dma_pool *pool;
 
 	struct ring_info *rx_buffers;
-	struct dma_desc rx_ring; 
+	struct dma_ring tx_ring; 
 
 	struct sk_buff *skb[64];
 	dma_addr_t mapping[64];
@@ -118,6 +118,7 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int ret;
 	uint32_t len = 0;
 	uint32_t cnt = 0;
+	struct dma_ring *tx_ring;
 	/* 
 	 * to_add - padding bytes count. 
 	 * FPGA eth 'internals' are 8 bytes aligned. 
@@ -125,7 +126,7 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned int to_add = 0;
 	struct pdi *pdi = (struct pdi *)netdev_priv(dev);
 
-	pr_info("pdi_start_xmit called.\n");
+	tx_ring = &pdi->tx_ring;
 
 	len = skb->len;
 
@@ -143,13 +144,13 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/******************** NEW PART ********************/	
 
-	if (pdi->rx_ring.desc_cur + 2 == pdi->rx_ring.desc_cons) {
-		pr_info("pdi: rx_ring full! Packet will be droped.\n");
+	if (tx_ring->desc_cur + 2 == tx_ring->desc_cons) {
+		pr_info("pdi: tx_ring full! Packet will be droped.\n");
 		dev_kfree_skb(skb);
 		return NETDEV_TX_OK;	
 	}
 
-	cnt = pdi->rx_ring.desc_cur;
+	cnt = tx_ring->desc_cur;
 	pdi->bytes_cnt[cnt] = len;
 	pdi->skb[cnt] = skb;
 		
@@ -169,15 +170,15 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_BUSY;
 	}
 
-	ret = cdma_set_sg_desc(pdi->rx_ring.desc[cnt], 
-		pdi->rx_ring.desc_p[cnt + 1], pdi->mapping[cnt],
-		pdi->iomem->start + 4, skb->len);
+	ret = cdma_set_sg_desc(tx_ring->desc[cnt], tx_ring->desc_p[cnt + 1],
+			       pdi->mapping[cnt], pdi->iomem->start + 4, 
+			       skb->len);
 	if (ret)
 		pr_info("pdi: cdma_set_sg_desc returned %d\n", ret);
 
-	ret = cdma_set_sg_desc(pdi->rx_ring.desc[cnt + 1], 
-		pdi->rx_ring.desc_p[cnt], pdi->mapping[cnt + 1],
-		pdi->iomem->start, sizeof(u32));
+	ret = cdma_set_sg_desc(tx_ring->desc[cnt + 1], tx_ring->desc_p[cnt], 
+			       pdi->mapping[cnt + 1], pdi->iomem->start,
+			       sizeof(u32));
 	/* 
 	 * TODO pdi->iomem->start - why pdi->reg0_dma is not working (address 
 	 * problem?) 
@@ -195,13 +196,11 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (ret)
 		pr_info("pdi: cdma_set_keyhole returned %d\n", ret);
 
-	ret = cdma_set_cur_tail(pdi->rx_ring.desc_p[cnt], 
-				pdi->rx_ring.desc_p[cnt + 1]);
+	ret = cdma_set_cur_tail(tx_ring->desc_p[cnt], tx_ring->desc_p[cnt + 1]);
 	if (ret)
 		pr_info("pdi: cdma_set_cur_tail returned %d\n", ret);
 	
-	pdi->rx_ring.desc_cur = (pdi->rx_ring.desc_cur + 2) % 
-				pdi->rx_ring.desc_max;
+	tx_ring->desc_cur = (tx_ring->desc_cur + 2) % tx_ring->desc_max;
 
 	netdev_sent_queue(dev, skb->len);
 
@@ -323,14 +322,15 @@ static int pdi_rx(struct pdi *pdi)
 static int pdi_complete_xmit(struct pdi *pdi)
 {
 	struct sk_buff *skb; 
+	struct dma_ring *tx_ring = &pdi->tx_ring;
 	u32 i = 0;
 
-	for (i = pdi->rx_ring.desc_cons; i != pdi->rx_ring.desc_cur; 
-	     i = (i + 2) % pdi->rx_ring.desc_max) {
+	for (i = tx_ring->desc_cons; i != tx_ring->desc_cur; 
+	     i = (i + 2) % tx_ring->desc_max) {
 		pr_info("i = %d; pdi->desc_cons = %d; pdi->desc_cur = %d\n", i,
-		pdi->rx_ring.desc_cons, pdi->rx_ring.desc_cur);
+		tx_ring->desc_cons, tx_ring->desc_cur);
 
-		if (!cdma_check_sg_finished(pdi->rx_ring.desc[i + 1])) {
+		if (!cdma_check_sg_finished(tx_ring->desc[i + 1])) {
 			pr_info("cdma_check_sg_finished failed.\n");
 			break;
 		}
@@ -346,7 +346,7 @@ static int pdi_complete_xmit(struct pdi *pdi)
 		dev_kfree_skb(skb);
 	}
 	
-	pdi->rx_ring.desc_cons = i;
+	tx_ring->desc_cons = i;
 	return 0;
 }
 
@@ -364,6 +364,7 @@ static int pdi_poll(struct napi_struct *napi, int budget)
 static int pdi_init_dma_rings(struct platform_device *pdev)
 {
 	struct pdi *pdi = pdev->dev.platform_data;
+	struct dma_ring *tx_ring = &pdi->tx_ring;
 	
 	pdi->pool = dma_pool_create(DRIVER_NAME, pdi->dev, sizeof(struct 
 			cdma_sg_descriptor), 0x40, 0);
@@ -374,30 +375,30 @@ static int pdi_init_dma_rings(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	for (int i = 0; i < pdi->rx_ring.desc_max; i++) {
-		pdi->rx_ring.desc[i] = 0;
-		pdi->rx_ring.desc[i] = (struct cdma_sg_descriptor *)
-				dma_pool_zalloc(pdi->pool, GFP_KERNEL, 
-				&pdi->rx_ring.desc_p[i]);
+	for (int i = 0; i < tx_ring->desc_max; i++) {
+		tx_ring->desc[i] = (struct cdma_sg_descriptor *)
+				   dma_pool_zalloc(pdi->pool, GFP_KERNEL, 
+				   &tx_ring->desc_p[i]);
 
-		if (!pdi->rx_ring.desc[i]) {
+		if (!tx_ring->desc[i]) {
 			pr_info("cdma_test: dma_pool_zalloc could not allocate"
 				" memory.\n");
 
 			for (int j = 0; j < i; j++)
-				dma_pool_free(pdi->pool, pdi->rx_ring.desc[j], 
-						pdi->rx_ring.desc_p[j]);
+				dma_pool_free(pdi->pool, tx_ring->desc[j], 
+					      tx_ring->desc_p[j]);
 
 			dma_pool_destroy(pdi->pool);
 			return -ENOMEM;
 		}
-		pdi->bytes_cnt = kzalloc(sizeof(u32) * 64, GFP_KERNEL | GFP_DMA);
+		pdi->bytes_cnt = kzalloc(sizeof(u32) * 64, GFP_KERNEL | 
+					 GFP_DMA);
 
 		if (!pdi->bytes_cnt) {
 
-			for (int i = 0; i < pdi->rx_ring.desc_max; i++)
-				dma_pool_free(pdi->pool, pdi->rx_ring.desc[i],
-					      pdi->rx_ring.desc_p[i]);
+			for (int i = 0; i < tx_ring->desc_max; i++)
+				dma_pool_free(pdi->pool, tx_ring->desc[i],
+					      tx_ring->desc_p[i]);
 
 			dma_pool_destroy(pdi->pool);
 			return -ENOMEM;
@@ -409,12 +410,12 @@ static int pdi_init_dma_rings(struct platform_device *pdev)
 static void pdi_deinit_dma_rings(struct platform_device *pdev)
 {
 	struct pdi *pdi = pdev->dev.platform_data;
+	struct dma_ring *tx_ring = &pdi->tx_ring;
 
 	kfree(pdi->bytes_cnt);
 
-	for (int i = 0; i < pdi->rx_ring.desc_max; i++)
-		dma_pool_free(pdi->pool, pdi->rx_ring.desc[i], 
-			      pdi->rx_ring.desc_p[i]);
+	for (int i = 0; i < tx_ring->desc_max; i++)
+		dma_pool_free(pdi->pool, tx_ring->desc[i], tx_ring->desc_p[i]);
 
 	dma_pool_destroy(pdi->pool);
 }
@@ -555,7 +556,7 @@ static int pdi_probe(struct platform_device *pdev)
 
 	//SET_NETDEV_DEV(netdev, pdev);//TODO
 
-	pdi->rx_ring.desc_max = 64;
+	pdi->tx_ring.desc_max = 64;
 
 	pdi->netdev = netdev;
 	pdev->dev.platform_data = pdi;
