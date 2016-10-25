@@ -76,10 +76,13 @@ struct ring_info {
 struct dma_ring {
 	//TODO should be only struct cdma_sg_descriptor *desc, not *desc[64]!
 	struct cdma_sg_descriptor *desc[64];
+	struct ring_info buffer[64];
 	dma_addr_t desc_p[64];
+
 	u32 desc_cur;
 	u32 desc_cons;
 
+	//TODO const u32 desc_max
 	u32 desc_max;
 };
 
@@ -101,13 +104,9 @@ struct pdi {
 
 	struct dma_pool *pool;
 
-	struct ring_info *rx_buffers;
 	struct dma_ring tx_ring; 
 
-	struct sk_buff *skb[64];
 	dma_addr_t mapping[64];
-
-	u32 *bytes_cnt;
 };
 
 /*
@@ -151,9 +150,23 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	cnt = tx_ring->desc_cur;
-	pdi->bytes_cnt[cnt] = len;
-	pdi->skb[cnt] = skb;
-		
+
+	/* TODO: MEMORY LEAK SOMEWHERO ELSO */
+	/* TODO: KMALLOC CREATES PERFORMANCE HIT... */
+	/* TODO: YOU CAN ALLOC MEMORY SOMEWHRO ELSO */
+	/* TODO: RETURN VALUES/CLEARING ETC. */
+	tx_ring->buffer[cnt + 1].data.cnt = kmalloc(sizeof(u32), GFP_KERNEL |
+						    GFP_DMA); 
+	if (!tx_ring->buffer[cnt +1].data.cnt) {
+		pr_info("pdi: problems with memory allocation. Packet droped."
+			"\n");
+		dev_kfree_skb(skb);
+		return NETDEV_TX_OK;
+	}
+
+	tx_ring->buffer[cnt].data.skb = skb;
+	*tx_ring->buffer[cnt + 1].data.cnt = len;
+	
 	pdi->mapping[cnt] = dma_map_single(pdi->dev, skb->data, skb->len, 
 					   DMA_TO_DEVICE);
 	if (dma_mapping_error(pdi->dev, pdi->mapping[cnt])) {
@@ -162,7 +175,7 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_BUSY;
 	}
 
-	pdi->mapping[cnt + 1] = dma_map_single(pdi->dev, &pdi->bytes_cnt[cnt], 
+	pdi->mapping[cnt + 1] = dma_map_single(pdi->dev, tx_ring->buffer[cnt + 1].data.cnt, 
 				    sizeof(u32), DMA_TO_DEVICE);
 	if (dma_mapping_error(pdi->dev, pdi->mapping[cnt + 1])) {
 		pr_info("pdi: dma_map_single failed!\n");
@@ -205,6 +218,41 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	netdev_sent_queue(dev, skb->len);
 
 	return NETDEV_TX_OK;
+}
+
+static int pdi_complete_xmit(struct pdi *pdi)
+{
+	struct sk_buff *skb; 
+	u32 *cnt;
+	struct dma_ring *tx_ring = &pdi->tx_ring;
+	u32 i = 0;
+
+	for (i = tx_ring->desc_cons; i != tx_ring->desc_cur; 
+	     i = (i + 2) % tx_ring->desc_max) {
+		pr_info("i = %d; pdi->desc_cons = %d; pdi->desc_cur = %d\n", i,
+		tx_ring->desc_cons, tx_ring->desc_cur);
+
+		if (!cdma_check_sg_finished(tx_ring->desc[i + 1])) {
+			pr_info("cdma_check_sg_finished failed.\n");
+			break;
+		}
+		pr_info("cdma_check_sg_finished not failed.\n");
+
+		skb = tx_ring->buffer[i].data.skb;
+		cnt = tx_ring->buffer[i + 1].data.cnt;
+
+		dma_unmap_single(pdi->dev, pdi->mapping[i], skb->len, 
+				 DMA_TO_DEVICE);
+		dma_unmap_single(pdi->dev, pdi->mapping[i + 1], sizeof(u32),
+				 DMA_TO_DEVICE);
+
+		netdev_completed_queue(pdi->netdev, 1, skb->len);
+		dev_kfree_skb(skb);
+		kfree(cnt);
+	}
+	
+	tx_ring->desc_cons = i;
+	return 0;
 }
 
 static atomic_t enable_int;
@@ -319,37 +367,6 @@ static int pdi_rx(struct pdi *pdi)
 	return packets_cnt;
 }
 
-static int pdi_complete_xmit(struct pdi *pdi)
-{
-	struct sk_buff *skb; 
-	struct dma_ring *tx_ring = &pdi->tx_ring;
-	u32 i = 0;
-
-	for (i = tx_ring->desc_cons; i != tx_ring->desc_cur; 
-	     i = (i + 2) % tx_ring->desc_max) {
-		pr_info("i = %d; pdi->desc_cons = %d; pdi->desc_cur = %d\n", i,
-		tx_ring->desc_cons, tx_ring->desc_cur);
-
-		if (!cdma_check_sg_finished(tx_ring->desc[i + 1])) {
-			pr_info("cdma_check_sg_finished failed.\n");
-			break;
-		}
-		pr_info("cdma_check_sg_finished not failed.\n");
-		skb = pdi->skb[i];
-
-		dma_unmap_single(pdi->dev, pdi->mapping[i], skb->len, 
-				 DMA_TO_DEVICE);
-		dma_unmap_single(pdi->dev, pdi->mapping[i + 1], sizeof(u32),
-				 DMA_TO_DEVICE);
-
-		netdev_completed_queue(pdi->netdev, 1, skb->len);
-		dev_kfree_skb(skb);
-	}
-	
-	tx_ring->desc_cons = i;
-	return 0;
-}
-
 static int pdi_poll(struct napi_struct *napi, int budget)
 {
 	int ret;
@@ -391,18 +408,6 @@ static int pdi_init_dma_rings(struct platform_device *pdev)
 			dma_pool_destroy(pdi->pool);
 			return -ENOMEM;
 		}
-		pdi->bytes_cnt = kzalloc(sizeof(u32) * 64, GFP_KERNEL | 
-					 GFP_DMA);
-
-		if (!pdi->bytes_cnt) {
-
-			for (int i = 0; i < tx_ring->desc_max; i++)
-				dma_pool_free(pdi->pool, tx_ring->desc[i],
-					      tx_ring->desc_p[i]);
-
-			dma_pool_destroy(pdi->pool);
-			return -ENOMEM;
-		}
 	}
 	return 0;
 }
@@ -411,8 +416,6 @@ static void pdi_deinit_dma_rings(struct platform_device *pdev)
 {
 	struct pdi *pdi = pdev->dev.platform_data;
 	struct dma_ring *tx_ring = &pdi->tx_ring;
-
-	kfree(pdi->bytes_cnt);
 
 	for (int i = 0; i < tx_ring->desc_max; i++)
 		dma_pool_free(pdi->pool, tx_ring->desc[i], tx_ring->desc_p[i]);
