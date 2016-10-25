@@ -1,6 +1,7 @@
 //TODO more then one card!!!
 //TODO DETECTION OF ALREADY USED DEVICE, ETC!
 //TODO netdev, dev, pdev - think/read about it.
+//TODO spinlocks, semaphores, race conditions etc.
 
 /*
  * DMA part of driver based on b44 driver.
@@ -107,8 +108,6 @@ struct pdi {
 	dma_addr_t mapping[64];
 
 	u32 *bytes_cnt;
-	u32 desc_cnt;
-	u32 desc_cons;
 };
 
 /*
@@ -126,6 +125,8 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned int to_add = 0;
 	struct pdi *pdi = (struct pdi *)netdev_priv(dev);
 
+	pr_info("pdi_start_xmit called.\n");
+
 	len = skb->len;
 
 	if (len % 8)
@@ -139,22 +140,21 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		skb_put(skb, to_add);
 	}
-	
-	if (pdi->desc_cnt == 64) {
-		pr_info("NO MORE TRANSMISSIONS!\n");
-		dev_kfree_skb(skb);
-		return NETDEV_TX_OK;
-	}
-
-
 
 	/******************** NEW PART ********************/	
 
-	cnt = pdi->desc_cnt;
+	if (pdi->rx_ring.desc_cur + 2 == pdi->rx_ring.desc_cons) {
+		pr_info("pdi: rx_ring full! Packet will be droped.\n");
+		dev_kfree_skb(skb);
+		return NETDEV_TX_OK;	
+	}
+
+	cnt = pdi->rx_ring.desc_cur;
 	pdi->bytes_cnt[cnt] = len;
 	pdi->skb[cnt] = skb;
 		
-	pdi->mapping[cnt] = dma_map_single(pdi->dev, skb->data, skb->len, DMA_TO_DEVICE);
+	pdi->mapping[cnt] = dma_map_single(pdi->dev, skb->data, skb->len, 
+					   DMA_TO_DEVICE);
 	if (dma_mapping_error(pdi->dev, pdi->mapping[cnt])) {
 		pr_info("pdi: dma_map_single failed!\n");
 		dev_kfree_skb(skb);	
@@ -186,18 +186,23 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (ret)
 		pr_info("pdi: cdma_set_sg_desc returned %d\n", ret);
 
-	dma_sync_single_for_device(pdi->dev, pdi->mapping[cnt], skb->len, DMA_TO_DEVICE);
-	dma_sync_single_for_device(pdi->dev, pdi->mapping[cnt + 1], sizeof(u32), DMA_TO_DEVICE);
+	dma_sync_single_for_device(pdi->dev, pdi->mapping[cnt], skb->len, 
+				   DMA_TO_DEVICE);
+	dma_sync_single_for_device(pdi->dev, pdi->mapping[cnt + 1], 
+				   sizeof(u32), DMA_TO_DEVICE);
 
 	ret = cdma_set_keyhole(CDMA_KH_WRITE);
 	if (ret)
 		pr_info("pdi: cdma_set_keyhole returned %d\n", ret);
 
-	ret = cdma_set_cur_tail(pdi->rx_ring.desc_p[cnt], pdi->rx_ring.desc_p[cnt + 1]);
+	ret = cdma_set_cur_tail(pdi->rx_ring.desc_p[cnt], 
+				pdi->rx_ring.desc_p[cnt + 1]);
 	if (ret)
 		pr_info("pdi: cdma_set_cur_tail returned %d\n", ret);
 	
-	pdi->desc_cnt += 2;
+	pdi->rx_ring.desc_cur = (pdi->rx_ring.desc_cur + 2) % 
+				pdi->rx_ring.desc_max;
+
 	netdev_sent_queue(dev, skb->len);
 
 	return NETDEV_TX_OK;
@@ -251,13 +256,13 @@ static int pdi_rx(struct pdi *pdi)
 	unsigned char *buf = NULL;
 	int ret = 0;
  	
-	pr_info("pdi: pdi_poll called.\n");
+	pr_info("pdi: pdi_rx called.\n");
 
 	packets_cnt = atomic_read(&to_read);
 	atomic_sub(packets_cnt, &to_read);
 	
 	if (!packets_cnt) {
-		pr_info("PDI: poll falsely triggered!!!\n");
+		pr_info("PDI: pdi_rx falsely triggered!!!\n");
 		return 0;		
 	}
 
@@ -320,9 +325,10 @@ static int pdi_complete_xmit(struct pdi *pdi)
 	struct sk_buff *skb; 
 	u32 i = 0;
 
-	for (i = pdi->desc_cons; i < pdi->desc_cnt; i += 2) {
-		pr_info("i = %d; pdi->desc_cons = %d; pdi->desc_cnt = %d\n", i,
-		pdi->desc_cons, pdi->desc_cnt);
+	for (i = pdi->rx_ring.desc_cons; i != pdi->rx_ring.desc_cur; 
+	     i = (i + 2) % pdi->rx_ring.desc_max) {
+		pr_info("i = %d; pdi->desc_cons = %d; pdi->desc_cur = %d\n", i,
+		pdi->rx_ring.desc_cons, pdi->rx_ring.desc_cur);
 
 		if (!cdma_check_sg_finished(pdi->rx_ring.desc[i + 1])) {
 			pr_info("cdma_check_sg_finished failed.\n");
@@ -340,7 +346,7 @@ static int pdi_complete_xmit(struct pdi *pdi)
 		dev_kfree_skb(skb);
 	}
 	
-	pdi->desc_cons = i;
+	pdi->rx_ring.desc_cons = i;
 	return 0;
 }
 
