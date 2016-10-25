@@ -76,9 +76,12 @@ struct ring_info {
 
 struct dma_ring {
 	//TODO should be only struct cdma_sg_descriptor *desc, not *desc[64]!
-	struct cdma_sg_descriptor *desc[64];
-	dma_addr_t desc_p[64];
-	struct ring_info buffer[64];
+	struct cdma_sg_descriptor *desc;
+	dma_addr_t desc_p;
+
+	struct ring_info *buffer;
+	u32 *cnt;
+	dma_addr_t cnt_p;
 
 	u32 desc_cur;
 	u32 desc_cons;
@@ -149,18 +152,7 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	cnt = tx_ring->desc_cur;
 
-	/* TODO: MEMORY LEAK SOMEWHERO ELSO */
-	/* TODO: KMALLOC CREATES PERFORMANCE HIT... */
-	/* TODO: YOU CAN ALLOC MEMORY SOMEWHRO ELSO */
-	/* TODO: RETURN VALUES/CLEARING ETC. */
-	tx_ring->buffer[cnt + 1].data.cnt = kmalloc(sizeof(u32), GFP_KERNEL |
-						    GFP_DMA); 
-	if (!tx_ring->buffer[cnt +1].data.cnt) {
-		pr_info("pdi: problems with memory allocation. Packet droped."
-			"\n");
-		dev_kfree_skb(skb);
-		return NETDEV_TX_OK;
-	}
+	/* TODO: RETURN VALUES/CLEARING ETC. */	
 
 	tx_ring->buffer[cnt].data.skb = skb;
 	*tx_ring->buffer[cnt + 1].data.cnt = len;
@@ -174,23 +166,13 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_BUSY;
 	}
 
-	tx_ring->buffer[cnt + 1].map = dma_map_single(pdi->dev, 
-					tx_ring->buffer[cnt + 1].data.cnt, 
-				   	sizeof(u32), DMA_TO_DEVICE);
-
-	if (dma_mapping_error(pdi->dev, tx_ring->buffer[cnt + 1].map)) {
-		pr_info("pdi: dma_map_single failed!\n");
-		dev_kfree_skb(skb);  //TODO SHOULD IT BE HERE?	
-		return NETDEV_TX_BUSY;
-	}
-
-	ret = cdma_set_sg_desc(tx_ring->desc[cnt], tx_ring->desc_p[cnt + 1],
+	ret = cdma_set_sg_desc(&tx_ring->desc[cnt], tx_ring->desc_p + (cnt + 1) * 64,
 			       tx_ring->buffer[cnt].map, pdi->iomem->start + 4, 
 			       skb->len);
 	if (ret)
 		pr_info("pdi: cdma_set_sg_desc returned %d\n", ret);
 
-	ret = cdma_set_sg_desc(tx_ring->desc[cnt + 1], tx_ring->desc_p[cnt], 
+	ret = cdma_set_sg_desc(&tx_ring->desc[cnt + 1], tx_ring->desc_p + cnt * 64, 
 			       tx_ring->buffer[cnt + 1].map, pdi->iomem->start,
 			       sizeof(u32));
 	/* 
@@ -203,14 +185,13 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	dma_sync_single_for_device(pdi->dev, tx_ring->buffer[cnt].map, 
 				   skb->len, DMA_TO_DEVICE);
-	dma_sync_single_for_device(pdi->dev, tx_ring->buffer[cnt + 1].map, 
-				   sizeof(u32), DMA_TO_DEVICE);
 
 	ret = cdma_set_keyhole(CDMA_KH_WRITE);
 	if (ret)
 		pr_info("pdi: cdma_set_keyhole returned %d\n", ret);
 
-	ret = cdma_set_cur_tail(tx_ring->desc_p[cnt], tx_ring->desc_p[cnt + 1]);
+	//TODO CAN I DO SUCH A POINTER ARITHMETIC?
+	ret = cdma_set_cur_tail(tx_ring->desc_p + cnt * 64, tx_ring->desc_p + (cnt + 1) * 64);
 	if (ret)
 		pr_info("pdi: cdma_set_cur_tail returned %d\n", ret);
 	
@@ -224,7 +205,6 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 static int pdi_complete_xmit(struct pdi *pdi)
 {
 	struct sk_buff *skb; 
-	u32 *cnt;
 	struct dma_ring *tx_ring = &pdi->tx_ring;
 	u32 i = 0;
 
@@ -233,24 +213,19 @@ static int pdi_complete_xmit(struct pdi *pdi)
 		pr_info("i = %d; pdi->desc_cons = %d; pdi->desc_cur = %d\n", i,
 		tx_ring->desc_cons, tx_ring->desc_cur);
 
-		if (!cdma_check_sg_finished(tx_ring->desc[i + 1])) {
+		if (!cdma_check_sg_finished(&tx_ring->desc[i + 1])) {
 			pr_info("cdma_check_sg_finished failed.\n");
 			break;
 		}
 		pr_info("cdma_check_sg_finished not failed.\n");
 
 		skb = tx_ring->buffer[i].data.skb;
-		cnt = tx_ring->buffer[i + 1].data.cnt;
 
 		dma_unmap_single(pdi->dev, tx_ring->buffer[i].map, skb->len, 
 				 DMA_TO_DEVICE);
 
-		dma_unmap_single(pdi->dev, tx_ring->buffer[i + 1].map, 
-				 sizeof(u32), DMA_TO_DEVICE);
-
 		netdev_completed_queue(pdi->netdev, 1, skb->len);
 		dev_kfree_skb(skb);
-		kfree(cnt);
 	}
 	
 	tx_ring->desc_cons = i;
@@ -384,33 +359,42 @@ static int pdi_init_dma_rings(struct platform_device *pdev)
 {
 	struct pdi *pdi = pdev->dev.platform_data;
 	struct dma_ring *tx_ring = &pdi->tx_ring;
+	const size_t desc_size = sizeof(struct cdma_sg_descriptor);
 	
-	pdi->pool = dma_pool_create(DRIVER_NAME, pdi->dev, sizeof(struct 
-			cdma_sg_descriptor), 0x40, 0);
-	 
-	if (!pdi->pool) {
-		pr_info("pdi: dma_pool_create could not allocate memory."
-			"\n");
+
+	tx_ring->desc = dma_zalloc_coherent(pdi->dev, tx_ring->desc_max * 
+				desc_size, &tx_ring->desc_p, GFP_KERNEL | 
+				GFP_DMA);
+
+	if (!tx_ring->desc) 
+		return -ENOMEM;
+	
+
+	tx_ring->buffer = kzalloc(sizeof(struct ring_info) * tx_ring->desc_max,
+				 GFP_KERNEL);
+
+	if (!tx_ring->buffer) {
+		dma_free_coherent(pdi->dev, desc_size * tx_ring->desc_max, 
+			  tx_ring->desc, tx_ring->desc_p);
+		return -ENOMEM;		
+	} 
+
+	tx_ring->cnt = dma_zalloc_coherent(pdi->dev, sizeof(u32) * 
+				tx_ring->desc_max / 2, &tx_ring->cnt_p,
+				GFP_KERNEL | GFP_DMA);
+
+	if (!tx_ring->cnt) {
+		kfree(tx_ring->buffer);
+		dma_free_coherent(pdi->dev, desc_size * tx_ring->desc_max, 
+			  tx_ring->desc, tx_ring->desc_p);
 		return -ENOMEM;
 	}
 
-	for (int i = 0; i < tx_ring->desc_max; i++) {
-		tx_ring->desc[i] = (struct cdma_sg_descriptor *)
-				   dma_pool_zalloc(pdi->pool, GFP_KERNEL, 
-				   &tx_ring->desc_p[i]);
-
-		if (!tx_ring->desc[i]) {
-			pr_info("cdma_test: dma_pool_zalloc could not allocate"
-				" memory.\n");
-
-			for (int j = 0; j < i; j++)
-				dma_pool_free(pdi->pool, tx_ring->desc[j], 
-					      tx_ring->desc_p[j]);
-
-			dma_pool_destroy(pdi->pool);
-			return -ENOMEM;
-		}
+	for (int i = 1; i < tx_ring->desc_max; i += 2) {
+		tx_ring->buffer[i].data.cnt = &tx_ring->cnt[i];
+		tx_ring->buffer[i].map = tx_ring->cnt_p + i * sizeof(u32);
 	}
+
 	return 0;
 }
 
@@ -418,11 +402,15 @@ static void pdi_deinit_dma_rings(struct platform_device *pdev)
 {
 	struct pdi *pdi = pdev->dev.platform_data;
 	struct dma_ring *tx_ring = &pdi->tx_ring;
+	const size_t desc_size = sizeof(struct cdma_sg_descriptor);
 
-	for (int i = 0; i < tx_ring->desc_max; i++)
-		dma_pool_free(pdi->pool, tx_ring->desc[i], tx_ring->desc_p[i]);
+	kfree(tx_ring->buffer);	
 
-	dma_pool_destroy(pdi->pool);
+	dma_free_coherent(pdi->dev, desc_size * tx_ring->desc_max, 
+			  tx_ring->desc, tx_ring->desc_p);
+
+	dma_free_coherent(pdi->dev, sizeof(u32) * tx_ring->desc_max / 2, 
+			  tx_ring->cnt, tx_ring->cnt_p);
 }
 
 /*
