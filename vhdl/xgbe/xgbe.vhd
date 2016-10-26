@@ -68,7 +68,7 @@ entity xgbe is
 		m_axi_rdata		: in std_logic_vector(C_AXI_DATA_WIDTH - 1 downto 0);
 		m_axi_rresp		: in std_logic_vector(1 downto 0);
 		m_axi_rvalid		: in std_logic;
-		m_axi_rready		: out std_logic
+		m_axi_rready		: out std_logic;
 
 		xgmii_rxc 		: in std_logic_vector(7 downto 0);
 		xgmii_rxd 		: in std_logic_vector(63 downto 0);
@@ -258,13 +258,13 @@ end component;
 component AXI_Master is
 	generic (
 		C_M_AXI_ADDR_WIDTH	: integer	:= 32;
-		C_M_AXI_DATA_WIDTH	: integer	:= 32;
+		C_M_AXI_DATA_WIDTH	: integer	:= 32
 	);
 	port (
 
 		M_DATA_IN			: in std_logic_vector(C_M_AXI_DATA_WIDTH - 1 downto 0);
 		M_DATA_OUT			: out std_logic_vector(C_M_AXI_DATA_WIDTH - 1 downto 0);
-		M_TARGET_SLAVE_BASE_ADDR 	: in std_logic_vector(C_M_AXI_ADR_WIDTH - 1 downto 0);
+		M_TARGET_SLAVE_BASE_ADDR 	: in std_logic_vector(C_M_AXI_ADDR_WIDTH - 1 downto 0);
 
 		INIT_AXI_TXN	: in std_logic;
 		AXI_TXN_DONE	: out std_logic;
@@ -388,7 +388,7 @@ end component reset_con;
 	signal interrupt_counter_axi : std_logic := '0';
 	
 	signal rcv_en_100MHz, rcv_en_156_25MHz, resetp 	: std_logic := '0';
-	signal int_en_100MHZ			: std_logic := '0';
+	signal int_en_100MHz			: std_logic := '0';
 	signal control_reg_100MHz_resetn 	: std_logic := '0';
 	signal control_reg_156_25MHz_resetn 	: std_logic := '0';
 	signal con_100MHz_resetn		: std_logic := '0';
@@ -444,7 +444,7 @@ begin
 			resetn => con_100MHz_resetn,
 			incr => interrupt_fifo_counter,
 			get_val => slv_reg3_rd_strb,
-			int_en	=> int_en,
+			int_en	=> int_en_100MHz,
 			cnt_out => slv_reg3_rd,
 			interrupt => interrupt_counter_axi
 		);
@@ -702,7 +702,7 @@ begin
 			INIT_AXI_TXN => axi_m_init_txn,
 			AXI_TXN_DONE => axi_m_done_txn,
 			INIT_AXI_RXN => axi_m_init_rxn,
-			AXI_TXN_DONE => axi_m_done_rxn,
+			AXI_RXN_DONE => axi_m_done_rxn,
 			ERROR => axi_m_error,
 
 			M_AXI_ACLK => m_axi_aclk,

@@ -14,7 +14,7 @@ entity AXI_Master is
 		M_DATA_IN			: in std_logic_vector(C_M_AXI_DATA_WIDTH - 1 downto 0);
 		M_DATA_OUT			: out std_logic_vector(C_M_AXI_DATA_WIDTH - 1 downto 0);
 		M_TARGET_SLAVE_BASE_ADDR 	: in std_logic_vector(C_M_AXI_ADDR_WIDTH - 1 downto 0);
-
+		--TODO RENAME
 		INIT_AXI_TXN	: in std_logic;
 		AXI_TXN_DONE	: out std_logic;
 		INIT_AXI_RXN	: in std_logic;
@@ -48,27 +48,7 @@ end AXI_Master;
 
 architecture implementation of AXI_Master is
 
-	-- function called clogb2 that returns an integer which has the
-	-- value of the ceiling of the log base 2
-	function clogb2 (bit_depth : integer) return integer is            
-	 	variable depth  : integer := bit_depth;                               
-	 	variable count  : integer := 1;                                       
-	 begin                                                                   
-	 	 for clogb2 in 1 to bit_depth loop  -- Works for up to 32 bit integers
-	      if (bit_depth <= 2) then                                           
-	        count := 1;                                                      
-	      else                                                               
-	        if(depth <= 1) then                                              
-	 	       count := count;                                                
-	 	     else                                                             
-	 	       depth := depth / 2;                                            
-	          count := count + 1;                                            
-	 	     end if;                                                          
-	 	   end if;                                                            
-	   end loop;                                                             
-	   return(count);        	                                              
-	 end;                                                                    
-
+                                                         
 	 type state is ( IDLE, -- This state initiates AXI4Lite transaction
 	 							-- after the state machine changes state to INIT_WRITE
 	 							-- when there is 0 to 1 transition on INIT_AXI_TXN
@@ -318,6 +298,8 @@ begin
 	        read_issued  <= '0';                                                                        
 		AXI_TXN_DONE <= '0';
 		AXI_RXN_DONE <= '0';
+		M_DATA_OUT_S <= (others => '0');
+		M_DATA_IN_S <= (others => '0');
 		M_TARGET_ADDR_S <= (others => '0');
 	        ERROR <= '0'; 
 	      else                                                                                          
@@ -382,7 +364,6 @@ begin
 			M_DATA_OUT_S <= M_AXI_RDATA;
 			mst_exec_state <= IDLE;
 			end if;
-
 			when others  =>
 			mst_exec_state  <= IDLE;
 	        end case  ;                                                                                 
