@@ -1,8 +1,8 @@
+//TODO dma syncro??
 //TODO netdev, dev, pdev - think/read about it.
 //TODO spinlocks, semaphores, race conditions etc.
 //TODO more then one card!!!
 //TODO DETECTION OF ALREADY USED DEVICE, ETC!
-
 /*
  * DMA part of driver based on b44 driver, which can be fond in:
  * drivers/net/ethernet/broadcom/b44.c
