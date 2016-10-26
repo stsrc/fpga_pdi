@@ -5,7 +5,7 @@ use ieee.numeric_std.all;
 entity AXI_to_regs is
 	generic (
 		C_S_AXI_DATA_WIDTH	: integer	:= 32;
-		C_S_AXI_ADDR_WIDTH	: integer	:= 4
+		C_S_AXI_ADDR_WIDTH	: integer	:= 5
 	);
 	port (
 		interrupt : out std_logic;
@@ -73,11 +73,7 @@ architecture arch_AXI_to_regs of AXI_to_regs is
 	-- ADDR_LSB = 2 for 32 bits (n downto 2)
 	-- ADDR_LSB = 3 for 64 bits (n downto 3)
 	constant ADDR_LSB  : integer := (C_S_AXI_DATA_WIDTH/32)+ 1;
-	constant OPT_MEM_ADDR_BITS : integer := 1;
-	------------------------------------------------
-	---- Signals for user logic register space example
-	--------------------------------------------------
-	---- Number of Slave Registers 4
+	constant OPT_MEM_ADDR_BITS : integer := 2;
 
 	signal slv_reg0_wr_s	:std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
 	signal slv_reg1_wr_s	:std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
@@ -216,7 +212,7 @@ begin
 	      loc_addr := axi_awaddr(ADDR_LSB + OPT_MEM_ADDR_BITS downto ADDR_LSB);
 	      if (slv_reg_wren = '1') then
 	        case loc_addr is
-	          when b"00" =>
+	          when b"000" =>
 	            for byte_index in 0 to (C_S_AXI_DATA_WIDTH/8-1) loop
 	              if ( S_AXI_WSTRB(byte_index) = '1' ) then
 	                -- Respective byte enables are asserted as per write strobes                   
@@ -225,7 +221,7 @@ begin
 			slv_reg0_wr_strb_s <= '1';
 	              end if;
 	            end loop;
-	          when b"01" =>
+	          when b"001" =>
 	            for byte_index in 0 to (C_S_AXI_DATA_WIDTH/8-1) loop
 	              if ( S_AXI_WSTRB(byte_index) = '1' ) then
 	                -- Respective byte enables are asserted as per write strobes                   
@@ -234,7 +230,7 @@ begin
 			slv_reg1_wr_strb_s <= '1';
 	              end if;
 	            end loop;
-	          when b"10" =>
+	          when b"010" =>
 	            for byte_index in 0 to (C_S_AXI_DATA_WIDTH/8-1) loop
 	              if ( S_AXI_WSTRB(byte_index) = '1' ) then
 	                -- Respective byte enables are asserted as per write strobes                   
@@ -243,7 +239,7 @@ begin
 		        slv_reg2_wr_strb_s <= '1';
 	              end if;
 	            end loop;
-	          when b"11" =>
+	          when b"011" =>
 	            for byte_index in 0 to (C_S_AXI_DATA_WIDTH/8-1) loop
 	              if ( S_AXI_WSTRB(byte_index) = '1' ) then
 	                -- Respective byte enables are asserted as per write strobes                   
@@ -357,16 +353,16 @@ begin
 		  axi_rdata <= (others => '0');
 		elsif (slv_reg_rden = '1') then
 		  case loc_addr is
-		  when b"00" =>
+		  when b"000" =>
 			axi_rdata <= slv_reg0_rd;
 			slv_reg0_rd_strb_s <= '1'; 
-		  when b"01" =>
+		  when b"001" =>
 			axi_rdata <= slv_reg1_rd;
 			slv_reg1_rd_strb_s <= '1';
-		  when b"10" =>
+		  when b"010" =>
 			axi_rdata <= slv_reg2_rd;
 			slv_reg2_rd_strb_s <= '1';
-		  when b"11" =>
+		  when b"011" =>
 			axi_rdata <= slv_reg3_rd;
 			slv_reg3_rd_strb_s <= '1';
 		  when others =>

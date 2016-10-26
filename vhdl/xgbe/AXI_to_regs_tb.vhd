@@ -20,7 +20,7 @@ architecture STRUCTURE of tb is
 
 		-- Parameters of Axi Slave Bus Interface s_axi
 		C_s_axi_DATA_WIDTH	: integer	:= 32;
-		C_s_axi_ADDR_WIDTH	: integer	:= 4
+		C_s_axi_ADDR_WIDTH	: integer	:= 5
 	);
 	port (
 		-- Users to add ports here
@@ -112,7 +112,7 @@ architecture STRUCTURE of tb is
 begin
 
 axi_to_regs_1 : AXI_to_regs
-generic map(C_s_axi_DATA_WIDTH => 32, C_s_axi_ADDR_WIDTH => 4)
+generic map(C_s_axi_DATA_WIDTH => 32, C_s_axi_ADDR_WIDTH => 5)
 port map (interrupt => interrupt, slv_reg0_rd => slv_reg0_rd, slv_reg0_wr => slv_reg0_wr,
 	slv_reg1_rd => slv_reg1_rd, slv_reg1_wr => slv_reg1_wr, slv_reg2_rd => slv_reg2_rd,
 	slv_reg2_wr => slv_reg2_wr, slv_reg3_rd => slv_reg3_rd, slv_reg3_wr => slv_reg3_wr,
