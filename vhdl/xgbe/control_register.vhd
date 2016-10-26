@@ -13,6 +13,7 @@ entity control_register is
 		reg_input 	: in std_logic_vector(DATA_WIDTH - 1 downto 0);
 		reg_strb 	: in std_logic;
 		rcv_en		: out std_logic;
+		int_en		: out std_logic;
 		resetp		: out std_logic
 	);
 end control_register;
@@ -21,6 +22,7 @@ architecture control_register_arch of control_register is
 signal reg, reg_tmp : std_logic_vector(DATA_WIDTH - 1 downto 0);
 begin
 
+	int_en <= reg(2);
 	rcv_en <= reg(1);
 	resetp <= reg(0);
 

@@ -234,7 +234,6 @@ static int pdi_complete_xmit(struct pdi *pdi)
 	return 0;
 }
 
-static atomic_t enable_int;
 static atomic_t to_read;
 
 static irqreturn_t pdi_int_handler(int irq, void *data)
@@ -243,10 +242,10 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 
 	atomic_add(ioread32(pdi->reg3), &to_read);
 
-	if (atomic_read(&enable_int)) {
-		atomic_set(&enable_int, 0);
-		napi_schedule(&pdi->napi);
-	}
+	/* Turn off interrupts. */
+	iowrite32(cpu_to_le32(1 << 1), pdi->reg2);
+	napi_schedule(&pdi->napi);
+	
 	return IRQ_HANDLED;
 }
 
@@ -353,7 +352,11 @@ static int pdi_poll(struct napi_struct *napi, int budget)
 	ret = pdi_rx(pdi);
 	pdi_complete_xmit(pdi);
 	napi_complete(&pdi->napi);
-	atomic_set(&enable_int, 1);
+
+	if (budget > packets_cnt)
+		/* Enable interrupt and data reception. */
+		iowrite32(cpu_to_le32((1 << 1) | (1 << 2)), pdi->reg2);
+
 	return ret;
 }
 
@@ -607,12 +610,11 @@ static int pdi_probe(struct platform_device *pdev)
 	 */
 	mdelay(1);
 	
-	/* Data reception enable on FPGA */
-	iowrite32(cpu_to_le32(2), pdi->reg2);
+	/* Data reception and interrupt enable on FPGA */
+	iowrite32(cpu_to_le32(1 << 1 | 1 << 2), pdi->reg2);
 	wmb();
 
 	atomic_set(&to_read, 0);
-	atomic_set(&enable_int, 1);
 
 	/* Move both functions to netdev open. */
 	netif_start_queue(netdev);	

@@ -22,6 +22,7 @@ component control_register is
 end component;
 
 signal clk, clk_resetn, reg_strb, rcv_en, resetp : std_logic := '0';
+signal int_en : std_logic := '0';
 signal reg_input : std_logic_vector(31 downto 0) := (others => '0');
 
 begin
@@ -34,6 +35,7 @@ port map (
 	reg_input => reg_input,
 	reg_strb => reg_strb,
 	rcv_en => rcv_en,
+	int_en => int_en,
 	resetp => resetp
 );
 

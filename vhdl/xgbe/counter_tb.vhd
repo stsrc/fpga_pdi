@@ -17,6 +17,7 @@ component counter is
 		resetn		: in std_logic;
 		incr   		: in std_logic;
 		get_val		: in std_logic;
+		int_en		: in std_logic;
 		cnt_out		: out std_logic_vector(REG_WIDTH - 1 downto 0);
 		interrupt   : out std_logic
 	);
@@ -24,6 +25,7 @@ end component;
 
 
 signal clk, resetn, incr, get_val, interrupt : std_logic := '0';
+signal int_en  : std_logic := '1';
 signal cnt_out : std_logic_vector(31 downto 0);
 begin
 counter_0 : counter
@@ -33,6 +35,7 @@ counter_0 : counter
 		resetn => resetn,
 		incr => incr,
 		get_val => get_val,
+		int_en => int_en,
 		cnt_out => cnt_out,
 		interrupt => interrupt
 	);
@@ -53,6 +56,7 @@ end process;
 
 process begin
 	wait for 10.5 ns;
+	int_en <= '1';
 	incr <= '1';
 	wait for 50 ns;
 	incr <= '0';

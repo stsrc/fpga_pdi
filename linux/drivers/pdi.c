@@ -335,7 +335,7 @@ static int pdi_probe(struct platform_device *pdev)
 		goto err2;
 
 	/* Software reset on xgbe part of FPGA*/
-	iowrite32(cpu_to_le32(1), pdi->reg2);
+	iowrite32(cpu_to_le32(1 << 0), pdi->reg2);
 	wmb();
 	/* 
 	 * Softrst on fPGA has delay of ~2 ticks between clock domains. 
@@ -344,8 +344,8 @@ static int pdi_probe(struct platform_device *pdev)
 	 */
 	mdelay(1);
 
-	/* Data reception enable on FPGA */
-	iowrite32(cpu_to_le32(2), pdi->reg2);
+	/* Data reception and interrupt enable on FPGA */
+	iowrite32(cpu_to_le32((1 << 1) | (1 << 2)), pdi->reg2);
 	wmb();
 
 	return 0;

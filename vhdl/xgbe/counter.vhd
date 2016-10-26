@@ -12,6 +12,7 @@ entity counter is
 		resetn		: in std_logic;
 		incr   		: in std_logic;
 		get_val		: in std_logic;
+		int_en		: in std_logic;
 		cnt_out		: out std_logic_vector(REG_WIDTH - 1 downto 0);
 		interrupt   : out std_logic
 	);
@@ -57,10 +58,14 @@ begin
 				interrupt <= '0';
 				int_gen_cnt <= int_gen_cnt;
 				if (incr = '1') then
-					interrupt <= '1';
+					if (int_en = '1') then
+						interrupt <= '1';
+					end if;
 					int_gen_cnt <= (others => '0');
 				elsif (to_integer(int_gen_cnt) > INT_GEN_DELAY) then
-					interrupt <= '1';
+					if (int_en = '1') then
+						interrupt <= '1';
+					end if;
 					int_gen_cnt <= (others => '0');
 				elsif (cnt /= 0) then
 					int_gen_cnt <= int_gen_cnt + 1;

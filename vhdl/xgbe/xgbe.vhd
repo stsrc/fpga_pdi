@@ -107,6 +107,7 @@ component counter is
 		resetn		: in std_logic;
 		incr   		: in std_logic;
 		get_val		: in std_logic;
+		int_en		: in std_logic;
 		cnt_out		: out std_logic_vector(REG_WIDTH - 1 downto 0);
 		interrupt   : out std_logic
 	);
@@ -175,6 +176,7 @@ component control_register is
 		reg_input 	: in std_logic_vector(DATA_WIDTH - 1 downto 0);
 		reg_strb 	: in std_logic;
 		rcv_en		: out std_logic;
+		int_en		: out std_logic;
 		resetp      : out std_logic
 	);
 end component control_register;
@@ -321,6 +323,7 @@ end component reset_con;
 	signal interrupt_counter_axi : std_logic := '0';
 	
 	signal rcv_en_100MHz, rcv_en_156_25MHz, resetp 	: std_logic := '0';
+	signal int_en_100MHZ			: std_logic := '0';
 	signal control_reg_100MHz_resetn 	: std_logic := '0';
 	signal control_reg_156_25MHz_resetn 	: std_logic := '0';
 	signal con_100MHz_resetn		: std_logic := '0';
@@ -369,6 +372,7 @@ begin
 			resetn => con_100MHz_resetn,
 			incr => interrupt_fifo_counter,
 			get_val => slv_reg3_rd_strb,
+			int_en	=> int_en,
 			cnt_out => slv_reg3_rd,
 			interrupt => interrupt_counter_axi
 		);
@@ -529,6 +533,7 @@ begin
 			reg_input => slv_reg2_wr,
 			reg_strb => slv_reg2_wr_strb,
 			rcv_en  => rcv_en_100MHz,
+			int_en => int_en_100MHz,
 			resetp => resetp	
 		);
 		
