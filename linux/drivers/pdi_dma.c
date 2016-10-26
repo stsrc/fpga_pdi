@@ -1,12 +1,11 @@
-//TODO 
 //TODO netdev, dev, pdev - think/read about it.
 //TODO spinlocks, semaphores, race conditions etc.
 //TODO more then one card!!!
 //TODO DETECTION OF ALREADY USED DEVICE, ETC!
 
 /*
- * DMA part of driver based on b44 driver.
- * TODO: path of b44 driver.
+ * DMA part of driver based on b44 driver, which can be fond in:
+ * drivers/net/ethernet/broadcom/b44.c
  */
 
 #include <linux/errno.h>
@@ -105,9 +104,8 @@ struct pdi {
 	dma_addr_t reg0_dma;
 	dma_addr_t reg1_dma;
 
-	struct dma_pool *pool;
-
-	struct dma_ring tx_ring; 
+	struct dma_ring tx_ring;
+	struct dma_ring rx_ring;
 };
 
 /*
@@ -206,6 +204,7 @@ static int pdi_complete_xmit(struct pdi *pdi)
 {
 	struct sk_buff *skb; 
 	struct dma_ring *tx_ring = &pdi->tx_ring;
+	u32 packets = 0, bytes = 0;
 	u32 i = 0;
 
 	for (i = tx_ring->desc_cons; i != tx_ring->desc_cur; 
@@ -224,10 +223,13 @@ static int pdi_complete_xmit(struct pdi *pdi)
 		dma_unmap_single(pdi->dev, tx_ring->buffer[i].map, skb->len, 
 				 DMA_TO_DEVICE);
 
-		netdev_completed_queue(pdi->netdev, 1, skb->len);
+		bytes += skb->len;
+		packets++;
+
 		dev_kfree_skb(skb);
 	}
-	
+
+	netdev_completed_queue(pdi->netdev, packets, bytes);
 	tx_ring->desc_cons = i;
 	return 0;
 }
@@ -355,45 +357,75 @@ static int pdi_poll(struct napi_struct *napi, int budget)
 	return ret;
 }
 
-static int pdi_init_dma_rings(struct platform_device *pdev)
+static int pdi_init_dma_ring(struct pdi *pdi, struct dma_ring *ring)
 {
-	struct pdi *pdi = pdev->dev.platform_data;
-	struct dma_ring *tx_ring = &pdi->tx_ring;
 	const size_t desc_size = sizeof(struct cdma_sg_descriptor);
 	
 
-	tx_ring->desc = dma_zalloc_coherent(pdi->dev, tx_ring->desc_max * 
-				desc_size, &tx_ring->desc_p, GFP_KERNEL | 
+	ring->desc = dma_zalloc_coherent(pdi->dev, ring->desc_max * 
+				desc_size, &ring->desc_p, GFP_KERNEL | 
 				GFP_DMA);
 
-	if (!tx_ring->desc) 
+	if (!ring->desc) 
 		return -ENOMEM;
 	
 
-	tx_ring->buffer = kzalloc(sizeof(struct ring_info) * tx_ring->desc_max,
+	ring->buffer = kzalloc(sizeof(struct ring_info) * ring->desc_max,
 				 GFP_KERNEL);
 
-	if (!tx_ring->buffer) {
-		dma_free_coherent(pdi->dev, desc_size * tx_ring->desc_max, 
-			  tx_ring->desc, tx_ring->desc_p);
+	if (!ring->buffer) {
+		dma_free_coherent(pdi->dev, desc_size * ring->desc_max, 
+			  ring->desc, ring->desc_p);
 		return -ENOMEM;		
 	} 
 
-	tx_ring->cnt = dma_zalloc_coherent(pdi->dev, sizeof(u32) * 
-				tx_ring->desc_max / 2, &tx_ring->cnt_p,
+	ring->cnt = dma_zalloc_coherent(pdi->dev, sizeof(u32) * 
+				ring->desc_max / 2, &ring->cnt_p,
 				GFP_KERNEL | GFP_DMA);
 
-	if (!tx_ring->cnt) {
-		kfree(tx_ring->buffer);
-		dma_free_coherent(pdi->dev, desc_size * tx_ring->desc_max, 
-			  tx_ring->desc, tx_ring->desc_p);
+	if (!ring->cnt) {
+		kfree(ring->buffer);
+		dma_free_coherent(pdi->dev, desc_size * ring->desc_max, 
+			  ring->desc, ring->desc_p);
 		return -ENOMEM;
 	}
 
-	for (int i = 1; i < tx_ring->desc_max; i += 2) {
-		tx_ring->buffer[i].data.cnt = &tx_ring->cnt[i];
-		tx_ring->buffer[i].map = tx_ring->cnt_p + i * sizeof(u32);
+	for (int i = 1; i < ring->desc_max; i += 2) {
+		ring->buffer[i].data.cnt = &ring->cnt[i];
+		ring->buffer[i].map = ring->cnt_p + i * sizeof(u32);
 	}
+
+	return 0;
+}
+
+
+static void pdi_deinit_dma_ring(struct pdi *pdi, struct dma_ring *ring)
+{
+	const size_t desc_size = sizeof(struct cdma_sg_descriptor);
+
+	kfree(ring->buffer);	
+
+	dma_free_coherent(pdi->dev, desc_size * ring->desc_max, 
+			  ring->desc, ring->desc_p);
+
+	dma_free_coherent(pdi->dev, sizeof(u32) * ring->desc_max / 2, 
+			  ring->cnt, ring->cnt_p);
+}
+
+static int pdi_init_dma_rings(struct platform_device *pdev)
+{
+	struct pdi *pdi = pdev->dev.platform_data;
+	int ret;
+
+	ret = pdi_init_dma_ring(pdi, &pdi->tx_ring);
+	if (ret)
+		return ret;
+
+	ret = pdi_init_dma_ring(pdi, &pdi->rx_ring);
+	if (ret) {
+		pdi_deinit_dma_ring(pdi, &pdi->tx_ring);
+		return ret;
+	}	
 
 	return 0;
 }
@@ -401,16 +433,9 @@ static int pdi_init_dma_rings(struct platform_device *pdev)
 static void pdi_deinit_dma_rings(struct platform_device *pdev)
 {
 	struct pdi *pdi = pdev->dev.platform_data;
-	struct dma_ring *tx_ring = &pdi->tx_ring;
-	const size_t desc_size = sizeof(struct cdma_sg_descriptor);
 
-	kfree(tx_ring->buffer);	
-
-	dma_free_coherent(pdi->dev, desc_size * tx_ring->desc_max, 
-			  tx_ring->desc, tx_ring->desc_p);
-
-	dma_free_coherent(pdi->dev, sizeof(u32) * tx_ring->desc_max / 2, 
-			  tx_ring->cnt, tx_ring->cnt_p);
+	pdi_deinit_dma_ring(pdi, &pdi->tx_ring);
+	pdi_deinit_dma_ring(pdi, &pdi->rx_ring);
 }
 
 /*
@@ -549,7 +574,8 @@ static int pdi_probe(struct platform_device *pdev)
 
 	//SET_NETDEV_DEV(netdev, pdev);//TODO
 
-	*(u32 *)&pdi->tx_ring.desc_max = 64;
+	*(u32 *)&pdi->tx_ring.desc_max = 256;
+	*(u32 *)&pdi->rx_ring.desc_max = 256;
 
 	pdi->netdev = netdev;
 	pdev->dev.platform_data = pdi;
