@@ -135,7 +135,7 @@ process(clk) begin
 			when IDLE =>
 				if (TX_DESC_ADDR_STRB = '1') then
 					TX_DESC_ADDR_ACTUAL <= unsigned(TX_DESC_ADDR);
-					TX_PRCSSD <= (others => '0');
+					TX_PRCSSD_REG <= (others => '0');
 				else
 					if(TX_INCR_STRB = '1' and DMA_EN = '1') then
 						if (TX_PRCSSD_REG = TX_SIZE_REG) then
