@@ -227,9 +227,34 @@ begin
 	axi_init_txn <= '1';
 	wait for 10 ns;
 	axi_init_txn <= '0';
-	wait until axi_done_txn = '1';
 	wait until slv_reg0_wr_strb = '1';
-	assert unsigned(slv_reg0_wr) = 1212 report "Wrong first test." severity failure;		
+	wait until axi_done_txn = '1';
+	assert unsigned(slv_reg0_wr) = 1212 report "Wrong first test." severity failure;
+
+	wait for 10 ns;
+	
+	m_data_in <= std_logic_vector(to_unsigned(2121, 32));
+	m_target_addr <= std_logic_vector(to_unsigned(4, 32));
+	axi_init_txn <= '1';
+	wait for 10 ns;
+	axi_init_txn <= '0';
+	wait until slv_reg1_wr_strb = '1';
+	wait until axi_done_txn = '1';
+	assert unsigned(slv_reg1_wr) = 2121 report "Wrong second test." severity failure;
+
+	wait for 10 ns;
+	
+	m_target_addr <= std_logic_vector(to_unsigned(12, 32));
+	slv_reg3_rd <= std_logic_vector(to_unsigned(98765, 32));
+	axi_init_rxn <= '1';
+	wait for 10 ns;
+	axi_init_rxn <= '0';
+	wait until slv_reg3_rd_strb = '1';
+	wait until axi_done_rxn = '1';
+	
+	assert unsigned(m_data_out) = 98765 report "Wrong third test." severity failure;	
+
 	wait;
+
 end process;
 end tb_arch;

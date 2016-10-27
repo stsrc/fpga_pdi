@@ -339,10 +339,10 @@ begin
 	                write_issued  <= '1';                                                               
 	              elsif (axi_bready = '1') then                                                         
 	                write_issued   <= '0';                                                              
-	              else   
 			mst_exec_state <= IDLE; 
 			AXI_TXN_DONE <= '1';
-	                start_single_write <= '0';
+		      else
+			start_single_write <= '0';
 	              end if;                                                                               
 
 	          when INIT_READ =>                                                                         
@@ -359,10 +359,10 @@ begin
 	              elsif (axi_rready = '1') then
 	                read_issued   <= '0';
 			AXI_RXN_DONE <= '1'; 
-	              else
-			start_single_read <= '0';
 			M_DATA_OUT_S <= M_AXI_RDATA;
 			mst_exec_state <= IDLE;
+			else
+				start_single_read <= '0';
 			end if;
 			when others  =>
 			mst_exec_state  <= IDLE;
