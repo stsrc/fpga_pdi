@@ -20,18 +20,18 @@ entity fsm_DMA is
 		AXI_RXN_DONE 	: in  std_logic;
 
 		--physical address of TX DMA ring created by linux.
-		TX_ADDR		: in std_logic_vector(31 downto 0);
-		TX_ADDR_STRB 	: in std_logic;
-		--size of TX DMA ring (in DMA descriptors count).
-		TX_CNT		: in std_logic_vector(31 downto 0);
-		TX_CNT_STRB	: in std_logic;
+		TX_DESC_ADDR		: in std_logic_vector(31 downto 0);
+		TX_DESC_ADDR_STRB 	: in std_logic;
+		--size of TX DMA ring (in bytes).
+		TX_SIZE		: in std_logic_vector(31 downto 0);
+		TX_SIZE_STRB	: in std_logic;
 	
 		--signal TX DMA to fetch one TX DMA descriptor and process.
 		TX_INCR_STRB	: in std_logic;
 
-		--Processed TX descriptors count from the last read.
+		--Processed TX descriptors size from the last read.
 		TX_PRCSSD	: out std_logic_vector(31 downto 0);
-		--Processed TX descriptors count read strobe (resets counter).
+		--Processed TX descriptors size read strobe (resets counter).
 		TX_PRCSSD_STRB	: in std_logic;
 		--Processed TX descriptor interrupt.
 		TX_PRCSSD_INT	: out std_logic;
@@ -39,13 +39,13 @@ entity fsm_DMA is
 		--physical address of RX DMA ring created by linux.
 		RX_ADDR		: in std_logic_vector(31 downto 0);
 		RX_ADDR_STRB 	: in std_logic;
-		--size of RX DMA ring (in DMA descriptors count).
-		RX_CNT		: in std_logic_vector(31 downto 0);
-		RX_CNT_STRB	: in std_logic;
+		--size of RX DMA ring (in bytes).
+		RX_SIZE		: in std_logic_vector(31 downto 0);
+		RX_SIZE_STRB	: in std_logic;
 
-		--Processed RX descriptors count from the last read.
+		--Processed RX descriptors size from the last read.
 		RX_PRCSSD	: out std_logic_vector(31 downto 0);
-		--Processed RX descriptors count read strobe (resets counter).
+		--Processed RX descriptors size read strobe (resets counter).
 		RX_PRCSSD_STRB	: in std_logic;
 		--Processed RX descriptor interrupt.
 		RX_PRCSSD_INT	: out std_logic;
@@ -55,13 +55,182 @@ entity fsm_DMA is
 		--Enable MAC to work.
 		--(ensure that DMA rings are set.).
 		DMA_EN		: in std_logic;
+
+		--TX data output
+		TX_PCKT_DATA		: out std_logic_vector(31 downto 0);
+		TX_PCKT_DATA_STRB	: out std_logic;
+		--TX packet size output
+		TX_PCKT_CNT		: out std_logic_vector(31 downto 0);
+		TX_PCKT_CNT_STRB	: out std_logic
 	);
 end fsm_DMA;
 
 architecture fsm_DMA_arch of fsm_DMA is
 
+signal TX_DESC_ADDR_REG, TX_SIZE_REG	: unsigned(31 downto 0);
+signal TX_PRCSSD_REG		: unsigned(31 downto 0);
+signal TX_DESC_ADDR_ACTUAL		: unsigned(31 downto 0);
+signal TX_BUFF_ADDR			: unsigned(31 downto 0);
 
+signal TX_BYTES_REG		: unsigned(31 downto 0);
+signal TX_BYTES_ACTUAL		: unsigned(31 downto 0);
+
+signal TX_FAKE_READ		: std_logic;
+
+type tx_states is (
+		IDLE,
+		FETCH_CNT,
+		FETCH_CNT_WAIT,
+		FETCH_PTR, 
+		FETCH_PTR_WAIT, 
+		FETCH_WORD,
+		FETCH_WORD_WAIT,
+		FAKE_TX_STRB,
+		PUSH_PCKT_CNT
+		);
+signal TX_STATE	: tx_states;
 
 begin
 
+process(clk) begin
+	if (rising_edge(clk)) then
+		if (aresetn = '0') then
+			TX_DESC_ADDR_REG <= (others => '0');
+			TX_SIZE_REG <= (others => '0');
+		else
+			if (TX_DESC_ADDR_STRB = '1') then
+				TX_DESC_ADDR_REG <= TX_ADDR;
+			end if;
+
+			if (TX_SIZE_STRB = '1') then
+				TX_SIZE_REG <= TX_SIZE;
+			end if;
+		end if;
+	end if;
+end process;
+
+TX_PRCSSD <= TX_PRCSSD_REG;
+
+process(clk) begin
+	if (rising_edge(clk)) then
+		if (aresetn = '0') then
+			TX_PRCSSD_REG <= (others => '0');
+			TX_DESC_ADDR_ACTUAL <= (others => '0');
+			INIT_AXI_RXN <= '0';
+			TX_PCKT_DATA_STRB <= '0';
+			TX_PCKT_CNT_STRB <= '0';
+			TX_PRCSSD_INT <= '0';
+			TX_PRCSSD_REG <= (others => '0');
+			TX_FAKE_READ <= '0';
+		else			
+
+			INIT_AXI_RXN <= '0';
+			TX_PCKT_DATA_STRB <= '0';
+			TX_PCKT_CNT_STRB <= '0';
+			TX_PRCSSD_INT <= '0';	
+		
+			if (TX_PRCSSD_STRB = '1') then
+				TX_PRCSSD_REG <= (others => '0');
+			end if;
+
+			case(TX_STATE) is
+			when IDLE =>
+				if (TX_DESC_ADDR_STRB = '1') then
+					TX_DESC_ADDR_ACTUAL <= TX_DESC_ADDR;
+					TX_PRCSSD <= (others => '0');
+				else
+					if(TX_INCR_STRB) then
+						if (TX_PRCSSD_REG = TX_SIZE_REG) then
+							TX_STATE <= IDLE;
+						else
+							TX_STATE <= FETCH_CNT;
+						end if;
+					end if;
+				end if;
+
+			when FETCH_CNT =>
+				ADDR <= TX_DESC_ADDR_ACTUAL;
+				INIT_AXI_RXN <= '1';	
+				TX_DESC_ADDR_ACTUAL <= TX_DESC_ADDR_ACTUAL + 4;
+				TX_STATE <= FETCH_CNT_WAIT;
+
+			when FETCH_CNT_WAIT =>
+				INIT_AXI_RXN <= '0';
+				if (AXI_RXN_DONE = '1') then
+					TX_BYTES_REG <= unsigned(DATA_IN);
+					TX_BYTES_ACTUAL <= unsigned(DATA_IN);
+
+					if (unsigned(DATA_IN) % 8 /= 0 and
+					    unsigned(DATA_IN) % 8 <= 4)
+						TX_FAKE_READ <= '1';
+
+					else
+						TX_FAKE_READ <= '0';
+					end if;
+
+					TX_STATE <= FETCH_PTR; 
+				else
+					TX_STATE <= FETCH_CNT_WAIT;
+				end if;
+
+			when FETCH_PTR =>
+				ADDR <= TX_DESC_ADDR_ACTUAL;
+				INIT_AXI_RXN <= '1';
+				TX_DESC_ADDR_ACTUAL <= TX_DESC_ADDR_ACTUAL + 4;					 
+				TX_STATE <= FETCH_PTR_WAIT;
+
+			when FETCH_PTR_WAIT =>
+				if (AXI_RXN_DONE = '1') then
+					TX_BUFF_ADDR <= unsigned(DATA_IN);
+					TX_STATE <= FETCH_WORD;
+				else
+					TX_STATE <= FETCH_PTR_WAIT
+				end if; 
+
+			when FETCH_WORD =>
+				ADDR <= TX_BUFF_ADDR;
+				TX_BUFF_ADDR <= TX_BUFF_ADDR + 4;
+				if (TX_BYTES_ACTUAL <= 4) then
+					TX_BYTES_ACTUAL <= 0;
+				else
+					TX_BYTES_ACTUAL <= TX_BYTES_ACTUAL - 4;
+				end if;
+				INIT_AXI_RXN <= '1';
+				TX_STATE <= FETCH_WORD_WAIT;
+
+			when FETCH_WORD_WAIT =>
+				if (AXI_RXN_DONE = '1') then
+					TX_PCKT_DATA <= DATA_IN;
+					TX_PCKT_DATA_STRB <= '1';
+					if (TX_BYTES_ACTUAL > 0) then
+						TX_STATE <= FETCH_WORD;
+					elsif (TX_FAKE_READ = '1') then
+						TX_STATE <= FAKE_TX_STRB;
+					else
+						TX_STATE <= PUSH_PCKT_CNT;
+					end if;
+				else
+					TX_STATE <= FETCH_WORD_WAIT;
+				end if;
+			when FAKE_TX_STRB =>
+				TX_PCKT_DATA <= (others => '0');
+				TX_PCKT_DATA_STRB <= '1';
+				TX_STATE <= PUSH_PCKT_CNT;
+			when PUSH_PCKT_CNT =>
+				TX_PCKT_CNT <= std_logic_vector(TX_BYTES_REG);
+				TX_PCKT_CNT_STRB <= '1';
+				TX_PRCSSD_INT <= '1';
+				TX_PRCSSD_REG <= TX_PRCSSD_REG + 64;
+				if (TX_PRCSSD_STRB = '1') then
+					TX_PRCSSD_REG <= 64;
+				end if;
+				TX_STATE <= IDLE;
+			when others =>
+				TX_STATE <= IDLE;
+			end case;	
+		end if;
+	end if;
+end process;
+
 end fsm_DMA_arch;
+
