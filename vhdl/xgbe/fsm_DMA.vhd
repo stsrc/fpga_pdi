@@ -2,59 +2,57 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-
 entity fsm_DMA is
-
 	port (
-		clk		: in  std_logic;
-		aresetn		: in  std_logic;
+		clk			: in  std_logic;
+		aresetn			: in  std_logic;
 
 		--AXI_Master interface
-		DATA_IN 	: in  std_logic_vector(31 downto 0);
-		DATA_OUT	: out std_logic_vector(31 downto 0);
-		ADDR		: out std_logic_vector(31 downto 0);
+		DATA_IN 		: in  std_logic_vector(31 downto 0);
+		DATA_OUT		: out std_logic_vector(31 downto 0);
+		ADDR			: out std_logic_vector(31 downto 0);
 		
-		INIT_AXI_TXN	: out std_logic;
-		AXI_TXN_DONE	: in  std_logic;
-		INIT_AXI_RXN	: out std_logic;
-		AXI_RXN_DONE 	: in  std_logic;
+		INIT_AXI_TXN		: out std_logic;
+		AXI_TXN_DONE		: in  std_logic;
+		INIT_AXI_RXN		: out std_logic;
+		AXI_RXN_DONE 		: in  std_logic;
 
 		--physical address of TX DMA ring created by linux.
 		TX_DESC_ADDR		: in std_logic_vector(31 downto 0);
 		TX_DESC_ADDR_STRB 	: in std_logic;
 		--size of TX DMA ring (in bytes).
-		TX_SIZE		: in std_logic_vector(31 downto 0);
-		TX_SIZE_STRB	: in std_logic;
+		TX_SIZE			: in std_logic_vector(31 downto 0);
+		TX_SIZE_STRB		: in std_logic;
 	
 		--signal TX DMA to fetch one TX DMA descriptor and process.
-		TX_INCR_STRB	: in std_logic;
+		TX_INCR_STRB		: in std_logic;
 
 		--Processed TX descriptors size from the last read.
-		TX_PRCSSD	: out std_logic_vector(31 downto 0);
+		TX_PRCSSD		: out std_logic_vector(31 downto 0);
 		--Processed TX descriptors size read strobe (resets counter).
-		TX_PRCSSD_STRB	: in std_logic;
+		TX_PRCSSD_STRB		: in std_logic;
 		--Processed TX descriptor interrupt.
-		TX_PRCSSD_INT	: out std_logic;
+		TX_PRCSSD_INT		: out std_logic;
 
 		--physical address of RX DMA ring created by linux.
-		RX_ADDR		: in std_logic_vector(31 downto 0);
-		RX_ADDR_STRB 	: in std_logic;
+		RX_ADDR			: in std_logic_vector(31 downto 0);
+		RX_ADDR_STRB 		: in std_logic;
 		--size of RX DMA ring (in bytes).
-		RX_SIZE		: in std_logic_vector(31 downto 0);
-		RX_SIZE_STRB	: in std_logic;
+		RX_SIZE			: in std_logic_vector(31 downto 0);
+		RX_SIZE_STRB		: in std_logic;
 
 		--Processed RX descriptors size from the last read.
-		RX_PRCSSD	: out std_logic_vector(31 downto 0);
+		RX_PRCSSD		: out std_logic_vector(31 downto 0);
 		--Processed RX descriptors size read strobe (resets counter).
-		RX_PRCSSD_STRB	: in std_logic;
+		RX_PRCSSD_STRB		: in std_logic;
 		--Processed RX descriptor interrupt.
-		RX_PRCSSD_INT	: out std_logic;
+		RX_PRCSSD_INT		: out std_logic;
 
 		--Packet received strobe.
-		XGBE_PACKET_RCV	: in std_logic;
+		XGBE_PACKET_RCV		: in std_logic;
 		--Enable MAC to work.
 		--(ensure that DMA rings are set.).
-		DMA_EN		: in std_logic;
+		DMA_EN			: in std_logic;
 
 		--TX data output
 		TX_PCKT_DATA		: out std_logic_vector(31 downto 0);
@@ -99,17 +97,17 @@ process(clk) begin
 			TX_SIZE_REG <= (others => '0');
 		else
 			if (TX_DESC_ADDR_STRB = '1') then
-				TX_DESC_ADDR_REG <= TX_ADDR;
+				TX_DESC_ADDR_REG <= unsigned(TX_DESC_ADDR);
 			end if;
 
 			if (TX_SIZE_STRB = '1') then
-				TX_SIZE_REG <= TX_SIZE;
+				TX_SIZE_REG <= unsigned(TX_SIZE);
 			end if;
 		end if;
 	end if;
 end process;
 
-TX_PRCSSD <= TX_PRCSSD_REG;
+TX_PRCSSD <= std_logic_vector(TX_PRCSSD_REG);
 
 process(clk) begin
 	if (rising_edge(clk)) then
@@ -136,10 +134,10 @@ process(clk) begin
 			case(TX_STATE) is
 			when IDLE =>
 				if (TX_DESC_ADDR_STRB = '1') then
-					TX_DESC_ADDR_ACTUAL <= TX_DESC_ADDR;
+					TX_DESC_ADDR_ACTUAL <= unsigned(TX_DESC_ADDR);
 					TX_PRCSSD <= (others => '0');
 				else
-					if(TX_INCR_STRB) then
+					if(TX_INCR_STRB = '1' and DMA_EN = '1') then
 						if (TX_PRCSSD_REG = TX_SIZE_REG) then
 							TX_STATE <= IDLE;
 						else
@@ -149,7 +147,7 @@ process(clk) begin
 				end if;
 
 			when FETCH_CNT =>
-				ADDR <= TX_DESC_ADDR_ACTUAL;
+				ADDR <= std_logic_vector(TX_DESC_ADDR_ACTUAL);
 				INIT_AXI_RXN <= '1';	
 				TX_DESC_ADDR_ACTUAL <= TX_DESC_ADDR_ACTUAL + 4;
 				TX_STATE <= FETCH_CNT_WAIT;
@@ -160,8 +158,8 @@ process(clk) begin
 					TX_BYTES_REG <= unsigned(DATA_IN);
 					TX_BYTES_ACTUAL <= unsigned(DATA_IN);
 
-					if (unsigned(DATA_IN) % 8 /= 0 and
-					    unsigned(DATA_IN) % 8 <= 4)
+					if (unsigned(DATA_IN) mod 8 /= 0 and
+					    unsigned(DATA_IN) mod 8 <= 4) then
 						TX_FAKE_READ <= '1';
 
 					else
@@ -174,7 +172,7 @@ process(clk) begin
 				end if;
 
 			when FETCH_PTR =>
-				ADDR <= TX_DESC_ADDR_ACTUAL;
+				ADDR <= std_logic_vector(TX_DESC_ADDR_ACTUAL);
 				INIT_AXI_RXN <= '1';
 				TX_DESC_ADDR_ACTUAL <= TX_DESC_ADDR_ACTUAL + 4;					 
 				TX_STATE <= FETCH_PTR_WAIT;
@@ -184,14 +182,14 @@ process(clk) begin
 					TX_BUFF_ADDR <= unsigned(DATA_IN);
 					TX_STATE <= FETCH_WORD;
 				else
-					TX_STATE <= FETCH_PTR_WAIT
+					TX_STATE <= FETCH_PTR_WAIT;
 				end if; 
 
 			when FETCH_WORD =>
-				ADDR <= TX_BUFF_ADDR;
+				ADDR <= std_logic_vector(TX_BUFF_ADDR);
 				TX_BUFF_ADDR <= TX_BUFF_ADDR + 4;
 				if (TX_BYTES_ACTUAL <= 4) then
-					TX_BYTES_ACTUAL <= 0;
+					TX_BYTES_ACTUAL <= (others => '0');
 				else
 					TX_BYTES_ACTUAL <= TX_BYTES_ACTUAL - 4;
 				end if;
@@ -222,7 +220,7 @@ process(clk) begin
 				TX_PRCSSD_INT <= '1';
 				TX_PRCSSD_REG <= TX_PRCSSD_REG + 64;
 				if (TX_PRCSSD_STRB = '1') then
-					TX_PRCSSD_REG <= 64;
+					TX_PRCSSD_REG <= to_unsigned(64, 32);
 				end if;
 				TX_STATE <= IDLE;
 			when others =>
