@@ -228,7 +228,7 @@ end component control_register;
 component AXI_to_regs is
 	generic (
 		C_S_AXI_DATA_WIDTH	: integer	:= 32;
-		C_S_AXI_ADDR_WIDTH	: integer	:= 4
+		C_S_AXI_ADDR_WIDTH	: integer	:= 5
 	);
 	port (
 		interrupt 		: out std_logic;

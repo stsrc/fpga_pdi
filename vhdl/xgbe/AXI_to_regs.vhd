@@ -257,6 +257,8 @@ begin
 	      slv_reg6_wr_s <= (others => '0');
 	      slv_reg7_wr_s <= (others => '0');
 	    else
+		--ADDR_LSB = 2; OPT_MEM_ADDR_BITS = 2; awaddr(4 downto 0); loc_addr(2 downto 0);
+		--loc_addr = axi_awaddr(4 downto 2);
 	      loc_addr := axi_awaddr(ADDR_LSB + OPT_MEM_ADDR_BITS downto ADDR_LSB);
 	      if (slv_reg_wren = '1') then
 	        case loc_addr is
