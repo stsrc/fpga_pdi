@@ -12,13 +12,6 @@ end tb;
 architecture STRUCTURE of tb is
 	component AXI_to_regs is
 	generic (
-		-- Users to add parameters here
-
-		-- User parameters ends
-		-- Do not modify the parameters beyond this line
-
-
-		-- Parameters of Axi Slave Bus Interface s_axi
 		C_s_axi_DATA_WIDTH	: integer	:= 32;
 		C_s_axi_ADDR_WIDTH	: integer	:= 5
 	);
@@ -34,15 +27,31 @@ architecture STRUCTURE of tb is
 		slv_reg2_wr    : out std_logic_vector(C_s_axi_DATA_WIDTH - 1 downto 0);
 		slv_reg3_rd	: in std_logic_vector(C_s_axi_DATA_WIDTH - 1 downto 0);
 		slv_reg3_wr    : out std_logic_vector(C_s_axi_DATA_WIDTH - 1 downto 0);
+		slv_reg4_rd	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg4_wr	: out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg5_rd	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg5_wr	: out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg6_rd	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg6_wr    	: out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg7_rd	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg7_wr    	: out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
         
-		slv_reg0_rd_strb   : out std_logic;
-		slv_reg1_rd_strb  : out std_logic;
-		slv_reg2_rd_strb   : out std_logic;
-		slv_reg3_rd_strb   : out std_logic;
-		slv_reg0_wr_strb   : out std_logic;
-		slv_reg1_wr_strb   : out std_logic;
-		slv_reg2_wr_strb   : out std_logic;
-		slv_reg3_wr_strb   : out std_logic;
+		slv_reg0_rd_strb	: out std_logic;
+		slv_reg1_rd_strb	: out std_logic;
+		slv_reg2_rd_strb	: out std_logic;
+		slv_reg3_rd_strb	: out std_logic;
+		slv_reg4_rd_strb	: out std_logic;
+		slv_reg5_rd_strb	: out std_logic;
+		slv_reg6_rd_strb	: out std_logic;
+		slv_reg7_rd_strb	: out std_logic;
+		slv_reg0_wr_strb	: out std_logic;
+		slv_reg1_wr_strb	: out std_logic;
+		slv_reg2_wr_strb	: out std_logic;
+		slv_reg3_wr_strb	: out std_logic;
+		slv_reg4_wr_strb	: out std_logic;
+		slv_reg5_wr_strb	: out std_logic;
+		slv_reg6_wr_strb   	: out std_logic;
+		slv_reg7_wr_strb   	: out std_logic;
 
 		interrupt_in    : in std_logic;
 
@@ -81,12 +90,12 @@ architecture STRUCTURE of tb is
   signal s_axi_aclk, s_axi_aresetn, s_axi_arready, s_axi_arvalid, s_axi_awready, s_axi_awvalid : std_logic := '0';
   signal s_axi_bready, s_axi_bvalid, s_axi_rready, s_axi_rvalid, s_axi_wready, s_axi_wvalid : std_logic := '0';
   signal s_axi_rdata, s_axi_wdata : std_logic_vector(31 downto 0) := (others => '0');
-  signal s_axi_araddr, s_axi_awaddr, s_axi_wstrb : std_logic_vector(3 downto 0) := (others => '0');
+  signal s_axi_araddr, s_axi_awaddr : std_logic_vector(4 downto 0) := (others => '0');
+  signal s_axi_wstrb : std_logic_vector(3 downto 0) := (others => '0');
   signal s_axi_arprot, s_axi_awprot : std_logic_vector(2 downto 0) := (others => '0');
   signal s_axi_bresp, s_axi_rresp : std_logic_vector(1 downto 0) := (others => '0');
   
   signal ReadIt, SendIt : std_logic := '0';
-
 
 	signal interrupt : std_logic := '0';
 
@@ -98,6 +107,14 @@ architecture STRUCTURE of tb is
 	signal slv_reg2_wr     : std_logic_vector(32 - 1 downto 0) := (others => '0');
 	signal slv_reg3_rd	: std_logic_vector(32 - 1 downto 0) := (others => '0');
 	signal slv_reg3_wr     : std_logic_vector(32 - 1 downto 0) := (others => '0');
+	signal slv_reg4_rd	: std_logic_vector(32 - 1 downto 0) := (others => '0');
+	signal slv_reg4_wr	: std_logic_vector(32 - 1 downto 0) := (others => '0');
+	signal slv_reg5_rd	: std_logic_vector(32 - 1 downto 0) := (others => '0');
+	signal slv_reg5_wr	: std_logic_vector(32 - 1 downto 0) := (others => '0');
+	signal slv_reg6_rd	: std_logic_vector(32 - 1 downto 0) := (others => '0');
+	signal slv_reg6_wr     : std_logic_vector(32 - 1 downto 0) := (others => '0');
+	signal slv_reg7_rd	: std_logic_vector(32 - 1 downto 0) := (others => '0');
+	signal slv_reg7_wr     : std_logic_vector(32 - 1 downto 0) := (others => '0');
         
 	signal slv_reg0_rd_strb   : std_logic := '0';
 	signal slv_reg1_rd_strb   : std_logic := '0';
@@ -107,41 +124,78 @@ architecture STRUCTURE of tb is
 	signal slv_reg1_wr_strb   : std_logic := '0';
 	signal slv_reg2_wr_strb   : std_logic := '0';
 	signal slv_reg3_wr_strb   : std_logic := '0';
+	signal slv_reg4_rd_strb   : std_logic := '0';
+	signal slv_reg5_rd_strb   : std_logic := '0';
+	signal slv_reg6_rd_strb   : std_logic := '0';
+	signal slv_reg7_rd_strb   : std_logic := '0';
+	signal slv_reg4_wr_strb   : std_logic := '0';
+	signal slv_reg5_wr_strb   : std_logic := '0';
+	signal slv_reg6_wr_strb   : std_logic := '0';
+	signal slv_reg7_wr_strb   : std_logic := '0';
 	signal interrupt_in    : std_logic := '0';
 
 begin
 
 axi_to_regs_1 : AXI_to_regs
 generic map(C_s_axi_DATA_WIDTH => 32, C_s_axi_ADDR_WIDTH => 5)
-port map (interrupt => interrupt, slv_reg0_rd => slv_reg0_rd, slv_reg0_wr => slv_reg0_wr,
-	slv_reg1_rd => slv_reg1_rd, slv_reg1_wr => slv_reg1_wr, slv_reg2_rd => slv_reg2_rd,
-	slv_reg2_wr => slv_reg2_wr, slv_reg3_rd => slv_reg3_rd, slv_reg3_wr => slv_reg3_wr,
-	slv_reg0_rd_strb => slv_reg0_rd_strb, slv_reg1_rd_strb => slv_reg1_rd_strb,
-	slv_reg2_rd_strb => slv_reg2_rd_strb, slv_reg3_rd_strb => slv_reg3_rd_strb,
-	slv_reg0_wr_strb => slv_reg0_wr_strb, slv_reg1_wr_strb => slv_reg1_wr_strb,
-	slv_reg2_wr_strb => slv_reg2_wr_strb, slv_reg3_wr_strb => slv_reg3_wr_strb,
-	interrupt_in => interrupt_in, 
-	s_axi_aclk => s_axi_aclk,
-	s_axi_araddr(3 downto 0) => s_axi_araddr(3 downto 0),
-	s_axi_aresetn => s_axi_aresetn,
-	s_axi_arprot(2 downto 0) => s_axi_arprot(2 downto 0),
-	s_axi_arready => s_axi_arready,
-	s_axi_arvalid => s_axi_arvalid,
-	s_axi_awaddr(3 downto 0) => s_axi_awaddr(3 downto 0),
-	s_axi_awprot(2 downto 0) => s_axi_awprot(2 downto 0),
-	s_axi_awready => s_axi_awready,
-	s_axi_awvalid => s_axi_awvalid,
-	s_axi_bready => s_axi_bready,
-	s_axi_bresp(1 downto 0) => s_axi_bresp(1 downto 0),
-	s_axi_bvalid => s_axi_bvalid,
-	s_axi_rdata(31 downto 0) => s_axi_rdata(31 downto 0),
-	s_axi_rready => s_axi_rready,
-	s_axi_rresp(1 downto 0) => s_axi_rresp(1 downto 0),
-	s_axi_rvalid => s_axi_rvalid,
-	s_axi_wdata(31 downto 0) => s_axi_wdata(31 downto 0),
-	s_axi_wready => s_axi_wready,
-	s_axi_wstrb(3 downto 0) => s_axi_wstrb(3 downto 0),
-	s_axi_wvalid => s_axi_wvalid
+port map (interrupt => interrupt, 
+	slv_reg0_rd => slv_reg0_rd, 
+	slv_reg0_wr => slv_reg0_wr,
+	slv_reg1_rd => slv_reg1_rd, 
+	slv_reg1_wr => slv_reg1_wr, 
+	slv_reg2_rd => slv_reg2_rd,
+	slv_reg2_wr => slv_reg2_wr, 
+	slv_reg3_rd => slv_reg3_rd,
+	slv_reg3_wr => slv_reg3_wr,
+	slv_reg4_rd => slv_reg4_rd, 
+	slv_reg4_wr => slv_reg4_wr,
+	slv_reg5_rd => slv_reg5_rd, 
+	slv_reg5_wr => slv_reg5_wr, 
+	slv_reg6_rd => slv_reg6_rd,
+	slv_reg6_wr => slv_reg6_wr, 
+	slv_reg7_rd => slv_reg7_rd,
+	slv_reg7_wr => slv_reg7_wr,
+
+	slv_reg0_rd_strb => slv_reg0_rd_strb,
+	slv_reg1_rd_strb => slv_reg1_rd_strb,
+	slv_reg2_rd_strb => slv_reg2_rd_strb,
+	slv_reg3_rd_strb => slv_reg3_rd_strb,
+	slv_reg4_rd_strb => slv_reg4_rd_strb,
+	slv_reg5_rd_strb => slv_reg5_rd_strb,
+	slv_reg6_rd_strb => slv_reg6_rd_strb,
+	slv_reg7_rd_strb => slv_reg7_rd_strb,
+
+	slv_reg0_wr_strb => slv_reg0_wr_strb,
+	slv_reg1_wr_strb => slv_reg1_wr_strb,
+	slv_reg2_wr_strb => slv_reg2_wr_strb, 
+	slv_reg3_wr_strb => slv_reg3_wr_strb,
+	slv_reg4_wr_strb => slv_reg4_wr_strb,
+	slv_reg5_wr_strb => slv_reg5_wr_strb,
+	slv_reg6_wr_strb => slv_reg6_wr_strb, 
+	slv_reg7_wr_strb => slv_reg7_wr_strb,
+
+	interrupt_in 	=> interrupt_in, 
+	s_axi_aclk 	=> s_axi_aclk,
+	s_axi_araddr 	=> s_axi_araddr,
+	s_axi_aresetn 	=> s_axi_aresetn,
+	s_axi_arprot 	=> s_axi_arprot,
+	s_axi_arready 	=> s_axi_arready,
+	s_axi_arvalid 	=> s_axi_arvalid,
+	s_axi_awaddr 	=> s_axi_awaddr,
+	s_axi_awprot 	=> s_axi_awprot,
+	s_axi_awready 	=> s_axi_awready,
+	s_axi_awvalid 	=> s_axi_awvalid,
+	s_axi_bready 	=> s_axi_bready,
+	s_axi_bresp 	=> s_axi_bresp,
+	s_axi_bvalid 	=> s_axi_bvalid,
+	s_axi_rdata 	=> s_axi_rdata,
+	s_axi_rready 	=> s_axi_rready,
+	s_axi_rresp	=> s_axi_rresp,
+	s_axi_rvalid 	=> s_axi_rvalid,
+	s_axi_wdata	=> s_axi_wdata,
+	s_axi_wready 	=> s_axi_wready,
+	s_axi_wstrb	=> s_axi_wstrb,
+	s_axi_wvalid 	=> s_axi_wvalid
 );
 process begin
     s_axi_aclk <= '0';
@@ -199,7 +253,7 @@ begin
     s_axi_aresetn <= '1';
     
     for i in 0 to 8 loop
-	   s_axi_awaddr<="0100";
+	   s_axi_awaddr<="00100";
         s_axi_wdata<=x"00000001";
         s_axi_wstrb<=b"1111";
         sendit<='1';                --start axi write to slave
@@ -208,7 +262,7 @@ begin
 	    wait until s_axi_bvalid = '0';  --axi write finished
         s_axi_wstrb<=b"0000";
 
-	    s_axi_awaddr<="0100";
+	    s_axi_awaddr<="00100";
         s_axi_wdata<=x"00000010";
         s_axi_wstrb<=b"1111";
         sendit<='1';                --start axi write to slave
@@ -218,7 +272,7 @@ begin
         s_axi_wstrb<=b"0000";
     end loop;
 
-	s_axi_awaddr<="0000";
+	s_axi_awaddr<="00000";
     s_axi_wdata<=x"00000041";
     s_axi_wstrb<=b"1111";
     sendit<='1';                --start axi write to slave
@@ -229,7 +283,7 @@ begin
     
     wait for 200 ns;
         
-    s_axi_araddr<="0000";
+    s_axi_araddr<="00000";
         readit<='1';                --start axi read from slave
         wait for 1 ns; 
        readit<='0';                --clear "start read" flag

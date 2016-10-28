@@ -121,6 +121,7 @@ process begin
 	wait for 10 ns;
 	TX_SIZE_STRB <= '0';
 	DMA_EN <= '1';
+
 	for j in 0 to 1 loop
 		TX_INCR_STRB <= '1';
 		wait for 10 ns;
@@ -130,7 +131,7 @@ process begin
 		assert ADDR = std_logic_vector(to_unsigned(10 + 8 * j, 32)) report "2." severity failure;
 		wait for 10 ns;
 		assert INIT_AXI_RXN = '0' report "2." severity failure;
-		DATA_IN <= std_logic_vector(to_unsigned(9, 32));
+		DATA_IN <= std_logic_vector(to_unsigned(9 + 8 * j, 32));
 		AXI_RXN_DONE <= '1';
 		wait for 10 ns;
 		AXI_RXN_DONE <= '0';
@@ -144,7 +145,8 @@ process begin
 		wait for 10 ns;
 		AXI_RXN_DONE <= '0';
 		wait for 10 ns;
-		for i in 0 to 2 loop
+
+		for i in 0 to 2 * (1 + j) loop
 			assert INIT_AXI_RXN = '1' report "6." severity failure;
 			assert ADDR = std_logic_vector(to_unsigned(64 + i * 4, 32));
 			wait for 10 ns;
@@ -157,10 +159,21 @@ process begin
 			assert TX_PCKT_DATA_STRB = '1' report "9." severity failure;
 			wait for 10 ns;
 		end loop;
+
 		assert TX_PCKT_DATA = std_logic_vector(to_unsigned(0, 32)) report "8." severity failure;
 		assert TX_PCKT_DATA_STRB = '1' report "8." severity failure;
 		wait for 10 ns;
+		assert TX_PCKT_CNT = std_logic_vector(to_unsigned(9 + 8 * j, 32)) report "9." severity failure;
+		assert TX_PCKT_CNT_STRB = '1' report "10." severity failure;
+		assert TX_PRCSSD_INT = '1' report "12." severity failure;
+		wait for 10 ns;
 	end loop;
+
+	assert TX_PCKT_CNT_strb = '0' report "11." severity failure;
+	assert TX_PRCSSD = std_logic_vector(to_unsigned(16 , 32)) report "12." severity failure;
+	TX_PRCSSD_STRB <= '1';
+	wait for 10 ns;
+	TX_PRCSSD_STRB <= '0';
 	wait;
 end process;
 

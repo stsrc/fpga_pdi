@@ -16,18 +16,34 @@ entity AXI_to_regs is
 		slv_reg1_rd	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
 		slv_reg1_wr	: out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
 		slv_reg2_rd	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
-		slv_reg2_wr    : out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg2_wr    	: out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
 		slv_reg3_rd	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
-		slv_reg3_wr    : out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg3_wr    	: out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg4_rd	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg4_wr	: out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg5_rd	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg5_wr	: out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg6_rd	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg6_wr    	: out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg7_rd	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg7_wr    	: out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
         
-		slv_reg0_rd_strb   : out std_logic;
-		slv_reg1_rd_strb  : out std_logic;
-		slv_reg2_rd_strb   : out std_logic;
-		slv_reg3_rd_strb   : out std_logic;
-		slv_reg0_wr_strb   : out std_logic;
-		slv_reg1_wr_strb   : out std_logic;
-		slv_reg2_wr_strb   : out std_logic;
-		slv_reg3_wr_strb   : out std_logic;
+		slv_reg0_rd_strb	: out std_logic;
+		slv_reg1_rd_strb	: out std_logic;
+		slv_reg2_rd_strb	: out std_logic;
+		slv_reg3_rd_strb	: out std_logic;
+		slv_reg4_rd_strb	: out std_logic;
+		slv_reg5_rd_strb	: out std_logic;
+		slv_reg6_rd_strb	: out std_logic;
+		slv_reg7_rd_strb	: out std_logic;
+		slv_reg0_wr_strb	: out std_logic;
+		slv_reg1_wr_strb	: out std_logic;
+		slv_reg2_wr_strb   	: out std_logic;
+		slv_reg3_wr_strb   	: out std_logic;
+		slv_reg4_wr_strb	: out std_logic;
+		slv_reg5_wr_strb	: out std_logic;
+		slv_reg6_wr_strb   	: out std_logic;
+		slv_reg7_wr_strb   	: out std_logic;
 
 		S_AXI_ACLK	: in std_logic;
 		S_AXI_ARESETN	: in std_logic;
@@ -79,6 +95,10 @@ architecture arch_AXI_to_regs of AXI_to_regs is
 	signal slv_reg1_wr_s	:std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
 	signal slv_reg2_wr_s	:std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
 	signal slv_reg3_wr_s	:std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
+	signal slv_reg4_wr_s	:std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
+	signal slv_reg5_wr_s	:std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
+	signal slv_reg6_wr_s	:std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
+	signal slv_reg7_wr_s	:std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
 
 	signal slv_reg_rden	: std_logic;
 	signal slv_reg_wren	: std_logic;
@@ -89,27 +109,47 @@ architecture arch_AXI_to_regs of AXI_to_regs is
 	signal slv_reg1_rd_strb_s		: std_logic := '0';
 	signal slv_reg2_rd_strb_s		: std_logic := '0';
 	signal slv_reg3_rd_strb_s		: std_logic := '0';
+	signal slv_reg4_rd_strb_s		: std_logic := '0';
+	signal slv_reg5_rd_strb_s		: std_logic := '0';
+	signal slv_reg6_rd_strb_s		: std_logic := '0';
+	signal slv_reg7_rd_strb_s		: std_logic := '0';
 
 	signal slv_reg0_wr_strb_s		: std_logic := '0';
 	signal slv_reg1_wr_strb_s		: std_logic := '0';
 	signal slv_reg2_wr_strb_s		: std_logic := '0';
 	signal slv_reg3_wr_strb_s		: std_logic := '0';
+	signal slv_reg4_wr_strb_s		: std_logic := '0';
+	signal slv_reg5_wr_strb_s		: std_logic := '0';
+	signal slv_reg6_wr_strb_s		: std_logic := '0';
+	signal slv_reg7_wr_strb_s		: std_logic := '0';
 begin
 	-- I/O Connections assignment
 	slv_reg0_rd_strb <= slv_reg0_rd_strb_s;
 	slv_reg1_rd_strb <= slv_reg1_rd_strb_s;
 	slv_reg2_rd_strb <= slv_reg2_rd_strb_s;
 	slv_reg3_rd_strb <= slv_reg3_rd_strb_s;
+	slv_reg4_rd_strb <= slv_reg4_rd_strb_s;
+	slv_reg5_rd_strb <= slv_reg5_rd_strb_s;
+	slv_reg6_rd_strb <= slv_reg6_rd_strb_s;
+	slv_reg7_rd_strb <= slv_reg7_rd_strb_s;
 
 	slv_reg0_wr_strb <= slv_reg0_wr_strb_s;
 	slv_reg1_wr_strb <= slv_reg1_wr_strb_s;
 	slv_reg2_wr_strb <= slv_reg2_wr_strb_s;
 	slv_reg3_wr_strb <= slv_reg3_wr_strb_s;
+	slv_reg4_wr_strb <= slv_reg4_wr_strb_s;
+	slv_reg5_wr_strb <= slv_reg5_wr_strb_s;
+	slv_reg6_wr_strb <= slv_reg6_wr_strb_s;
+	slv_reg7_wr_strb <= slv_reg7_wr_strb_s;
 
 	slv_reg0_wr <= slv_reg0_wr_s;
 	slv_reg1_wr <= slv_reg1_wr_s;
 	slv_reg2_wr <= slv_reg2_wr_s;
 	slv_reg3_wr <= slv_reg3_wr_s;
+	slv_reg4_wr <= slv_reg4_wr_s;
+	slv_reg5_wr <= slv_reg5_wr_s;
+	slv_reg6_wr <= slv_reg6_wr_s;
+	slv_reg7_wr <= slv_reg7_wr_s;
 
 	S_AXI_AWREADY	<= axi_awready;
 	S_AXI_WREADY	<= axi_wready;
@@ -202,12 +242,20 @@ begin
 	      slv_reg1_wr_strb_s <= '0';
 	      slv_reg2_wr_strb_s <= '0';
 	      slv_reg3_wr_strb_s <= '0';
+	      slv_reg4_wr_strb_s <= '0';
+	      slv_reg5_wr_strb_s <= '0';
+	      slv_reg6_wr_strb_s <= '0';
+	      slv_reg7_wr_strb_s <= '0';
 
 	    if S_AXI_ARESETN = '0' then
 	      slv_reg0_wr_s <= (others => '0');
 	      slv_reg1_wr_s <= (others => '0');
 	      slv_reg2_wr_s <= (others => '0');
 	      slv_reg3_wr_s <= (others => '0');
+	      slv_reg4_wr_s <= (others => '0');
+	      slv_reg5_wr_s <= (others => '0');
+	      slv_reg6_wr_s <= (others => '0');
+	      slv_reg7_wr_s <= (others => '0');
 	    else
 	      loc_addr := axi_awaddr(ADDR_LSB + OPT_MEM_ADDR_BITS downto ADDR_LSB);
 	      if (slv_reg_wren = '1') then
@@ -248,11 +296,51 @@ begin
 	                slv_reg3_wr_strb_s <= '1';
 	              end if;
 	            end loop;
+	          when b"100" =>
+	            for byte_index in 0 to (C_S_AXI_DATA_WIDTH/8-1) loop
+	              if ( S_AXI_WSTRB(byte_index) = '1' ) then
+	                -- Respective byte enables are asserted as per write strobes                   
+	                -- slave registor 0
+	                slv_reg4_wr_s(byte_index*8+7 downto byte_index*8) <= S_AXI_WDATA(byte_index*8+7 downto byte_index*8);
+			slv_reg4_wr_strb_s <= '1';
+	              end if;
+	            end loop;
+	          when b"101" =>
+	            for byte_index in 0 to (C_S_AXI_DATA_WIDTH/8-1) loop
+	              if ( S_AXI_WSTRB(byte_index) = '1' ) then
+	                -- Respective byte enables are asserted as per write strobes                   
+	                -- slave registor 1
+	                slv_reg5_wr_s(byte_index*8+7 downto byte_index*8) <= S_AXI_WDATA(byte_index*8+7 downto byte_index*8);
+			slv_reg5_wr_strb_s <= '1';
+	              end if;
+	            end loop;
+	          when b"110" =>
+	            for byte_index in 0 to (C_S_AXI_DATA_WIDTH/8-1) loop
+	              if ( S_AXI_WSTRB(byte_index) = '1' ) then
+	                -- Respective byte enables are asserted as per write strobes                   
+	                -- slave registor 2
+	                slv_reg6_wr_s(byte_index*8+7 downto byte_index*8) <= S_AXI_WDATA(byte_index*8+7 downto byte_index*8);
+		        slv_reg6_wr_strb_s <= '1';
+	              end if;
+	            end loop;
+	          when b"111" =>
+	            for byte_index in 0 to (C_S_AXI_DATA_WIDTH/8-1) loop
+	              if ( S_AXI_WSTRB(byte_index) = '1' ) then
+	                -- Respective byte enables are asserted as per write strobes                   
+	                -- slave registor 3
+	                slv_reg7_wr_s(byte_index*8+7 downto byte_index*8) <= S_AXI_WDATA(byte_index*8+7 downto byte_index*8);
+	                slv_reg7_wr_strb_s <= '1';
+	              end if;
+	            end loop;
 	          when others =>
 	            slv_reg0_wr_s <= slv_reg0_wr_s;
 	            slv_reg1_wr_s <= slv_reg1_wr_s;
 	            slv_reg2_wr_s <= slv_reg2_wr_s;
 	            slv_reg3_wr_s <= slv_reg3_wr_s;
+	            slv_reg4_wr_s <= slv_reg4_wr_s;
+	            slv_reg5_wr_s <= slv_reg5_wr_s;
+	            slv_reg6_wr_s <= slv_reg6_wr_s;
+	            slv_reg7_wr_s <= slv_reg7_wr_s;
 	        end case;
 	      end if;
 	    end if;
@@ -365,6 +453,18 @@ begin
 		  when b"011" =>
 			axi_rdata <= slv_reg3_rd;
 			slv_reg3_rd_strb_s <= '1';
+		  when b"100" =>
+			axi_rdata <= slv_reg4_rd;
+			slv_reg4_rd_strb_s <= '1'; 
+		  when b"101" =>
+			axi_rdata <= slv_reg5_rd;
+			slv_reg5_rd_strb_s <= '1';
+		  when b"110" =>
+			axi_rdata <= slv_reg6_rd;
+			slv_reg6_rd_strb_s <= '1';
+		  when b"111" =>
+			axi_rdata <= slv_reg7_rd;
+			slv_reg7_rd_strb_s <= '1';
 		  when others =>
 		        axi_rdata <= (others => '0');
 		  end case;

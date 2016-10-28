@@ -27,7 +27,7 @@ entity fsm_DMA is
 		--signal TX DMA to fetch one TX DMA descriptor and process.
 		TX_INCR_STRB		: in std_logic;
 
-		--Processed TX descriptors size from the last read.
+		--Processed TX descriptors size.
 		TX_PRCSSD		: out std_logic_vector(31 downto 0);
 		--Processed TX descriptors size read strobe (resets counter).
 		TX_PRCSSD_STRB		: in std_logic;
@@ -218,14 +218,25 @@ process(clk) begin
 				TX_PCKT_CNT <= std_logic_vector(TX_BYTES_REG);
 				TX_PCKT_CNT_STRB <= '1';
 				TX_PRCSSD_INT <= '1';
-				TX_PRCSSD_REG <= TX_PRCSSD_REG + 64;
+				TX_PRCSSD_REG <= TX_PRCSSD_REG + 8;
 				if (TX_PRCSSD_STRB = '1') then
-					TX_PRCSSD_REG <= to_unsigned(64, 32);
+					TX_PRCSSD_REG <= to_unsigned(8, 32);
 				end if;
 				TX_STATE <= IDLE;
 			when others =>
 				TX_STATE <= IDLE;
 			end case;	
+		end if;
+	end if;
+end process;
+
+process (clk) begin
+	if (rising_edge(clk)) then
+		if (aresetn = '0') then
+			INIT_AXI_TXN <= '0';
+			RX_PRCSSD <= (others => '0');
+			RX_PRCSSD_INT <= '0';
+			DATA_OUT <= (others => '0');	
 		end if;
 	end if;
 end process;
