@@ -642,8 +642,8 @@ begin
 			data_from_axi_strb => strb_data_mux_fsm, 
 			data_to_fifo => data_axi_fifo, 
 			data_to_fifo_strb => strb_data_axi_fifo, 
-			cnt_from_axi   => slv_reg0_wr,
-			cnt_from_axi_strb => slv_reg0_wr_strb,
+			cnt_from_axi   => cnt_mux_fsm,
+			cnt_from_axi_strb => strb_cnt_mux_fsm,
 			cnt_to_fifo  => cnt_axi_fifo,
 			cnt_to_fifo_strb => strb_cnt_axi_fifo,
 			packet_strb => interrupt_axi_fifo
@@ -856,8 +856,8 @@ begin
 
 	fsm_DMA_0 : fsm_DMA
 		port map (
-			clk 			=> clk,
-			aresetn 		=> aresetn,
+			clk 			=> s_axi_aclk,
+			aresetn 		=> s_axi_aresetn,
 	
 			DATA_IN 		=> axi_m_data_out,
 			DATA_OUT 		=> axi_m_data_in,
@@ -883,9 +883,9 @@ begin
 			RX_PRCSSD_INT 		=> open,
 			XGBE_PACKET_RCV		=> '0',
 			DMA_EN 			=> dma_en_100MHz,
-			TX_PCKT_DATA	 	=> data_dmu_mux,
+			TX_PCKT_DATA	 	=> data_dma_mux,
 			TX_PCKT_DATA_STRB 	=> strb_data_dma_mux,
-			TX_PCKT_CNT 		=> cnt_dmu_mux,
+			TX_PCKT_CNT 		=> cnt_dma_mux,
 			TX_PCKT_CNT_STRB 	=> strb_cnt_dma_mux
 		);
 
@@ -896,7 +896,7 @@ begin
 		)
 		port map (
 			DIN_0 => slv_reg1_wr,
-			DIN_1 => data_dmu_mux,
+			DIN_1 => data_dma_mux,
 			DOUT => data_mux_fsm,
 			ADDR => dma_en_100MHz
 		);
@@ -906,9 +906,9 @@ begin
 			DATA_WIDTH => 1
 		)
 		port map (
-			DIN_0 => slv_reg1_wr_strb,
-			DIN_1 => strb_data_dmu_mux,
-			DOUT => strb_data_mux_fsm,
+			DIN_0(0) => slv_reg1_wr_strb,
+			DIN_1(0) => strb_data_dma_mux,
+			DOUT(0) => strb_data_mux_fsm,
 			ADDR => dma_en_100MHz
 		);
 
@@ -918,7 +918,7 @@ begin
 		)
 		port map (
 			DIN_0 => slv_reg0_wr,
-			DIN_1 => cnt_dmu_mux,
+			DIN_1 => cnt_dma_mux,
 			DOUT => cnt_mux_fsm,
 			ADDR => dma_en_100MHz
 		);
@@ -928,9 +928,9 @@ begin
 			DATA_WIDTH => 1
 		)
 		port map (
-			DIN_0 => slv_reg0_wr_strb,
-			DIN_1 => strb_cnt_dmu_mux,
-			DOUT => strb_cnt_mux_fsm,
+			DIN_0(0) => slv_reg0_wr_strb,
+			DIN_1(0) => strb_cnt_dma_mux,
+			DOUT(0) => strb_cnt_mux_fsm,
 			ADDR => dma_en_100MHz
 		);
 

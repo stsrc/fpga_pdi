@@ -66,7 +66,7 @@ end fsm_DMA;
 architecture fsm_DMA_arch of fsm_DMA is
 
 signal TX_DESC_ADDR_REG, TX_SIZE_REG	: unsigned(31 downto 0);
-signal TX_PRCSSD_REG		: unsigned(31 downto 0);
+signal TX_PRCSSD_REG			: unsigned(31 downto 0);
 signal TX_DESC_ADDR_ACTUAL		: unsigned(31 downto 0);
 signal TX_BUFF_ADDR			: unsigned(31 downto 0);
 
@@ -174,7 +174,11 @@ process(clk) begin
 			when FETCH_PTR =>
 				ADDR <= std_logic_vector(TX_DESC_ADDR_ACTUAL);
 				INIT_AXI_RXN <= '1';
-				TX_DESC_ADDR_ACTUAL <= TX_DESC_ADDR_ACTUAL + 4;					 
+				TX_DESC_ADDR_ACTUAL <= TX_DESC_ADDR_ACTUAL + 4;
+
+				if (TX_DESC_ADDR_ACTUAL + 4 = TX_DESC_ADDR_REG + TX_SIZE_REG) then
+					TX_DESC_ADDR_ACTUAL <= TX_DESC_ADDR_REG;
+				end if;
 				TX_STATE <= FETCH_PTR_WAIT;
 
 			when FETCH_PTR_WAIT =>

@@ -13,8 +13,9 @@ architecture STRUCTURE of tb is
 
 	component xgbe is 
 	generic (
-		C_S_AXI_DATA_WIDTH	: integer	:= 32;
-		C_S_AXI_ADDR_WIDTH	: integer	:= 4
+		C_AXI_DATA_WIDTH	: integer	:= 32;
+		C_S_AXI_ADDR_WIDTH	: integer	:= 5;
+		C_M_AXI_ADDR_WIDTH	: integer	:= 32
 	);
 	port (
 		clk_156_25MHz	: in std_logic;
@@ -30,8 +31,8 @@ architecture STRUCTURE of tb is
 		s_axi_awprot	: in std_logic_vector(2 downto 0);
 		s_axi_awvalid	: in std_logic;
 		s_axi_awready	: out std_logic;
-		s_axi_wdata	: in std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
-		s_axi_wstrb	: in std_logic_vector((C_S_AXI_DATA_WIDTH/8)-1 downto 0);
+		s_axi_wdata	: in std_logic_vector(C_AXI_DATA_WIDTH-1 downto 0);
+		s_axi_wstrb	: in std_logic_vector((C_AXI_DATA_WIDTH/8)-1 downto 0);
 		s_axi_wvalid	: in std_logic;
 		s_axi_wready	: out std_logic;
 		s_axi_bresp	: out std_logic_vector(1 downto 0);
@@ -41,10 +42,33 @@ architecture STRUCTURE of tb is
 		s_axi_arprot	: in std_logic_vector(2 downto 0);
 		s_axi_arvalid	: in std_logic;
 		s_axi_arready	: out std_logic;
-		s_axi_rdata	: out std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
+		s_axi_rdata	: out std_logic_vector(C_AXI_DATA_WIDTH-1 downto 0);
 		s_axi_rresp	: out std_logic_vector(1 downto 0);
 		s_axi_rvalid	: out std_logic;
 		s_axi_rready	: in std_logic;
+
+		m_axi_aclk		: in std_logic;
+		m_axi_aresetn		: in std_logic;
+		m_axi_awaddr		: out std_logic_vector(C_M_AXI_ADDR_WIDTH - 1 downto 0);
+		m_axi_awprot		: out std_logic_vector(2 downto 0);
+		m_axi_awvalid		: out std_logic;
+		m_axi_awready		: in std_logic;
+		m_axi_wdata		: out std_logic_vector(C_AXI_DATA_WIDTH - 1 downto 0);
+		m_axi_wstrb		: out std_logic_vector(C_AXI_DATA_WIDTH/8 - 1 downto 0);
+		m_axi_wvalid		: out std_logic;
+		m_axi_wready		: in std_logic;
+		m_axi_bresp		: in std_logic_vector(1 downto 0);
+		m_axi_bvalid		: in std_logic;
+		m_axi_bready		: out std_logic;
+		m_axi_araddr		: out std_logic_vector(C_M_AXI_ADDR_WIDTH - 1 downto 0);
+		m_axi_arprot		: out std_logic_vector(2 downto 0);
+		m_axi_arvalid		: out std_logic;
+		m_axi_arready		: in std_logic;
+		m_axi_rdata		: in std_logic_vector(C_AXI_DATA_WIDTH - 1 downto 0);
+		m_axi_rresp		: in std_logic_vector(1 downto 0);
+		m_axi_rvalid		: in std_logic;
+		m_axi_rready		: out std_logic;
+
 		xgmii_rxc : in STD_LOGIC_VECTOR (7 downto 0);
 		xgmii_rxd : in STD_LOGIC_VECTOR (63 downto 0);
 		xgmii_txc : out STD_LOGIC_VECTOR (7 downto 0);
@@ -60,7 +84,8 @@ end component xgbe;
   signal s_axi_aclk, s_axi_aresetn, s_axi_arready, s_axi_arvalid, s_axi_awready, s_axi_awvalid : std_logic := '0';
   signal s_axi_bready, s_axi_bvalid, s_axi_rready, s_axi_rvalid, s_axi_wready, s_axi_wvalid : std_logic := '0';
   signal s_axi_rdata, s_axi_wdata : std_logic_vector(31 downto 0) := (others => '0');
-  signal s_axi_araddr, s_axi_awaddr, s_axi_wstrb : std_logic_vector(3 downto 0) := (others => '0');
+  signal s_axi_wstrb : std_logic_vector(3 downto 0) := (others => '0');
+  signal s_axi_araddr, s_axi_awaddr : std_logic_vector(4 downto 0) := (others => '0');
   signal s_axi_arprot, s_axi_awprot : std_logic_vector(2 downto 0) := (others => '0');
   signal s_axi_bresp, s_axi_rresp : std_logic_vector(1 downto 0) := (others => '0');
   
@@ -242,12 +267,12 @@ block_design_i: xgbe
       interrupt => interrupt,
 
       s_axi_aclk => s_axi_aclk,
-      s_axi_araddr(3 downto 0) => s_axi_araddr(3 downto 0),
+      s_axi_araddr => s_axi_araddr,
       s_axi_aresetn => s_axi_aresetn,
       s_axi_arprot(2 downto 0) => s_axi_arprot(2 downto 0),
       s_axi_arready => s_axi_arready,
       s_axi_arvalid => s_axi_arvalid,
-      s_axi_awaddr(3 downto 0) => s_axi_awaddr(3 downto 0),
+      s_axi_awaddr => s_axi_awaddr,
       s_axi_awprot(2 downto 0) => s_axi_awprot(2 downto 0),
       s_axi_awready => s_axi_awready,
       s_axi_awvalid => s_axi_awvalid,
@@ -262,6 +287,28 @@ block_design_i: xgbe
       s_axi_wready => s_axi_wready,
       s_axi_wstrb(3 downto 0) => s_axi_wstrb(3 downto 0),
       s_axi_wvalid => s_axi_wvalid,
+
+	m_axi_aclk => s_axi_aclk,
+	m_axi_aresetn => s_axi_aresetn,
+	m_axi_awaddr => open,
+	m_axi_awprot => open,
+	m_axi_awready => '0',
+	m_axi_awvalid => open,
+	m_axi_wdata => open,
+	m_axi_wstrb => open,
+	m_axi_wvalid => open,
+	m_axi_wready => '0',
+	m_axi_bresp => (others => '0'),
+	m_axi_bvalid => '0',
+	m_axi_bready => open,
+	m_axi_araddr => open,
+	m_axi_arvalid => open,
+	m_axi_arready => '0',
+	m_axi_rdata => (others => '0'),
+	m_axi_rresp => (others => '0'),
+	m_axi_rvalid => '0',
+	m_axi_rready => open,
+
       xgmii_rxd => xgmii_rxd,
       xgmii_txd => xgmii_txd,
       xgmii_rxc => xgmii_rxc,
@@ -367,7 +414,7 @@ process
 begin
 	wait until rst_clk_20MHz = '1';
 	wait for 30 ns;
- 	s_axi_awaddr<="1000";
+ 	s_axi_awaddr<="01000";
 	s_axi_wdata<=x"00000001";
 	s_axi_wstrb<=b"1111";
 	sendit<='1';                --start axi write to slave
@@ -379,8 +426,8 @@ begin
 
 	wait for 100 ns;
     
- 	s_axi_awaddr<="1000";
-	s_axi_wdata<=x"00000002";
+ 	s_axi_awaddr<="01000";
+	s_axi_wdata<=x"00000006";
 	s_axi_wstrb<=b"1111";
 	sendit<='1';                --start axi write to slave
 	wait for 1 ns; 
@@ -408,7 +455,7 @@ end process;
 
 process begin
 	wait until interrupt = '1';
-	s_axi_araddr<="1100";
+	s_axi_araddr<="01100";
 	readit<='1';               
 	wait for 1 ns; 
 	readit<='0';
@@ -419,7 +466,7 @@ process begin
         assert packet_cnt /= 0 report "packet_cnt = 0" severity failure;
 
 		for k in 0 to packet_cnt - 1 loop
-		s_axi_araddr<="0000";
+		s_axi_araddr<="00000";
 		readit<='1';
 		wait for 1 ns; 
 		readit<='0';
@@ -438,7 +485,7 @@ process begin
 		end if;
  
 		-- read those packets
-		s_axi_araddr<="0100";    
+		s_axi_araddr<="00100";    
 		for i in 0 to read_cnt loop
 			readit<='1';
 			wait for 1 ns; 

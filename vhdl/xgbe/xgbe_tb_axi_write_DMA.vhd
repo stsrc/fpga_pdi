@@ -13,7 +13,7 @@ architecture STRUCTURE of tb is
 
 	component xgbe is 
 	generic (
-		C_AXI_DATA_WIDTH	: integer	:= 32;
+		C_AXI_DATA_WIDTH	: integer 	:= 32;
 		C_S_AXI_ADDR_WIDTH	: integer	:= 5;
 		C_M_AXI_ADDR_WIDTH	: integer	:= 32
 	);
@@ -54,7 +54,7 @@ architecture STRUCTURE of tb is
 		m_axi_awvalid		: out std_logic;
 		m_axi_awready		: in std_logic;
 		m_axi_wdata		: out std_logic_vector(C_AXI_DATA_WIDTH - 1 downto 0);
-		m_axi_wstrb		: out std_logic_vector(C_AXI_DATA_WIDTH / 8 - 1 downto 0);
+		m_axi_wstrb		: out std_logic_vector(C_AXI_DATA_WIDTH/8 - 1 downto 0);
 		m_axi_wvalid		: out std_logic;
 		m_axi_wready		: in std_logic;
 		m_axi_bresp		: in std_logic_vector(1 downto 0);
@@ -88,12 +88,23 @@ end component xgbe;
   signal s_axi_araddr, s_axi_awaddr : std_logic_vector(4 downto 0) := (others => '0');
   signal s_axi_arprot, s_axi_awprot : std_logic_vector(2 downto 0) := (others => '0');
   signal s_axi_bresp, s_axi_rresp : std_logic_vector(1 downto 0) := (others => '0');
+
+  signal m_axi_aclk, m_axi_aresetn, m_axi_arready, m_axi_arvalid, m_axi_awready, m_axi_awvalid : std_logic := '0';
+  signal m_axi_bready, m_axi_bvalid, m_axi_rready, m_axi_rvalid, m_axi_wready, m_axi_wvalid : std_logic := '0';
+  signal m_axi_rdata, m_axi_wdata : std_logic_vector(31 downto 0) := (others => '0');
+  signal m_axi_wstrb : std_logic_vector(3 downto 0) := (others => '0');
+  signal m_axi_araddr, m_axi_awaddr : std_logic_vector(31 downto 0) := (others => '0');
+  signal m_axi_arprot, m_axi_awprot : std_logic_vector(2 downto 0) := (others => '0');
+  signal m_axi_bresp, m_axi_rresp : std_logic_vector(1 downto 0) := (others => '0');
   
   signal xgmii_rxd, xgmii_txd : std_logic_vector(63 downto 0) := (others => '0');
   signal xgmii_rxc, xgmii_txc : std_logic_vector(7 downto 0) := (others => '0');
 
   signal ReadIt, SendIt : std_logic := '0';
   shared variable cnt : integer := 0;
+
+  signal TO_READ : std_logic_vector(31 downto 0) := (others => '0');
+
 begin
 
 block_design_i: xgbe
@@ -127,26 +138,27 @@ block_design_i: xgbe
       s_axi_wstrb(3 downto 0) => s_axi_wstrb(3 downto 0),
       s_axi_wvalid => s_axi_wvalid,
 
-	m_axi_aclk => s_axi_aclk,
-	m_axi_aresetn => s_axi_aresetn,
-	m_axi_awaddr => open,
-	m_axi_awprot => open,
-	m_axi_awready => '0',
-	m_axi_awvalid => open,
-	m_axi_wdata => open,
-	m_axi_wstrb => open,
-	m_axi_wvalid => open,
-	m_axi_wready => '0',
-	m_axi_bresp => (others => '0'),
-	m_axi_bvalid => '0',
-	m_axi_bready => open,
-	m_axi_araddr => open,
-	m_axi_arvalid => open,
-	m_axi_arready => '0',
-	m_axi_rdata => (others => '0'),
-	m_axi_rresp => (others => '0'),
-	m_axi_rvalid => '0',
-	m_axi_rready => open,
+      m_axi_aclk => m_axi_aclk,
+      m_axi_araddr => m_axi_araddr,
+      m_axi_aresetn => m_axi_aresetn,
+      m_axi_arprot(2 downto 0) => m_axi_arprot(2 downto 0),
+      m_axi_arready => m_axi_arready,
+      m_axi_arvalid => m_axi_arvalid,
+      m_axi_awaddr => m_axi_awaddr,
+      m_axi_awprot(2 downto 0) => m_axi_awprot(2 downto 0),
+      m_axi_awready => m_axi_awready,
+      m_axi_awvalid => m_axi_awvalid,
+      m_axi_bready => m_axi_bready,
+      m_axi_bresp(1 downto 0) => m_axi_bresp(1 downto 0),
+      m_axi_bvalid => m_axi_bvalid,
+      m_axi_rdata(31 downto 0) => m_axi_rdata(31 downto 0),
+      m_axi_rready => m_axi_rready,
+      m_axi_rresp(1 downto 0) => m_axi_rresp(1 downto 0),
+      m_axi_rvalid => m_axi_rvalid,
+      m_axi_wdata(31 downto 0) => m_axi_wdata(31 downto 0),
+      m_axi_wready => m_axi_wready,
+      m_axi_wstrb(3 downto 0) => m_axi_wstrb(3 downto 0),
+      m_axi_wvalid => m_axi_wvalid,
 
       xgmii_rxd => xgmii_rxd,
       xgmii_txd => xgmii_txd,
@@ -178,8 +190,10 @@ end process;
 
 process begin
     s_axi_aclk <= '0';
+	m_axi_aclk <= '0';
     wait for 5 ns;
     s_axi_aclk <= '1';
+	m_axi_aclk <= '1';
     wait for 5 ns;
 end process;
  
@@ -199,11 +213,13 @@ end process;
 
 process begin
 	s_axi_aresetn <= '0';
+	m_axi_aresetn <= '0';
 	rst_clk_156_25MHz <= '0';
 	rst_clk_20MHz <= '0';
 	wait for 6.4 ns;
 	rst_clk_156_25MHz <= '1';
 	wait for 3.6 ns;
+	m_axi_aresetn <= '1';
 	s_axi_aresetn <= '1';
 	wait for 40 ns;
 	rst_clk_20MHz <= '1';
@@ -248,7 +264,38 @@ send : process
             s_axi_rready<='0';
      end loop;
   end process read;
-      
+     
+m_write : process
+begin
+	loop
+		wait until m_axi_awvalid = '1';
+		wait until m_axi_wvalid = '1';
+		wait until m_axi_awready = '1';
+		wait until m_axi_wready = '1';
+		wait for 10 ns;
+		m_axi_bvalid <= '1';
+		wait for 10 ns;
+		m_axi_bready <= '1';
+		wait for 10 ns;
+		m_axi_bvalid <= '0';
+		m_axi_bready <= '0';
+	end loop;
+end process m_write;
+
+m_read : process
+begin
+	wait until m_axi_arvalid = '1';
+	wait for 1 ns;
+	m_axi_arready <= '1';
+	wait for 10 ns;
+	m_axi_arready <= '0';
+	m_axi_rdata <= TO_READ;
+	m_axi_rvalid <= '1';
+	wait until m_axi_rready <= '1';
+	wait for 10 ns;
+	m_axi_rvalid <= '0';
+end process m_read;
+ 
 process
 begin
 	wait until rst_clk_20MHz = '1';
@@ -266,7 +313,51 @@ begin
 	wait for 100 ns;
     
  	s_axi_awaddr<="01000";
-	s_axi_wdata<=x"00000002";
+	s_axi_wdata<=x"00000006";
+	s_axi_wstrb<=b"1111";
+	sendit<='1';                --start axi write to slave
+	wait for 1 ns; 
+	sendit<='0'; --clear start send flag
+	wait until s_axi_bvalid = '1';
+	wait until s_axi_bvalid = '0';  --axi write finished
+	s_axi_wstrb<=b"0000";
+
+
+ 	s_axi_awaddr<="01000";
+	s_axi_wdata<=x"00000006";
+	s_axi_wstrb<=b"1111";
+	sendit<='1';                --start axi write to slave
+	wait for 1 ns; 
+	sendit<='0'; --clear start send flag
+	wait until s_axi_bvalid = '1';
+	wait until s_axi_bvalid = '0';  --axi write finished
+	s_axi_wstrb<=b"0000";
+
+	--Write TX descriptor ring start address. 64.
+ 	s_axi_awaddr<="10000";
+	s_axi_wdata<=x"00000040";
+	s_axi_wstrb<=b"1111";
+	sendit<='1';                --start axi write to slave
+	wait for 1 ns; 
+	sendit<='0'; --clear start send flag
+	wait until s_axi_bvalid = '1';
+	wait until s_axi_bvalid = '0';  --axi write finished
+	s_axi_wstrb<=b"0000";
+	
+	--Write TX descriptor ring size in bytes. 32, (4 descriptors).
+ 	s_axi_awaddr<="10100";
+	s_axi_wdata<=x"00000020";
+	s_axi_wstrb<=b"1111";
+	sendit<='1';                --start axi write to slave
+	wait for 1 ns; 
+	sendit<='0'; --clear start send flag
+	wait until s_axi_bvalid = '1';
+	wait until s_axi_bvalid = '0';  --axi write finished
+	s_axi_wstrb<=b"0000";
+
+	--Enable DMA, interrupt and data reception.
+ 	s_axi_awaddr<="01000";
+	s_axi_wdata<=x"0000000E";
 	s_axi_wstrb<=b"1111";
 	sendit<='1';                --start axi write to slave
 	wait for 1 ns; 
@@ -275,31 +366,57 @@ begin
 	wait until s_axi_bvalid = '0';  --axi write finished
 	s_axi_wstrb<=b"0000";
 	while (true) loop
-		for i in 0 to 15 loop
-			s_axi_awaddr<="00100";
-			s_axi_wdata<= std_logic_vector(to_unsigned(i + cnt, 32));
+	for i in 0 to 3 loop
+			--Trigger byte transmission.
+		 	s_axi_awaddr<="11100";
+			s_axi_wdata<=x"FFFFFFFF";
 			s_axi_wstrb<=b"1111";
-			sendit<='1';
-			wait for 1 ns;
-			sendit<='0';
+			sendit<='1';                --start axi write to slave
+			wait for 1 ns; 
+			sendit<='0'; --clear start send flag
 			wait until s_axi_bvalid = '1';
-			wait until s_axi_bvalid = '0';
+			wait until s_axi_bvalid = '0';  --axi write finished
 			s_axi_wstrb<=b"0000";
-    		end loop;
-	 	s_axi_awaddr<="00000";
-		s_axi_wdata<=x"00000040";
-		s_axi_wstrb<=b"1111";
-		sendit<='1';
-		wait for 1 ns;
-		sendit<='0';
-		wait until s_axi_bvalid = '1';
-		wait until s_axi_bvalid = '0';
-		s_axi_wstrb<=b"0000";
-		cnt := cnt + 1;
+			
+			--Packet size
+			wait until m_axi_arvalid = '1';
+			TO_READ <= std_logic_vector(to_unsigned(62 + i, 32));
+			wait until m_axi_rready = '1';
+			wait until m_axi_rready = '0';
+
+			--Packet address
+			wait until m_axi_arvalid = '1';
+			TO_READ <= std_logic_vector(to_unsigned(1024, 32));
+			wait until m_axi_rready = '1';
+			wait until m_axi_rready = '0';	
+			
+			for j in 0 to 15 + i / 3 loop
+				wait until m_axi_arvalid = '1';
+				TO_READ <= std_logic_vector(to_unsigned(i + j, 32));
+				wait until m_axi_rready = '1';
+				wait until m_axi_rready = '0';			
+			end loop;
+		
+			if (i = 2) then
+			 	s_axi_araddr<="11000";	
+				readit<='1';
+				wait for 1 ns; 
+				readit<='0'; 
+				wait until s_axi_rready = '1';
+				wait until s_axi_rready = '0';		
+			end if;
+
+			wait for 200 ns;
+		end loop;
+		--Read used descriptors count.
+	 	s_axi_araddr<="11000";	
+		readit<='1';
+		wait for 1 ns; 
+		readit<='0'; 
+		wait until s_axi_rready = '1';
+		wait until s_axi_rready = '0';
+		wait for 20 ns; 
 	end loop;
 end process;
-
-
-
-     
+ 
 end structure;

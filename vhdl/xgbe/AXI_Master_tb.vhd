@@ -58,23 +58,39 @@ component AXI_to_regs is
 		interrupt : out std_logic;
 		interrupt_in    : in std_logic;       
 
-		slv_reg0_rd	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
-		slv_reg0_wr	: out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
-		slv_reg1_rd	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
-		slv_reg1_wr	: out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
-		slv_reg2_rd	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
-		slv_reg2_wr    : out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
-		slv_reg3_rd	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
-		slv_reg3_wr    : out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg0_rd	: in std_logic_vector(C_s_axi_DATA_WIDTH - 1 downto 0);
+		slv_reg0_wr	: out std_logic_vector(C_s_axi_DATA_WIDTH - 1 downto 0);
+		slv_reg1_rd	: in std_logic_vector(C_s_axi_DATA_WIDTH - 1 downto 0);
+		slv_reg1_wr	: out std_logic_vector(C_s_axi_DATA_WIDTH - 1 downto 0);
+		slv_reg2_rd	: in std_logic_vector(C_s_axi_DATA_WIDTH - 1 downto 0);
+		slv_reg2_wr    : out std_logic_vector(C_s_axi_DATA_WIDTH - 1 downto 0);
+		slv_reg3_rd	: in std_logic_vector(C_s_axi_DATA_WIDTH - 1 downto 0);
+		slv_reg3_wr    : out std_logic_vector(C_s_axi_DATA_WIDTH - 1 downto 0);
+		slv_reg4_rd	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg4_wr	: out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg5_rd	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg5_wr	: out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg6_rd	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg6_wr    	: out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg7_rd	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
+		slv_reg7_wr    	: out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
         
-		slv_reg0_rd_strb   : out std_logic;
-		slv_reg1_rd_strb  : out std_logic;
-		slv_reg2_rd_strb   : out std_logic;
-		slv_reg3_rd_strb   : out std_logic;
-		slv_reg0_wr_strb   : out std_logic;
-		slv_reg1_wr_strb   : out std_logic;
-		slv_reg2_wr_strb   : out std_logic;
-		slv_reg3_wr_strb   : out std_logic;
+		slv_reg0_rd_strb	: out std_logic;
+		slv_reg1_rd_strb	: out std_logic;
+		slv_reg2_rd_strb	: out std_logic;
+		slv_reg3_rd_strb	: out std_logic;
+		slv_reg4_rd_strb	: out std_logic;
+		slv_reg5_rd_strb	: out std_logic;
+		slv_reg6_rd_strb	: out std_logic;
+		slv_reg7_rd_strb	: out std_logic;
+		slv_reg0_wr_strb	: out std_logic;
+		slv_reg1_wr_strb	: out std_logic;
+		slv_reg2_wr_strb	: out std_logic;
+		slv_reg3_wr_strb	: out std_logic;
+		slv_reg4_wr_strb	: out std_logic;
+		slv_reg5_wr_strb	: out std_logic;
+		slv_reg6_wr_strb   	: out std_logic;
+		slv_reg7_wr_strb   	: out std_logic;
 
 		S_AXI_ACLK	: in std_logic;
 		S_AXI_ARESETN	: in std_logic;
@@ -143,6 +159,24 @@ begin
 			slv_reg1_wr_strb => slv_reg1_wr_strb,
 			slv_reg2_wr_strb => slv_reg2_wr_strb,
 			slv_reg3_wr_strb => slv_reg3_wr_strb,
+
+			slv_reg4_rd => (others => '0'),
+			slv_reg4_wr => open,
+			slv_reg5_rd => (others => '0'),
+			slv_reg5_wr => open,
+			slv_reg6_rd => (others => '0'),
+			slv_reg6_wr => open,
+			slv_reg7_rd => (others => '0'),
+			slv_reg7_wr => open,
+			slv_reg4_rd_strb => open,
+			slv_reg5_rd_strb => open,
+			slv_reg6_rd_strb => open,
+			slv_reg7_rd_strb => open,
+			slv_reg4_wr_strb => open,
+			slv_reg5_wr_strb => open,
+			slv_reg6_wr_strb => open,
+			slv_reg7_wr_strb => open,
+
 			S_AXI_ACLK => aclk,
 			S_AXI_ARESETN => aresetn,
 			S_AXI_AWADDR => s_awaddr,
@@ -251,7 +285,8 @@ begin
 	axi_init_rxn <= '0';
 	wait until slv_reg3_rd_strb = '1';
 	wait until axi_done_rxn = '1';
-	
+
+	wait for 1 ps;	
 	assert unsigned(m_data_out) = 98765 report "Wrong third test." severity failure;	
 
 	wait;
