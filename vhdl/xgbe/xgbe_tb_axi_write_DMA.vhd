@@ -405,8 +405,6 @@ begin
 				wait until s_axi_rready = '1';
 				wait until s_axi_rready = '0';		
 			end if;
-
-			wait for 200 ns;
 		end loop;
 		--Read used descriptors count.
 	 	s_axi_araddr<="11000";	
@@ -415,7 +413,7 @@ begin
 		readit<='0'; 
 		wait until s_axi_rready = '1';
 		wait until s_axi_rready = '0';
-		wait for 20 ns; 
+		wait for 200 ns; 
 	end loop;
 end process;
  

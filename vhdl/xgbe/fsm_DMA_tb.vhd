@@ -126,7 +126,7 @@ process begin
 		TX_INCR_STRB <= '1';
 		wait for 10 ns;
 		TX_INCR_STRB <= '0';
-		wait for 10 ns;
+		wait for 20 ns;
 		assert INIT_AXI_RXN = '1' report "1." severity failure;
 		assert ADDR = std_logic_vector(to_unsigned(10 + 8 * j, 32)) report "2." severity failure;
 		wait for 10 ns;

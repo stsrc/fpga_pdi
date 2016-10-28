@@ -70,6 +70,8 @@ signal TX_PRCSSD_REG			: unsigned(31 downto 0);
 signal TX_DESC_ADDR_ACTUAL		: unsigned(31 downto 0);
 signal TX_BUFF_ADDR			: unsigned(31 downto 0);
 
+signal TX_INCR_STRB_CNT			: unsigned(31 downto 0);
+
 signal TX_BYTES_REG		: unsigned(31 downto 0);
 signal TX_BYTES_ACTUAL		: unsigned(31 downto 0);
 
@@ -120,15 +122,34 @@ process(clk) begin
 			TX_PRCSSD_INT <= '0';
 			TX_PRCSSD_REG <= (others => '0');
 			TX_FAKE_READ <= '0';
+			TX_INCR_STRB_CNT <= (others => '0');
 		else			
 
 			INIT_AXI_RXN <= '0';
 			TX_PCKT_DATA_STRB <= '0';
 			TX_PCKT_CNT_STRB <= '0';
 			TX_PRCSSD_INT <= '0';	
-		
+	
+			--TODO: Move it somewhere else	
 			if (TX_PRCSSD_STRB = '1') then
 				TX_PRCSSD_REG <= (others => '0');
+			end if;
+			
+			--TODO: Move it somewhere else
+			if (TX_INCR_STRB = '1' and DMA_EN = '1') then
+				if (TX_STATE /= PUSH_PCKT_CNT) then
+					if (TX_PRCSSD_REG /= TX_SIZE_REG) then 
+						TX_INCR_STRB_CNT <= TX_INCR_STRB_CNT + 1;
+					else
+						TX_INCR_STRB_CNT <= TX_INCR_STRB_CNT;
+					end if;
+				else
+					TX_INCR_STRB_CNT <= TX_INCR_STRB_CNT;
+				end if;
+			else
+				if (TX_STATE = PUSH_PCKT_CNT) then
+					TX_INCR_STRB_CNT <= TX_INCR_STRB_CNT - 1;
+				end if;
 			end if;
 
 			case(TX_STATE) is
@@ -137,7 +158,7 @@ process(clk) begin
 					TX_DESC_ADDR_ACTUAL <= unsigned(TX_DESC_ADDR);
 					TX_PRCSSD_REG <= (others => '0');
 				else
-					if(TX_INCR_STRB = '1' and DMA_EN = '1') then
+					if(TX_INCR_STRB_CNT /= 0) then
 						if (TX_PRCSSD_REG = TX_SIZE_REG) then
 							TX_STATE <= IDLE;
 						else
