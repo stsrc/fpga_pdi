@@ -366,7 +366,7 @@ begin
 	wait until s_axi_bvalid = '0';  --axi write finished
 	s_axi_wstrb<=b"0000";
 	while (true) loop
-	for i in 0 to 3 loop
+	for i in 0 to 5 loop
 			--Trigger byte transmission.
 		 	s_axi_awaddr<="11100";
 			s_axi_wdata<=x"FFFFFFFF";
@@ -386,7 +386,7 @@ begin
 
 			--Packet address
 			wait until m_axi_arvalid = '1';
-			TO_READ <= std_logic_vector(to_unsigned(1024, 32));
+			TO_READ <= std_logic_vector(to_unsigned(1024 + 128 * i, 32));
 			wait until m_axi_rready = '1';
 			wait until m_axi_rready = '0';	
 			
@@ -396,16 +396,18 @@ begin
 				wait until m_axi_rready = '1';
 				wait until m_axi_rready = '0';			
 			end loop;
-		
-			if (i = 2) then
-			 	s_axi_araddr<="11000";	
+			if (i = 1) then	
+				--Read used descriptors count.
+				wait for 40 ns;
+	 			s_axi_araddr<="11000";	
 				readit<='1';
 				wait for 1 ns; 
 				readit<='0'; 
 				wait until s_axi_rready = '1';
-				wait until s_axi_rready = '0';		
+				wait until s_axi_rready = '0';
 			end if;
 		end loop;
+		wait for 200 ns; 
 		--Read used descriptors count.
 	 	s_axi_araddr<="11000";	
 		readit<='1';
@@ -413,7 +415,6 @@ begin
 		readit<='0'; 
 		wait until s_axi_rready = '1';
 		wait until s_axi_rready = '0';
-		wait for 200 ns; 
 	end loop;
 end process;
  

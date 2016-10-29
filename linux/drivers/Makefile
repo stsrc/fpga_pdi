@@ -3,7 +3,7 @@ export CROSS_COMPILE:=/opt/Xilinx/petalinux-v2016.2-final/tools/linux-i386/micro
 ccflags-y += -DDEBUG -std=gnu99
 
 ifneq ($(KERNELRELEASE),)
-	obj-m := cdma.o cdma_test.o pdi.o pdi_dma.o
+	obj-m := pdi.o
 
 else
 	KERNELDIR ?= /home/komputer/petalinux_workspace/pdi/build/linux/kernel/xlnx-4.4/

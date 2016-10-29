@@ -435,10 +435,16 @@ begin
 	begin
 	    if (rising_edge(S_AXI_ACLK)) then
 	     loc_addr := axi_araddr(ADDR_LSB + OPT_MEM_ADDR_BITS downto ADDR_LSB);
+
 	     slv_reg0_rd_strb_s <= '0';
 	     slv_reg1_rd_strb_s <= '0';
 	     slv_reg2_rd_strb_s <= '0';
 	     slv_reg3_rd_strb_s <= '0';
+	     slv_reg4_rd_strb_s <= '0';
+	     slv_reg5_rd_strb_s <= '0';
+	     slv_reg6_rd_strb_s <= '0';
+	     slv_reg7_rd_strb_s <= '0';
+
 		if (S_AXI_ARESETN = '0') then
 		  axi_rdata <= (others => '0');
 		elsif (slv_reg_rden = '1') then

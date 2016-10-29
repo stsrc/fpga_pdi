@@ -76,6 +76,7 @@ signal TX_BYTES_REG		: unsigned(31 downto 0);
 signal TX_BYTES_ACTUAL		: unsigned(31 downto 0);
 
 signal TX_FAKE_READ		: std_logic;
+signal TX_PRCSSD_INT_S 		: std_logic;
 
 type tx_states is (
 		IDLE,
@@ -95,21 +96,14 @@ begin
 process(clk) begin
 	if (rising_edge(clk)) then
 		if (aresetn = '0') then
-			TX_DESC_ADDR_REG <= (others => '0');
-			TX_SIZE_REG <= (others => '0');
 		else
-			if (TX_DESC_ADDR_STRB = '1') then
-				TX_DESC_ADDR_REG <= unsigned(TX_DESC_ADDR);
-			end if;
 
-			if (TX_SIZE_STRB = '1') then
-				TX_SIZE_REG <= unsigned(TX_SIZE);
-			end if;
 		end if;
 	end if;
 end process;
 
 TX_PRCSSD <= std_logic_vector(TX_PRCSSD_REG);
+TX_PRCSSD_INT <= TX_PRCSSD_INT_S;
 
 process(clk) begin
 	if (rising_edge(clk)) then
@@ -119,20 +113,25 @@ process(clk) begin
 			INIT_AXI_RXN <= '0';
 			TX_PCKT_DATA_STRB <= '0';
 			TX_PCKT_CNT_STRB <= '0';
-			TX_PRCSSD_INT <= '0';
+			TX_PRCSSD_INT_S <= '0';
 			TX_PRCSSD_REG <= (others => '0');
 			TX_FAKE_READ <= '0';
 			TX_INCR_STRB_CNT <= (others => '0');
+			TX_DESC_ADDR_REG <= (others => '0');
+			TX_SIZE_REG <= (others => '0');
 		else			
 
 			INIT_AXI_RXN <= '0';
 			TX_PCKT_DATA_STRB <= '0';
 			TX_PCKT_CNT_STRB <= '0';
-			TX_PRCSSD_INT <= '0';	
+			TX_PRCSSD_INT_S <= '0';	
 	
 			--TODO: Move it somewhere else	
 			if (TX_PRCSSD_STRB = '1') then
 				TX_PRCSSD_REG <= (others => '0');
+				if (TX_PRCSSD_INT_S = '1') then
+					TX_PRCSSD_REG <= to_unsigned(8, 32);
+				end if;
 			end if;
 			
 			--TODO: Move it somewhere else
@@ -155,8 +154,15 @@ process(clk) begin
 			case(TX_STATE) is
 			when IDLE =>
 				if (TX_DESC_ADDR_STRB = '1') then
+					TX_DESC_ADDR_REG <= unsigned(TX_DESC_ADDR);
 					TX_DESC_ADDR_ACTUAL <= unsigned(TX_DESC_ADDR);
 					TX_PRCSSD_REG <= (others => '0');
+					TX_INCR_STRB_CNT <= (others => '0');
+				elsif (TX_SIZE_STRB = '1') then
+					TX_SIZE_REG <= unsigned(TX_SIZE);
+					TX_DESC_ADDR_ACTUAL <= TX_DESC_ADDR_REG;
+					TX_PRCSSD_REG <= (others => '0');
+					TX_INCR_STRB_CNT <= (others => '0');
 				else
 					if(TX_INCR_STRB_CNT /= 0) then
 						if (TX_PRCSSD_REG = TX_SIZE_REG) then
@@ -242,7 +248,7 @@ process(clk) begin
 			when PUSH_PCKT_CNT =>
 				TX_PCKT_CNT <= std_logic_vector(TX_BYTES_REG);
 				TX_PCKT_CNT_STRB <= '1';
-				TX_PRCSSD_INT <= '1';
+				TX_PRCSSD_INT_S <= '1';
 				TX_PRCSSD_REG <= TX_PRCSSD_REG + 8;
 				if (TX_PRCSSD_STRB = '1') then
 					TX_PRCSSD_REG <= to_unsigned(8, 32);

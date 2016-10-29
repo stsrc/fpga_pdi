@@ -531,6 +531,9 @@ begin
 		if (rising_edge(s_axi_aclk)) then
 			if (s_axi_aresetn = '0') then
 				slv_reg2_rd <= (others => '0');
+				slv_reg4_rd <= (others => '0');
+				slv_reg5_rd <= (others => '0');
+				slv_reg7_rd <= (others => '0');
 			end if;
 		end if;
 	end process;	

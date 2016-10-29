@@ -3,10 +3,7 @@
 //TODO spinlocks, semaphores, race conditions etc.
 //TODO more then one card!!!
 //TODO DETECTION OF ALREADY USED DEVICE, ETC!
-/*
- * DMA part of driver based on b44 driver, which can be fond in:
- * drivers/net/ethernet/broadcom/b44.c
- */
+
 
 #include <linux/errno.h>
 #include <linux/types.h>
@@ -38,8 +35,6 @@
 
 #include <linux/dmapool.h>
 
-#include "cdma.h"
-
 #define DRIVER_NAME "pdi"
 /* 
  * WARNING ABOUT MAC ADDRESS! Its least significant bit says about 
@@ -66,25 +61,23 @@ MODULE_LICENSE("GPL");
  */
 
 struct ring_info {
-	union {
-		struct sk_buff *skb;
-		u32 *cnt;
-	} data;
+	struct sk_buff *skb;
 	dma_addr_t map;
 };
 
-struct dma_ring {
-	//TODO should be only struct cdma_sg_descriptor *desc, not *desc[64]!
-	struct cdma_sg_descriptor *desc;
-	dma_addr_t desc_p;
+struct dma_desc {
+	dma_addr_t cnt;
+	dma_addr_t addr; 
+} __attribute__((packed));
 
+struct dma_ring {
 	struct ring_info *buffer;
-	u32 *cnt;
-	dma_addr_t cnt_p;
+
+	struct dma_desc *desc;
+	dma_addr_t desc_p;
 
 	u32 desc_cur;
 	u32 desc_cons;
-
 	const u32 desc_max;
 };
 
@@ -100,9 +93,10 @@ struct pdi {
 	void __iomem *reg1;
 	void __iomem *reg2;
 	void __iomem *reg3;
-
-	dma_addr_t reg0_dma;
-	dma_addr_t reg1_dma;
+	void __iomem *reg4;
+	void __iomem *reg5;
+	void __iomem *reg6;
+	void __iomem *reg7;
 
 	struct dma_ring tx_ring;
 	struct dma_ring rx_ring;
@@ -114,7 +108,6 @@ struct pdi {
 static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	int ret;
-	uint32_t len = 0;
 	uint32_t cnt = 0;
 	struct dma_ring *tx_ring;
 	/* 
@@ -126,19 +119,6 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	tx_ring = &pdi->tx_ring;
 
-	len = skb->len;
-
-	if (len % 8)
-		to_add = 8 - len % 8;
-
-	if (to_add != 0) {		
-		if ((unsigned int)skb->end < (unsigned int)skb->tail + to_add) {
-			pr_info("PDI: FAILED TO ADD SPACE TO SKB!!!\n");
-			return NETDEV_TX_BUSY;
-		}
-
-		skb_put(skb, to_add);
-	}
 
 	/******************** NEW PART ********************/	
 
@@ -152,9 +132,7 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* TODO: RETURN VALUES/CLEARING ETC. */	
 
-	tx_ring->buffer[cnt].data.skb = skb;
-	*tx_ring->buffer[cnt + 1].data.cnt = len;
-	
+	tx_ring->buffer[cnt].skb = skb;
 	tx_ring->buffer[cnt].map = dma_map_single(pdi->dev, skb->data,
 					skb->len, DMA_TO_DEVICE);
 
@@ -164,19 +142,8 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_BUSY;
 	}
 
-	ret = cdma_set_sg_desc(&tx_ring->desc[cnt], tx_ring->desc_p + (cnt + 1) * 64,
-			       tx_ring->buffer[cnt].map, pdi->iomem->start + 4, 
-			       skb->len);
-	if (ret)
-		pr_info("pdi: cdma_set_sg_desc returned %d\n", ret);
-
-	ret = cdma_set_sg_desc(&tx_ring->desc[cnt + 1], tx_ring->desc_p + cnt * 64, 
-			       tx_ring->buffer[cnt + 1].map, pdi->iomem->start,
-			       sizeof(u32));
-	/* 
-	 * TODO pdi->iomem->start - why pdi->reg0_dma is not working (address 
-	 * problem?) 
-	 */
+	tx_ring->desc[cnt].addr = tx_ring->buffer[cnt].map;
+	tx_ring->desc[cnt].cnt = skb->len;
 
 	if (ret)
 		pr_info("pdi: cdma_set_sg_desc returned %d\n", ret);
@@ -199,6 +166,10 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	return NETDEV_TX_OK;
 }
+
+static const struct net_device_ops pdi_netdev_ops = {
+	.ndo_start_xmit = pdi_start_xmit,
+};
 
 static int pdi_complete_xmit(struct pdi *pdi)
 {
@@ -362,7 +333,7 @@ static int pdi_poll(struct napi_struct *napi, int budget)
 
 static int pdi_init_dma_ring(struct pdi *pdi, struct dma_ring *ring)
 {
-	const size_t desc_size = sizeof(struct cdma_sg_descriptor);
+	const size_t desc_size = sizeof(struct dma_desc);
 	
 
 	ring->desc = dma_zalloc_coherent(pdi->dev, ring->desc_max * 
@@ -382,22 +353,6 @@ static int pdi_init_dma_ring(struct pdi *pdi, struct dma_ring *ring)
 		return -ENOMEM;		
 	} 
 
-	ring->cnt = dma_zalloc_coherent(pdi->dev, sizeof(u32) * 
-				ring->desc_max / 2, &ring->cnt_p,
-				GFP_KERNEL | GFP_DMA);
-
-	if (!ring->cnt) {
-		kfree(ring->buffer);
-		dma_free_coherent(pdi->dev, desc_size * ring->desc_max, 
-			  ring->desc, ring->desc_p);
-		return -ENOMEM;
-	}
-
-	for (int i = 1; i < ring->desc_max; i += 2) {
-		ring->buffer[i].data.cnt = &ring->cnt[i];
-		ring->buffer[i].map = ring->cnt_p + i * sizeof(u32);
-	}
-
 	return 0;
 }
 
@@ -410,9 +365,6 @@ static void pdi_deinit_dma_ring(struct pdi *pdi, struct dma_ring *ring)
 
 	dma_free_coherent(pdi->dev, desc_size * ring->desc_max, 
 			  ring->desc, ring->desc_p);
-
-	dma_free_coherent(pdi->dev, sizeof(u32) * ring->desc_max / 2, 
-			  ring->cnt, ring->cnt_p);
 }
 
 static int pdi_init_dma_rings(struct platform_device *pdev)
@@ -483,20 +435,34 @@ static int pdi_init_registers(struct platform_device *pdev)
 	if (!pdi->reg3)
 		goto err4;
 
-	pdi->reg0_dma = dma_map_single(pdi->dev, pdi->reg0, 4, 
-					DMA_TO_DEVICE);
-	if (dma_mapping_error(pdi->dev, pdi->reg0_dma))
+	pdi->reg4 = ioremap(pdi->iomem->start + 16, 4);
+	if (!pdi->reg4)
 		goto err5;
 
-	pdi->reg1_dma = dma_map_single(pdi->dev, pdi->reg1, 4, 
-					DMA_TO_DEVICE);
-	if (dma_mapping_error(pdi->dev, pdi->reg1_dma))
+	pdi->reg5 = ioremap(pdi->iomem->start + 20, 4);
+	if (!pdi->reg5) 
 		goto err6;
+
+	pdi->reg6 = ioremap(pdi->iomem->start + 24, 4);
+	if (!pdi->reg6)
+		goto err7;
+
+	pdi->reg7 = ioremap(pdi->iomem->start + 28, 4);
+	if (!pdi->reg7)
+		goto err8;
 
 	return 0;
 
+
+err8 :
+	iounmap(pdi->reg6);
+	pdi->reg4 = NULL;
+err7 :
+	iounmap(pdi->reg5);
+	pdi->reg5 = NULL;
 err6 :
-	dma_unmap_single(pdi->dev, pdi->reg0_dma, 4, DMA_TO_DEVICE);
+	iounmap(pdi->reg4);
+	pdi->reg4 = NULL;
 err5 :
 	iounmap(pdi->reg3);
 	pdi->reg3 = NULL;
@@ -519,9 +485,38 @@ err0 :
 	return rt;
 }
 
-static const struct net_device_ops pdi_netdev_ops = {
-	.ndo_start_xmit = pdi_start_xmit,
-};
+static int pdi_deinit_registers(struct platform_device *pdev)
+{
+
+	if (pdi->reg7)
+		iounmap(pdi->reg7);
+
+	if (pdi->reg6)
+		iounmap(pdi->reg6);
+
+	if (pdi->reg5)
+		iounmap(pdi->reg5);
+
+	if (pdi->reg4)
+		iounmap(pdi->reg4);
+
+	if (pdi->reg3)
+		iounmap(pdi->reg3);
+
+	if (pdi->reg2)
+		iounmap(pdi->reg2);
+
+	if (pdi->reg1)
+		iounmap(pdi->reg1);
+
+	if (pdi->reg0)
+		iounmap(pdi->reg0);
+
+	if (pdi->iomem)
+		release_mem_region(pdi->iomem->start, pdi->iomem->end - 
+				   pdi->iomem->start);
+} 
+
 
 /*
  * Function sets ethernet interface.
@@ -626,14 +621,7 @@ err3:
 	unregister_netdev(pdi->netdev);
 	netif_napi_del(&pdi->napi);
 err2:
-	dma_unmap_single(pdi->dev, pdi->reg0_dma, 4, DMA_TO_DEVICE);
-	dma_unmap_single(pdi->dev, pdi->reg1_dma, 4, DMA_TO_DEVICE);
-	iounmap(pdi->reg3);
-	iounmap(pdi->reg2);
-	iounmap(pdi->reg1);
-	iounmap(pdi->reg0);
-	release_mem_region(pdi->iomem->start, pdi->iomem->end - 
-			   pdi->iomem->start);
+	pdi_deinit_registers(pdi);
 err1:
 	free_irq(pdi->irq, pdi);
 err0:
@@ -646,47 +634,27 @@ static int pdi_remove(struct platform_device *pdev)
 {
 	struct pdi *pdi = pdev->dev.platform_data;
 
-	/*Disabling data reception on FPGA */
+	/*Disabling data reception, DMA and interrupts on FPGA */
 	iowrite32(0, pdi->reg2);
 	wmb();
 
 	napi_disable(&pdi->napi);
 	
 	if (!pdi)
-		return 0;
-
-	pdi_deinit_dma_rings(pdev);
+		return -EINVAL;
 
 	if (pdi->irq != -1)
 		free_irq(pdi->irq, pdi);
+
+	pdi_deinit_dma_rings(pdev);
+
+	pdi_deinit_registers(pdi);
 
 	if (pdi->netdev) {
 		unregister_netdev(pdi->netdev);
 		netif_napi_del(&pdi->napi);
 	}
 	
-	if (pdi->reg1_dma)
-		dma_unmap_single(pdi->dev, pdi->reg1_dma, 4, DMA_TO_DEVICE);
-
-	if (pdi->reg0_dma)
-		dma_unmap_single(pdi->dev, pdi->reg0_dma, 4, DMA_TO_DEVICE);
-
-	if (pdi->reg3)
-		iounmap(pdi->reg3);
-
-	if (pdi->reg2)
-		iounmap(pdi->reg2);
-
-	if (pdi->reg1)
-		iounmap(pdi->reg1);
-
-	if (pdi->reg0)
-		iounmap(pdi->reg0);
-
-	if (pdi->iomem)
-		release_mem_region(pdi->iomem->start, pdi->iomem->end - 
-				   pdi->iomem->start);
-
 	if (pdi->netdev)
 		free_netdev(pdi->netdev);
 
