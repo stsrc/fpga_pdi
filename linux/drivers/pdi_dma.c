@@ -107,22 +107,15 @@ struct pdi {
  */
 static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	int ret;
 	uint32_t cnt = 0;
 	struct dma_ring *tx_ring;
-	/* 
-	 * to_add - padding bytes count. 
-	 * FPGA eth 'internals' are 8 bytes aligned. 
-	 */
-	unsigned int to_add = 0;
 	struct pdi *pdi = (struct pdi *)netdev_priv(dev);
+	u32 packets = 0, bytes = 0;
 
 	tx_ring = &pdi->tx_ring;
 
-
-	/******************** NEW PART ********************/	
-
-	if (tx_ring->desc_cur + 2 == tx_ring->desc_cons) {
+	if ((tx_ring->desc_cur + 1) % tx_ring->desc_max == 
+	    tx_ring->desc_cons) {
 		pr_info("pdi: tx_ring full! Packet will be droped.\n");
 		dev_kfree_skb(skb);
 		return NETDEV_TX_OK;	
@@ -130,91 +123,94 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	cnt = tx_ring->desc_cur;
 
-	/* TODO: RETURN VALUES/CLEARING ETC. */	
+	tx_ring->buffer[cnt].skb = kzalloc(skb->len, GFP_KERNEL | GFP_DMA);
 
-	tx_ring->buffer[cnt].skb = skb;
-	tx_ring->buffer[cnt].map = dma_map_single(pdi->dev, skb->data,
+	if (tx_ring->buffer[cnt].skb == NULL) {
+		pr_info("kzalloc could not alloc memory.\n");
+		dev_kfree_skb(skb);
+		return NETDEV_TX_OK;
+	}
+
+	memcpy(tx_ring->buffer[cnt].skb, skb->data, skb->len);
+
+	tx_ring->buffer[cnt].map = dma_map_single(pdi->dev, tx_ring->buffer[cnt].skb,
 					skb->len, DMA_TO_DEVICE);
+
+	pr_info("skb->data mod 4 = %u\n", (u32)skb->data % 4);
+	pr_info("tx_ring->buffer[cnt].map mod 4 = %u\n", tx_ring->buffer[cnt].map % 4);
 
 	if (dma_mapping_error(pdi->dev, tx_ring->buffer[cnt].map)) {
 		pr_info("pdi: dma_map_single failed!\n");
-		dev_kfree_skb(skb);	
 		return NETDEV_TX_BUSY;
 	}
 
 	tx_ring->desc[cnt].addr = tx_ring->buffer[cnt].map;
 	tx_ring->desc[cnt].cnt = skb->len;
 
-	if (ret)
-		pr_info("pdi: cdma_set_sg_desc returned %d\n", ret);
 
 	dma_sync_single_for_device(pdi->dev, tx_ring->buffer[cnt].map, 
 				   skb->len, DMA_TO_DEVICE);
-
-	ret = cdma_set_keyhole(CDMA_KH_WRITE);
-	if (ret)
-		pr_info("pdi: cdma_set_keyhole returned %d\n", ret);
-
-	//TODO CAN I DO SUCH A POINTER ARITHMETIC?
-	ret = cdma_set_cur_tail(tx_ring->desc_p + cnt * 64, tx_ring->desc_p + (cnt + 1) * 64);
-	if (ret)
-		pr_info("pdi: cdma_set_cur_tail returned %d\n", ret);
 	
-	tx_ring->desc_cur = (tx_ring->desc_cur + 2) % tx_ring->desc_max;
+	wmb();
+	iowrite32(0xFFFFFFFF, pdi->reg7);
+	
+	tx_ring->desc_cur = (tx_ring->desc_cur + 1) % tx_ring->desc_max;
+
+	bytes += skb->len;
+	packets++;
 
 	netdev_sent_queue(dev, skb->len);
+	netdev_completed_queue(pdi->netdev, packets, bytes);
 
+	dev_kfree_skb(skb);
 	return NETDEV_TX_OK;
+}
+
+static int pdi_complete_xmit(struct pdi *pdi)
+{
+	struct sk_buff *skb; 
+	struct dma_ring *tx_ring = &pdi->tx_ring;
+	u32 i = 0;
+	u32 processed;
+	u32 cons;
+
+	cons = tx_ring->desc_cons;
+	processed = ioread32(pdi->reg6);
+	
+	if (processed == 0)
+		return 0;
+
+	processed /= sizeof(struct dma_desc);
+	
+	for (i = cons; i != (cons + processed) % tx_ring->desc_max; 
+	     i = (i + 1) % tx_ring->desc_max) {
+		pr_info("i = %d; pdi->desc_cons = %d; pdi->desc_cur = %d\n", i,
+		tx_ring->desc_cons, tx_ring->desc_cur);
+	
+		if (tx_ring->desc_cons >= tx_ring->desc_cur) {
+			pr_warn("PDI_COMPLETE_XMIT FAILED REALLY HARD!!!\n");
+			return -EINVAL;
+		}
+
+		skb = tx_ring->buffer[i].skb;
+		dma_unmap_single(pdi->dev, tx_ring->buffer[i].map, tx_ring->desc[i].cnt, 
+				 DMA_TO_DEVICE);
+		kfree(tx_ring->buffer[i].skb);
+	}
+	tx_ring->desc_cons = i;
+	return 0;
 }
 
 static const struct net_device_ops pdi_netdev_ops = {
 	.ndo_start_xmit = pdi_start_xmit,
 };
 
-static int pdi_complete_xmit(struct pdi *pdi)
-{
-	struct sk_buff *skb; 
-	struct dma_ring *tx_ring = &pdi->tx_ring;
-	u32 packets = 0, bytes = 0;
-	u32 i = 0;
-
-	for (i = tx_ring->desc_cons; i != tx_ring->desc_cur; 
-	     i = (i + 2) % tx_ring->desc_max) {
-		pr_info("i = %d; pdi->desc_cons = %d; pdi->desc_cur = %d\n", i,
-		tx_ring->desc_cons, tx_ring->desc_cur);
-
-		if (!cdma_check_sg_finished(&tx_ring->desc[i + 1])) {
-			pr_info("cdma_check_sg_finished failed.\n");
-			break;
-		}
-		pr_info("cdma_check_sg_finished not failed.\n");
-
-		skb = tx_ring->buffer[i].data.skb;
-
-		dma_unmap_single(pdi->dev, tx_ring->buffer[i].map, skb->len, 
-				 DMA_TO_DEVICE);
-
-		bytes += skb->len;
-		packets++;
-
-		dev_kfree_skb(skb);
-	}
-
-	netdev_completed_queue(pdi->netdev, packets, bytes);
-	tx_ring->desc_cons = i;
-	return 0;
-}
-
-static atomic_t to_read;
-
 static irqreturn_t pdi_int_handler(int irq, void *data)
 {
 	struct pdi *pdi = (struct pdi *)data;
 
-	atomic_add(ioread32(pdi->reg3), &to_read);
-
-	/* Turn off interrupts. */
-	iowrite32(cpu_to_le32(1 << 1), pdi->reg2);
+	/* Turn off interrupts, allow RX and DMA */
+	iowrite32(cpu_to_le32(1 << 1 | 1 << 3), pdi->reg2);
 	napi_schedule(&pdi->napi);
 	
 	return IRQ_HANDLED;
@@ -252,13 +248,9 @@ static int pdi_rx(struct pdi *pdi)
 	unsigned char *buf = NULL;
 	int ret = 0;
  	
-	pr_info("pdi: pdi_rx called.\n");
-
-	packets_cnt = atomic_read(&to_read);
-	atomic_sub(packets_cnt, &to_read);
+	packets_cnt = ioread32(pdi->reg3);
 	
 	if (!packets_cnt) {
-		pr_info("PDI: pdi_rx falsely triggered!!!\n");
 		return 0;		
 	}
 
@@ -318,17 +310,17 @@ static int pdi_rx(struct pdi *pdi)
 
 static int pdi_poll(struct napi_struct *napi, int budget)
 {
-	int ret;
+	int packets_cnt;
 	struct pdi *pdi = container_of(napi, struct pdi, napi);
-	ret = pdi_rx(pdi);
+	packets_cnt = pdi_rx(pdi);
 	pdi_complete_xmit(pdi);
 	napi_complete(&pdi->napi);
 
 	if (budget > packets_cnt)
-		/* Enable interrupt and data reception. */
-		iowrite32(cpu_to_le32((1 << 1) | (1 << 2)), pdi->reg2);
+		/* Enable interrupt data reception and dma. */
+		iowrite32(cpu_to_le32((1 << 1) | (1 << 2) | (1 << 3)), pdi->reg2);
 
-	return ret;
+	return packets_cnt;
 }
 
 static int pdi_init_dma_ring(struct pdi *pdi, struct dma_ring *ring)
@@ -359,12 +351,23 @@ static int pdi_init_dma_ring(struct pdi *pdi, struct dma_ring *ring)
 
 static void pdi_deinit_dma_ring(struct pdi *pdi, struct dma_ring *ring)
 {
-	const size_t desc_size = sizeof(struct cdma_sg_descriptor);
+	const size_t desc_size = sizeof(struct dma_desc);
 
 	kfree(ring->buffer);	
 
 	dma_free_coherent(pdi->dev, desc_size * ring->desc_max, 
 			  ring->desc, ring->desc_p);
+}
+
+static void pdi_init_dma(struct pdi *pdi)
+{
+	/* Write where is TX ring located in physical memory. */
+	iowrite32(pdi->tx_ring.desc_p, pdi->reg4);
+	/* Write byte size of TX ring. */
+	iowrite32(pdi->tx_ring.desc_max * sizeof(struct dma_desc), pdi->reg5);
+	wmb();
+	/* Enable data reception, interrupts and DMA. */
+	iowrite32(1 << 1 | 1 << 2 | 1 << 3, pdi->reg2); 
 }
 
 static int pdi_init_dma_rings(struct platform_device *pdev)
@@ -485,9 +488,9 @@ err0 :
 	return rt;
 }
 
-static int pdi_deinit_registers(struct platform_device *pdev)
+static void pdi_deinit_registers(struct pdi *pdi)
 {
-
+	
 	if (pdi->reg7)
 		iounmap(pdi->reg7);
 
@@ -609,11 +612,11 @@ static int pdi_probe(struct platform_device *pdev)
 	iowrite32(cpu_to_le32(1 << 1 | 1 << 2), pdi->reg2);
 	wmb();
 
-	atomic_set(&to_read, 0);
-
 	/* Move both functions to netdev open. */
 	netif_start_queue(netdev);	
 	napi_enable(&pdi->napi);
+
+	pdi_init_dma(pdi);
 
 	return 0;
 
