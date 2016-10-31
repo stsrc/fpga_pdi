@@ -219,8 +219,8 @@ process(clk) begin
 						TX_FAKE_READ <= '0';
 					end if;
 				else 
-					if ((TX_BYTES_REG - 2) mod 8 /= 0 and
-					    (TX_BYTES_REG - 2) mod 8 <= 4) then
+					if ((TX_BYTES_REG) mod 8 /= 0 and
+					    (TX_BYTES_REG) mod 8 <= 4) then
 						TX_FAKE_READ <= '1';
 					else
 						TX_FAKE_READ <= '0';
@@ -233,11 +233,8 @@ process(clk) begin
 					TX_BYTES_ACTUAL <= (others => '0');
 				else
 					TX_BYTES_ACTUAL <= TX_BYTES_ACTUAL - 4;
-					--TODO : it is not cool/pretty/beautiful code.
-					--TODO : ERROR HERE! HOW SHOULD TX_BYTES_ACTUAL BEHAVE IN THIS IF?
-					--TODO : calculate for 42, 44, 46 etc.
 					if ((TX_BUFF_ADDR_MOD /= 0) and (TX_WRITE_PHASE = '0')) then
-						TX_BYTES_ACTUAL <= TX_BYTES_ACTUAL - 2;
+						TX_BYTES_ACTUAL <= TX_BYTES_ACTUAL;
 					end if;
 				end if;
 				INIT_AXI_RXN <= '1';
@@ -255,7 +252,8 @@ process(clk) begin
 							TX_PCKT_SAVE <= unsigned(DATA_IN(31 downto 16));
 							TX_WRITE_PHASE <= '1';
 						when '1' =>
-							TX_PCKT_DATA <= std_logic_vector(TX_PCKT_SAVE) & DATA_IN(15 downto 0);
+							TX_PCKT_DATA <= std_logic_vector(TX_PCKT_SAVE) & 
+									DATA_IN(15 downto 0);
 							TX_PCKT_SAVE <= unsigned(DATA_IN(31 downto 16));
 							TX_PCKT_DATA_STRB <= '1';
 							TX_WRITE_PHASE <= '1';					
