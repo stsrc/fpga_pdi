@@ -386,7 +386,7 @@ begin
 
 			--Packet address
 			wait until m_axi_arvalid = '1';
-			TO_READ <= std_logic_vector(to_unsigned(1024 + 128 * i, 32));
+			TO_READ <= std_logic_vector(to_unsigned(1024 + 128 * i + 2, 32));
 			wait until m_axi_rready = '1';
 			wait until m_axi_rready = '0';	
 			

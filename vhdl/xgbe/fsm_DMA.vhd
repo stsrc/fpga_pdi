@@ -69,6 +69,10 @@ signal TX_DESC_ADDR_REG, TX_SIZE_REG	: unsigned(31 downto 0);
 signal TX_PRCSSD_REG			: unsigned(31 downto 0);
 signal TX_DESC_ADDR_ACTUAL		: unsigned(31 downto 0);
 signal TX_BUFF_ADDR			: unsigned(31 downto 0);
+signal TX_BUFF_ADDR_MOD			: unsigned(1 downto 0);
+signal TX_PCKT_SAVE			: unsigned(15 downto 0);
+
+signal TX_WRITE_PHASE			: std_logic;
 
 signal TX_INCR_STRB_CNT			: unsigned(31 downto 0);
 
@@ -108,9 +112,9 @@ TX_PRCSSD_INT <= TX_PRCSSD_INT_S;
 process(clk) begin
 	if (rising_edge(clk)) then
 		if (aresetn = '0') then
+			INIT_AXI_RXN <= '0';
 			TX_PRCSSD_REG <= (others => '0');
 			TX_DESC_ADDR_ACTUAL <= (others => '0');
-			INIT_AXI_RXN <= '0';
 			TX_PCKT_DATA_STRB <= '0';
 			TX_PCKT_CNT_STRB <= '0';
 			TX_PRCSSD_INT_S <= '0';
@@ -119,6 +123,10 @@ process(clk) begin
 			TX_INCR_STRB_CNT <= (others => '0');
 			TX_DESC_ADDR_REG <= (others => '0');
 			TX_SIZE_REG <= (others => '0');
+			TX_WRITE_PHASE <= '0';
+			TX_BUFF_ADDR_MOD <= (others => '0');
+			TX_PCKT_CNT <= (others => '0');
+			TX_PCKT_DATA <= (others => '0');
 		else			
 
 			INIT_AXI_RXN <= '0';
@@ -211,6 +219,8 @@ process(clk) begin
 			when FETCH_PTR_WAIT =>
 				if (AXI_RXN_DONE = '1') then
 					TX_BUFF_ADDR <= unsigned(DATA_IN);
+					TX_BUFF_ADDR_MOD <= unsigned(DATA_IN(1 downto 0)) and to_unsigned(3, 2);
+					TX_WRITE_PHASE <= '0';
 					TX_STATE <= FETCH_WORD;
 				else
 					TX_STATE <= FETCH_PTR_WAIT;
@@ -229,8 +239,27 @@ process(clk) begin
 
 			when FETCH_WORD_WAIT =>
 				if (AXI_RXN_DONE = '1') then
-					TX_PCKT_DATA <= DATA_IN;
-					TX_PCKT_DATA_STRB <= '1';
+					case (TX_BUFF_ADDR_MOD) is
+					when to_unsigned(0, 2) =>
+						TX_PCKT_DATA <= DATA_IN;
+						TX_PCKT_DATA_STRB <= '1';
+					when to_unsigned(2, 2) =>
+						case (TX_WRITE_PHASE) is
+						when '0' =>
+							TX_PCKT_SAVE <= unsigned(DATA_IN(31 downto 16));
+							TX_WRITE_PHASE <= '1';
+						when '1' =>
+							TX_PCKT_DATA <= std_logic_vector(TX_PCKT_SAVE) & DATA_IN(15 downto 0);
+							TX_PCKT_SAVE <= unsigned(DATA_IN(31 downto 16));
+							TX_PCKT_DATA_STRB <= '1';
+							TX_WRITE_PHASE <= '1';					
+						when others =>
+							TX_WRITE_PHASE <= '0';
+						end case;					
+					when others =>
+						
+					end case;
+
 					if (TX_BYTES_ACTUAL > 0) then
 						TX_STATE <= FETCH_WORD;
 					elsif (TX_FAKE_READ = '1') then
@@ -238,6 +267,7 @@ process(clk) begin
 					else
 						TX_STATE <= PUSH_PCKT_CNT;
 					end if;
+
 				else
 					TX_STATE <= FETCH_WORD_WAIT;
 				end if;

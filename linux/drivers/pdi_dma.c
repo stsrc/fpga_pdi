@@ -102,42 +102,35 @@ struct pdi {
 	struct dma_ring rx_ring;
 };
 
-/*
- * Function pushes packet into the FPGA.
- */
+/* Function pushes packet into the DMA TX ring and notifies fsm_DMA about it. */
 static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	uint32_t cnt = 0;
 	struct dma_ring *tx_ring;
 	struct pdi *pdi = (struct pdi *)netdev_priv(dev);
-	u32 packets = 0, bytes = 0;
 
 	tx_ring = &pdi->tx_ring;
 
 	if ((tx_ring->desc_cur + 1) % tx_ring->desc_max == 
 	    tx_ring->desc_cons) {
-		pr_info("pdi: tx_ring full! Packet will be droped.\n");
-		dev_kfree_skb(skb);
-		return NETDEV_TX_OK;	
+		pr_info("pdi: tx_ring full!\n");
+		return NETDEV_TX_BUSY;	
 	}
 
 	cnt = tx_ring->desc_cur;
 
-	tx_ring->buffer[cnt].skb = kzalloc(skb->len, GFP_KERNEL | GFP_DMA);
-
-	if (tx_ring->buffer[cnt].skb == NULL) {
-		pr_info("kzalloc could not alloc memory.\n");
-		dev_kfree_skb(skb);
-		return NETDEV_TX_OK;
-	}
-
-	memcpy(tx_ring->buffer[cnt].skb, skb->data, skb->len);
-
-	tx_ring->buffer[cnt].map = dma_map_single(pdi->dev, tx_ring->buffer[cnt].skb,
-					skb->len, DMA_TO_DEVICE);
+	tx_ring->buffer[cnt].skb = skb;
 
 	pr_info("skb->data mod 4 = %u\n", (u32)skb->data % 4);
 	pr_info("tx_ring->buffer[cnt].map mod 4 = %u\n", tx_ring->buffer[cnt].map % 4);
+
+	if((u32)skb->data % 4 == 1 || (u32)skb->data % 4 == 3) {
+		for (int i = 0; i < 16; i++)
+			pr_info("pdi: WRONG WRONG WRONG.\n");
+	}
+
+	tx_ring->buffer[cnt].map = dma_map_single(pdi->dev, skb->data, skb->len,
+						  DMA_TO_DEVICE);
 
 	if (dma_mapping_error(pdi->dev, tx_ring->buffer[cnt].map)) {
 		pr_info("pdi: dma_map_single failed!\n");
@@ -147,7 +140,6 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	tx_ring->desc[cnt].addr = tx_ring->buffer[cnt].map;
 	tx_ring->desc[cnt].cnt = skb->len;
 
-
 	dma_sync_single_for_device(pdi->dev, tx_ring->buffer[cnt].map, 
 				   skb->len, DMA_TO_DEVICE);
 	
@@ -156,13 +148,8 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	
 	tx_ring->desc_cur = (tx_ring->desc_cur + 1) % tx_ring->desc_max;
 
-	bytes += skb->len;
-	packets++;
-
 	netdev_sent_queue(dev, skb->len);
-	netdev_completed_queue(pdi->netdev, packets, bytes);
 
-	dev_kfree_skb(skb);
 	return NETDEV_TX_OK;
 }
 
@@ -170,9 +157,10 @@ static int pdi_complete_xmit(struct pdi *pdi)
 {
 	struct sk_buff *skb; 
 	struct dma_ring *tx_ring = &pdi->tx_ring;
+	u32 packets = 0, bytes = 0;
 	u32 i = 0;
-	u32 processed;
-	u32 cons;
+	u32 processed = 0;
+	u32 cons = 0;
 
 	cons = tx_ring->desc_cons;
 	processed = ioread32(pdi->reg6);
@@ -195,8 +183,12 @@ static int pdi_complete_xmit(struct pdi *pdi)
 		skb = tx_ring->buffer[i].skb;
 		dma_unmap_single(pdi->dev, tx_ring->buffer[i].map, tx_ring->desc[i].cnt, 
 				 DMA_TO_DEVICE);
-		kfree(tx_ring->buffer[i].skb);
+		bytes += skb->len;
+		packets++;
+
+		dev_kfree_skb(skb);
 	}
+	netdev_completed_queue(pdi->netdev, packets, bytes);
 	tx_ring->desc_cons = i;
 	return 0;
 }
