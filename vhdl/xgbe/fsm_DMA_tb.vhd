@@ -135,7 +135,7 @@ process begin
 		AXI_RXN_DONE <= '1';
 		wait for 10 ns;
 		AXI_RXN_DONE <= '0';
-		wait for 10 ns;
+		wait for 20 ns;
 		assert INIT_AXI_RXN = '1' report "3." severity failure;
 		assert ADDR = std_logic_vector(to_unsigned(10 + 8*j + 4, 32)) report "4." severity failure;
 		wait for 10 ns;

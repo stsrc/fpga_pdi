@@ -87,7 +87,8 @@ type tx_states is (
 		FETCH_CNT,
 		FETCH_CNT_WAIT,
 		FETCH_PTR, 
-		FETCH_PTR_WAIT, 
+		FETCH_PTR_WAIT,
+		SET_FLAGS, 
 		FETCH_WORD,
 		FETCH_WORD_WAIT,
 		FAKE_TX_STRB,
@@ -96,15 +97,6 @@ type tx_states is (
 signal TX_STATE	: tx_states;
 
 begin
-
-process(clk) begin
-	if (rising_edge(clk)) then
-		if (aresetn = '0') then
-		else
-
-		end if;
-	end if;
-end process;
 
 TX_PRCSSD <= std_logic_vector(TX_PRCSSD_REG);
 TX_PRCSSD_INT <= TX_PRCSSD_INT_S;
@@ -193,14 +185,6 @@ process(clk) begin
 					TX_BYTES_REG <= unsigned(DATA_IN);
 					TX_BYTES_ACTUAL <= unsigned(DATA_IN);
 
-					if (unsigned(DATA_IN) mod 8 /= 0 and
-					    unsigned(DATA_IN) mod 8 <= 4) then
-						TX_FAKE_READ <= '1';
-
-					else
-						TX_FAKE_READ <= '0';
-					end if;
-
 					TX_STATE <= FETCH_PTR; 
 				else
 					TX_STATE <= FETCH_CNT_WAIT;
@@ -218,14 +202,30 @@ process(clk) begin
 
 			when FETCH_PTR_WAIT =>
 				if (AXI_RXN_DONE = '1') then
-					TX_BUFF_ADDR <= unsigned(DATA_IN);
-					TX_BUFF_ADDR_MOD <= unsigned(DATA_IN(1 downto 0)) and to_unsigned(3, 2);
-					TX_WRITE_PHASE <= '0';
-					TX_STATE <= FETCH_WORD;
+					TX_BUFF_ADDR <= unsigned(DATA_IN(31 downto 2) & "00");
+					TX_BUFF_ADDR_MOD <= unsigned(DATA_IN(1 downto 0));
+					TX_STATE <= SET_FLAGS;
 				else
 					TX_STATE <= FETCH_PTR_WAIT;
 				end if; 
-
+			when SET_FLAGS =>
+				TX_WRITE_PHASE <= '0';
+				TX_STATE <= FETCH_WORD;	
+				if (TX_BUFF_ADDR_MOD = 0) then
+					if (TX_BYTES_REG mod 8 /= 0 and
+					    TX_BYTES_REG mod 8 <= 4) then
+						TX_FAKE_READ <= '1';
+					else
+						TX_FAKE_READ <= '0';
+					end if;
+				else 
+					if ((TX_BYTES_REG - 2) mod 8 /= 0 and
+					    (TX_BYTES_REG - 2) mod 8 <= 4) then
+						TX_FAKE_READ <= '1';
+					else
+						TX_FAKE_READ <= '0';
+					end if;
+				end if;
 			when FETCH_WORD =>
 				ADDR <= std_logic_vector(TX_BUFF_ADDR);
 				TX_BUFF_ADDR <= TX_BUFF_ADDR + 4;
@@ -233,17 +233,23 @@ process(clk) begin
 					TX_BYTES_ACTUAL <= (others => '0');
 				else
 					TX_BYTES_ACTUAL <= TX_BYTES_ACTUAL - 4;
+					--TODO : it is not cool/pretty/beautiful code.
+					--TODO : ERROR HERE! HOW SHOULD TX_BYTES_ACTUAL BEHAVE IN THIS IF?
+					--TODO : calculate for 42, 44, 46 etc.
+					if ((TX_BUFF_ADDR_MOD /= 0) and (TX_WRITE_PHASE = '0')) then
+						TX_BYTES_ACTUAL <= TX_BYTES_ACTUAL - 2;
+					end if;
 				end if;
 				INIT_AXI_RXN <= '1';
 				TX_STATE <= FETCH_WORD_WAIT;
 
 			when FETCH_WORD_WAIT =>
 				if (AXI_RXN_DONE = '1') then
-					case (TX_BUFF_ADDR_MOD) is
-					when to_unsigned(0, 2) =>
+					case to_integer(TX_BUFF_ADDR_MOD) is
+					when 0 =>
 						TX_PCKT_DATA <= DATA_IN;
 						TX_PCKT_DATA_STRB <= '1';
-					when to_unsigned(2, 2) =>
+					when 2 =>
 						case (TX_WRITE_PHASE) is
 						when '0' =>
 							TX_PCKT_SAVE <= unsigned(DATA_IN(31 downto 16));

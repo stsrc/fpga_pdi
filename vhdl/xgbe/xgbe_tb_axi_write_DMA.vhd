@@ -344,9 +344,9 @@ begin
 	wait until s_axi_bvalid = '0';  --axi write finished
 	s_axi_wstrb<=b"0000";
 	
-	--Write TX descriptor ring size in bytes. 32, (4 descriptors).
+	--Write TX descriptor ring size in bytes. 64, (8 descriptors).
  	s_axi_awaddr<="10100";
-	s_axi_wdata<=x"00000020";
+	s_axi_wdata<=x"00000040";
 	s_axi_wstrb<=b"1111";
 	sendit<='1';                --start axi write to slave
 	wait for 1 ns; 
@@ -366,7 +366,7 @@ begin
 	wait until s_axi_bvalid = '0';  --axi write finished
 	s_axi_wstrb<=b"0000";
 	while (true) loop
-	for i in 0 to 5 loop
+	for i in 0 to 6 loop
 			--Trigger byte transmission.
 		 	s_axi_awaddr<="11100";
 			s_axi_wdata<=x"FFFFFFFF";
@@ -380,7 +380,7 @@ begin
 			
 			--Packet size
 			wait until m_axi_arvalid = '1';
-			TO_READ <= std_logic_vector(to_unsigned(62 + i, 32));
+			TO_READ <= std_logic_vector(to_unsigned(56 + i, 32));
 			wait until m_axi_rready = '1';
 			wait until m_axi_rready = '0';
 
@@ -390,13 +390,13 @@ begin
 			wait until m_axi_rready = '1';
 			wait until m_axi_rready = '0';	
 			
-			for j in 0 to 15 + i / 3 loop
+			for j in 0 to 14 + i / 3 loop
 				wait until m_axi_arvalid = '1';
-				TO_READ <= std_logic_vector(to_unsigned(i + j, 32));
+				TO_READ <= std_logic_vector(to_unsigned(16#00010000# + j * 16#00010001#, 32));
 				wait until m_axi_rready = '1';
 				wait until m_axi_rready = '0';			
 			end loop;
-			if (i = 1) then	
+			if (i = 3) then	
 				--Read used descriptors count.
 				wait for 40 ns;
 	 			s_axi_araddr<="11000";	
