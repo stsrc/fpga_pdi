@@ -104,21 +104,26 @@ TX_PRCSSD_INT <= TX_PRCSSD_INT_S;
 process(clk) begin
 	if (rising_edge(clk)) then
 		if (aresetn = '0') then
-			INIT_AXI_RXN <= '0';
-			TX_PRCSSD_REG <= (others => '0');
-			TX_DESC_ADDR_ACTUAL <= (others => '0');
-			TX_PCKT_DATA_STRB <= '0';
-			TX_PCKT_CNT_STRB <= '0';
-			TX_PRCSSD_INT_S <= '0';
-			TX_PRCSSD_REG <= (others => '0');
-			TX_FAKE_READ <= '0';
-			TX_INCR_STRB_CNT <= (others => '0');
+			ADDR <= (others => '0');
 			TX_DESC_ADDR_REG <= (others => '0');
 			TX_SIZE_REG <= (others => '0');
-			TX_WRITE_PHASE <= '0';
+			TX_PRCSSD_REG <= (others => '0');
+			TX_DESC_ADDR_ACTUAL <= (others => '0');
+			TX_BUFF_ADDR <= (others => '0');
 			TX_BUFF_ADDR_MOD <= (others => '0');
+			TX_PCKT_SAVE <= (others => '0');
+			TX_WRITE_PHASE <= '0';
+			TX_INCR_STRB_CNT <= (others => '0');	
+			TX_BYTES_REG <= (others => '0');
+			TX_BYTES_ACTUAL <= (others => '0');
+			TX_FAKE_READ <= '0';
+			TX_PRCSSD_INT_S <= '0';
+
+			INIT_AXI_RXN <= '0';
 			TX_PCKT_CNT <= (others => '0');
 			TX_PCKT_DATA <= (others => '0');
+			TX_PCKT_DATA_STRB <= '0';
+			TX_PCKT_CNT_STRB <= '0';
 		else			
 
 			INIT_AXI_RXN <= '0';
@@ -209,22 +214,13 @@ process(clk) begin
 					TX_STATE <= FETCH_PTR_WAIT;
 				end if; 
 			when SET_FLAGS =>
-				TX_WRITE_PHASE <= '0';
 				TX_STATE <= FETCH_WORD;	
-				if (TX_BUFF_ADDR_MOD = 0) then
-					if (TX_BYTES_REG mod 8 /= 0 and
-					    TX_BYTES_REG mod 8 <= 4) then
-						TX_FAKE_READ <= '1';
-					else
-						TX_FAKE_READ <= '0';
-					end if;
-				else 
-					if ((TX_BYTES_REG) mod 8 /= 0 and
-					    (TX_BYTES_REG) mod 8 <= 4) then
-						TX_FAKE_READ <= '1';
-					else
-						TX_FAKE_READ <= '0';
-					end if;
+				TX_WRITE_PHASE <= '0';
+				if (TX_BYTES_REG mod 8 /= 0 and
+				    TX_BYTES_REG mod 8 <= 4) then
+					TX_FAKE_READ <= '1';
+				else
+					TX_FAKE_READ <= '0';
 				end if;
 			when FETCH_WORD =>
 				ADDR <= std_logic_vector(TX_BUFF_ADDR);

@@ -366,8 +366,8 @@ begin
 	wait until s_axi_bvalid = '1';
 	wait until s_axi_bvalid = '0';  --axi write finished
 	s_axi_wstrb<=b"0000";
-
-		for i in 6 to 7 loop
+	while (true) loop
+		for i in 0 to 7 loop
 			--Trigger byte transmission.
 		 	s_axi_awaddr<="11100";
 			s_axi_wdata<=x"FFFFFFFF";
@@ -391,9 +391,9 @@ begin
 			wait until m_axi_rready = '1';
 			wait until m_axi_rready = '0';	
 			
-			if (i >= 3 and i <= 6) then
+			if (i >= 1 and i <= 4) then
 				to_add := 1;
-			elsif (i >= 7 and i <= 10) then
+			elsif (i >= 5 and i <= 8) then
 				to_add := 2;
 			else
 				to_add := 0;
@@ -401,7 +401,9 @@ begin
 
 			for j in 0 to 14 + to_add loop
 				wait until m_axi_arvalid = '1';
-				TO_READ <= std_logic_vector(to_unsigned(16#00010000# + j * 16#00010001#, 32));
+				TO_READ <= std_logic_vector(to_unsigned(16#00010000# 
+									+ j * 16#00010001#
+									+ i * 16#10001000#, 32));
 				wait until m_axi_rready = '1';
 				wait until m_axi_rready = '0';			
 			end loop;
@@ -415,7 +417,6 @@ begin
 				wait until s_axi_rready = '1';
 				wait until s_axi_rready = '0';
 			end if;
-			wait for 100 ns;
 		end loop;
 		wait for 200 ns; 
 		--Read used descriptors count.
@@ -425,7 +426,7 @@ begin
 		readit<='0'; 
 		wait until s_axi_rready = '1';
 		wait until s_axi_rready = '0';
-	wait;
+	end loop;
 end process;
  
 end structure;
