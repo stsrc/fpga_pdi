@@ -248,8 +248,8 @@ process(clk) begin
 							TX_PCKT_SAVE <= unsigned(DATA_IN(31 downto 16));
 							TX_WRITE_PHASE <= '1';
 						when '1' =>
-							TX_PCKT_DATA <= std_logic_vector(TX_PCKT_SAVE) & 
-									DATA_IN(15 downto 0);
+							TX_PCKT_DATA <= DATA_IN(15 downto 0) & 
+									std_logic_vector(TX_PCKT_SAVE);
 							TX_PCKT_SAVE <= unsigned(DATA_IN(31 downto 16));
 							TX_PCKT_DATA_STRB <= '1';
 							TX_WRITE_PHASE <= '1';					

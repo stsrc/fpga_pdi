@@ -364,6 +364,7 @@ static void pdi_deinit_dma_ring(struct pdi *pdi, struct dma_ring *ring)
 static void pdi_init_dma(struct pdi *pdi)
 {
 	/* Write where is TX ring located in physical memory. */
+	pr_info("desc_p = 0x%x\n", pdi->tx_ring.desc_p);
 	iowrite32(pdi->tx_ring.desc_p, pdi->reg4);
 	/* Write byte size of TX ring. */
 	iowrite32(pdi->tx_ring.desc_max * sizeof(struct dma_desc), pdi->reg5);
