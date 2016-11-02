@@ -40,6 +40,7 @@ component interconnect_AXI_M_DMA is
 		AXI_RXN_DONE_1 	: out std_logic
 	);
 end component;
+
 signal clk, aresetn, INIT_AXI_TXN, INIT_AXI_RXN, AXI_TXN_DONE, AXI_RXN_DONE : std_logic := '0';
 signal INIT_AXI_TXN_0, AXI_TXN_DONE_0, INIT_AXI_RXN_0, AXI_RXN_DONE_0 : std_logic := '0';
 signal INIT_AXI_TXN_1, AXI_TXN_DONE_1, INIT_AXI_RXN_1, AXI_RXN_DONE_1 : std_logic := '0';

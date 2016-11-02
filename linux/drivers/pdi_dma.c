@@ -43,6 +43,14 @@
  */
 #define DEVICE_MAC_BYTE 0xa0
 
+#define __DEBUG__
+
+#ifdef __DEBUG__
+#define debug_print(x) pr_info(x)
+#else
+#define debug_print(x)
+#endif
+
 MODULE_LICENSE("GPL");
 
 /*
@@ -108,43 +116,25 @@ struct pdi {
 static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	uint32_t cnt = 0;
-	struct dma_ring *tx_ring;
+	struct dma_ring *tx_ring = NULL;
 	struct pdi *pdi = (struct pdi *)netdev_priv(dev);
-	u32 packets = 0, bytes = 0;
 
 	tx_ring = &pdi->tx_ring;
 
 	if ((tx_ring->desc_cur + 1) % tx_ring->desc_max == 
 	    tx_ring->desc_cons) {
-		pr_info("pdi: tx_ring full! Packet will be droped.\n");
-		dev_kfree_skb(skb);
-		return NETDEV_TX_OK;	
+		debug_print("pdi: tx_ring full! Packet will be droped.\n");
+		return NETDEV_TX_BUSY;	
 	}
 
 	cnt = tx_ring->desc_cur;
 
-	tx_ring->buffer[cnt].skb = kzalloc(skb->len + 2, GFP_KERNEL | GFP_DMA);
-
-	if (tx_ring->buffer[cnt].skb == NULL) {
-		pr_info("kzalloc could not alloc memory.\n");
-		dev_kfree_skb(skb);
-		return NETDEV_TX_OK;
-	}
-
-	memcpy((char *)tx_ring->buffer[cnt].skb + 2, skb->data, skb->len);
-
-	for (int i = 0; i < skb->len; i += 4) {
-		pr_info("0: 0x%x, 1:0x%x, 2:0x%x, 3:0x%x\n", skb->data[i], skb->data[i+1], skb->data[i+2], skb->data[i+3]);
-	}
-
-	tx_ring->buffer[cnt].map = dma_map_single(pdi->dev, (char *)tx_ring->buffer[cnt].skb + 2,
+	tx_ring->buffer[cnt].skb = skb;
+	tx_ring->buffer[cnt].map = dma_map_single(pdi->dev, skb->data,
 					skb->len, DMA_TO_DEVICE);
 
-	pr_info("skb->data mod 4 = %u\n", (u32)skb->data % 4);
-	pr_info("tx_ring->buffer[cnt].map mod 4 = %u\n", tx_ring->buffer[cnt].map % 4);
-
 	if (dma_mapping_error(pdi->dev, tx_ring->buffer[cnt].map)) {
-		pr_info("pdi: dma_map_single failed!\n");
+		debug_print("pdi: dma_map_single failed!\n");
 		return NETDEV_TX_BUSY;
 	}
 
@@ -155,55 +145,81 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	dma_sync_single_for_device(pdi->dev, tx_ring->buffer[cnt].map, 
 				   skb->len, DMA_TO_DEVICE);
 	
-	wmb();
-	iowrite32(0xFFFFFFFF, pdi->reg7);
-	
 	tx_ring->desc_cur = (tx_ring->desc_cur + 1) % tx_ring->desc_max;
 
-	bytes += skb->len;
-	packets++;
-
+	wmb();
+	iowrite32(0xFFFFFFFF, pdi->reg7);	
+	wmb();
 	netdev_sent_queue(dev, skb->len);
-	netdev_completed_queue(pdi->netdev, packets, bytes);
 
-	dev_kfree_skb(skb);
 	return NETDEV_TX_OK;
 }
 
 static int pdi_complete_xmit(struct pdi *pdi)
 {
+	struct sk_buff *skb = NULL;
 	struct dma_ring *tx_ring = &pdi->tx_ring;
+	u32 packets = 0, bytes = 0;
 	u32 i = 0;
-	u32 processed;
-	u32 cons;
+	u32 processed = 0;
+	u32 cons = 0;
 
 	cons = tx_ring->desc_cons;
 	processed = ioread32(pdi->reg6);
-	
+	rmb();	
 	if (processed == 0)
 		return 0;
 
 	processed /= sizeof(struct dma_desc);
 	
+	if (tx_ring->desc_cons < tx_ring->desc_cur) {
+		if (processed > tx_ring->desc_cur - tx_ring->desc_cons) {
+			debug_print("PDI_COMPLETE_XMIT FAILED REALLY HARD!\n");
+		}
+	} else {
+		if (processed > tx_ring->desc_cur + tx_ring->desc_max - tx_ring->desc_cons) {
+			debug_print("PDI_COMPLETE_XMIT FAILED REALLY HARD!\n");
+		}
+	}
+
 	for (i = cons; i != (cons + processed) % tx_ring->desc_max; 
 	     i = (i + 1) % tx_ring->desc_max) {
-		pr_info("i = %d; pdi->desc_cons = %d; pdi->desc_cur = %d\n", i,
-		tx_ring->desc_cons, tx_ring->desc_cur);
-	
-		if (tx_ring->desc_cons >= tx_ring->desc_cur) {
-			pr_warn("PDI_COMPLETE_XMIT FAILED REALLY HARD!!!\n");
-			return -EINVAL;
-		}
-
-		dma_unmap_single(pdi->dev, tx_ring->buffer[i].map, tx_ring->desc[i].cnt, 
+		skb = tx_ring->buffer[i].skb;
+		dma_unmap_single(pdi->dev, tx_ring->buffer[i].map, skb->len, 
 				 DMA_TO_DEVICE);
-		kfree(tx_ring->buffer[i].skb);
+
+		bytes += skb->len;
+		packets++;
+		dev_kfree_skb(skb);
 	}
+
 	tx_ring->desc_cons = i;
+	netdev_completed_queue(pdi->netdev, packets, bytes);
+	return 0;
+}
+
+
+static int pdi_open(struct net_device *dev)
+{
+	struct pdi *pdi = netdev_priv(dev);
+	napi_enable(&pdi->napi);
+	netif_start_queue(dev);
+	netif_carrier_on(dev);
+	return 0;
+}
+
+static int pdi_close(struct net_device *dev)
+{
+	struct pdi *pdi = netdev_priv(dev);
+	netif_carrier_off(dev);
+	netif_stop_queue(dev);
+	napi_disable(&pdi->napi);
 	return 0;
 }
 
 static const struct net_device_ops pdi_netdev_ops = {
+	.ndo_open	= pdi_open,
+	.ndo_stop	= pdi_close,
 	.ndo_start_xmit = pdi_start_xmit,
 };
 
@@ -213,6 +229,7 @@ static irqreturn_t pdi_int_handler(int irq, void *data)
 
 	/* Turn off interrupts, allow RX and DMA */
 	iowrite32(cpu_to_le32(1 << 1 | 1 << 3), pdi->reg2);
+	wmb();
 	napi_schedule(&pdi->napi);
 	
 	return IRQ_HANDLED;
@@ -225,19 +242,25 @@ static int pdi_init_irq(struct platform_device *pdev)
 
 	pdi->irq = platform_get_irq(pdev, 0);
 	if (pdi->irq <= 0) {
-		pr_info("pdi: platform_get_irq failed.\n");
+		debug_print("pdi: platform_get_irq failed.\n");
 		return -ENXIO;
 	}
 
 	rt = request_irq(pdi->irq, pdi_int_handler, IRQF_SHARED, DRIVER_NAME, 
 			 pdi);
 	if (rt) {
-		pr_info("pdi: request_irq failed.\n");
+		debug_print("pdi: request_irq failed.\n");
 		pdi->irq = -1;	
 		return -ENXIO;
 	}
 
 	return 0;
+}
+
+static void pdi_deinit_irq(struct platform_device *pdev)
+{
+	struct pdi *pdi = pdev->dev.platform_data;
+	free_irq(pdi->irq, pdi);
 }
 
 static int pdi_rx(struct pdi *pdi)
@@ -264,7 +287,7 @@ static int pdi_rx(struct pdi *pdi)
 		skb = dev_alloc_skb(data_len + NET_IP_ALIGN);
 		if (!skb) {
 			/* TODO - do something with it */
-			pr_info("alloc_skb failed! Packet not received! "
+			debug_print("alloc_skb failed! Packet not received! "
 				"FPGA IN ERROR STATE\n");
 			pdi->netdev->stats.rx_errors++;
 			pdi->netdev->stats.rx_dropped++;
@@ -318,10 +341,10 @@ static int pdi_poll(struct napi_struct *napi, int budget)
 	pdi_complete_xmit(pdi);
 	napi_complete(&pdi->napi);
 
-	if (budget > packets_cnt)
+	if (budget > packets_cnt) {
 		/* Enable interrupt data reception and dma. */
 		iowrite32(cpu_to_le32((1 << 1) | (1 << 2) | (1 << 3)), pdi->reg2);
-
+	}
 	return packets_cnt;
 }
 
@@ -361,16 +384,13 @@ static void pdi_deinit_dma_ring(struct pdi *pdi, struct dma_ring *ring)
 			  ring->desc, ring->desc_p);
 }
 
-static void pdi_init_dma(struct pdi *pdi)
+static void pdi_set_dma(struct pdi *pdi)
 {
 	/* Write where is TX ring located in physical memory. */
-	pr_info("desc_p = 0x%x\n", pdi->tx_ring.desc_p);
 	iowrite32(pdi->tx_ring.desc_p, pdi->reg4);
 	/* Write byte size of TX ring. */
 	iowrite32(pdi->tx_ring.desc_max * sizeof(struct dma_desc), pdi->reg5);
 	wmb();
-	/* Enable data reception, interrupts and DMA. */
-	iowrite32(1 << 1 | 1 << 2 | 1 << 3, pdi->reg2); 
 }
 
 static int pdi_init_dma_rings(struct platform_device *pdev)
@@ -413,7 +433,7 @@ static int pdi_init_registers(struct platform_device *pdev)
 	pdi->iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!pdi->iomem) {
 		rt = -ENXIO;
-		pr_info("pdi: platform_get_resource failed.\n");
+		debug_print("pdi: platform_get_resource failed.\n");
 		goto err0;
 	}
 
@@ -421,7 +441,7 @@ static int pdi_init_registers(struct platform_device *pdev)
 					pdi->iomem->start, DRIVER_NAME);
 	if (!pdi->ports) {
 		rt = -ENOMEM;
-		pr_info("pdi: request_mem_region failed.\n");
+		debug_print("pdi: request_mem_region failed.\n");
 		goto err0;
 	}
 
@@ -482,45 +502,28 @@ err2 :
 	iounmap(pdi->reg0);
 	pdi->reg0 = NULL;
 err1 :
-	pr_info("pdi_init_registers failed.\n");
+	debug_print("pdi_init_registers failed.\n");
 	release_mem_region(pdi->iomem->start, pdi->iomem->end - 
 			   pdi->iomem->start);
 	pdi->iomem = NULL;
 	rt = -ENOMEM;
 err0 :
+	debug_print("pdi_init_registers failed.\n");
 	return rt;
 }
 
 static void pdi_deinit_registers(struct pdi *pdi)
-{
-	
-	if (pdi->reg7)
-		iounmap(pdi->reg7);
-
-	if (pdi->reg6)
-		iounmap(pdi->reg6);
-
-	if (pdi->reg5)
-		iounmap(pdi->reg5);
-
-	if (pdi->reg4)
-		iounmap(pdi->reg4);
-
-	if (pdi->reg3)
-		iounmap(pdi->reg3);
-
-	if (pdi->reg2)
-		iounmap(pdi->reg2);
-
-	if (pdi->reg1)
-		iounmap(pdi->reg1);
-
-	if (pdi->reg0)
-		iounmap(pdi->reg0);
-
-	if (pdi->iomem)
-		release_mem_region(pdi->iomem->start, pdi->iomem->end - 
-				   pdi->iomem->start);
+{	
+	iounmap(pdi->reg7);
+	iounmap(pdi->reg6);
+	iounmap(pdi->reg5);
+	iounmap(pdi->reg4);
+	iounmap(pdi->reg3);
+	iounmap(pdi->reg2);
+	iounmap(pdi->reg1);
+	iounmap(pdi->reg0);
+	release_mem_region(pdi->iomem->start, pdi->iomem->end - 
+			   pdi->iomem->start);
 } 
 
 
@@ -534,145 +537,154 @@ static int pdi_init_ethernet(struct platform_device *pdev)
 	
 	pdi->netdev->irq = pdi->irq;
 	pdi->netdev->base_addr = pdi->iomem->start;
-
 	memset(pdi->netdev->dev_addr, DEVICE_MAC_BYTE, ETH_ALEN);
-	
 	pdi->netdev->netdev_ops = &pdi_netdev_ops;
 
-	netif_napi_add(pdi->netdev, &pdi->napi, pdi_poll, 4);
+	netif_napi_add(pdi->netdev, &pdi->napi, pdi_poll, 64);
 
 	rt = register_netdev(pdi->netdev);
 	
 	if (rt) {
-		pr_info("pdi register_netdev failed.\n");
-		return -ENOMEM;
+		return -EINVAL;
 	}
-
+	
 	return 0;
 }
 
-static int pdi_probe(struct platform_device *pdev)
+static void pdi_set_pdi(struct pdi *pdi, struct platform_device *pdev,
+			struct net_device *netdev)
 {
-	//what happens when it returns negative value?
-	
+	memset(pdi, 0, sizeof(struct pdi));
+	*(u32 *)&pdi->tx_ring.desc_max = 1024;
+	*(u32 *)&pdi->rx_ring.desc_max = 1024;
+	pdi->netdev = netdev;
+	pdev->dev.platform_data = pdi;
+	pdi->dev = &pdev->dev;
+}
+
+static void pdi_reset_xgbe(struct pdi *pdi)
+{
+	iowrite32(cpu_to_le32(1), pdi->reg2);
+	wmb();
+	mdelay(1);
+}
+
+static int pdi_probe(struct platform_device *pdev)
+{	
 	int rt;
 	struct pdi *pdi;
 	struct net_device *netdev; 
 
 	if (pdev->dev.platform_data) {
-		pr_info("pdi: tried to probe already probed"
-			" platform device.\n");
 		return -EINVAL;
 	}
 
 	netdev = alloc_etherdev(sizeof(struct pdi));
-
 	if (!netdev) {
-		pr_info("pdi: alloc_etherdev failed.\n");
+		debug_print("pdi: alloc_etherdev failed.\n");
 		return -ENOMEM;
 	}
-
+	debug_print("pdi: init 1\n");
 	pdi = netdev_priv(netdev);
-
-	memset(pdi, 0, sizeof(struct pdi));
-
-	//SET_NETDEV_DEV(netdev, pdev);//TODO
-
-	*(u32 *)&pdi->tx_ring.desc_max = 256;
-	*(u32 *)&pdi->rx_ring.desc_max = 256;
-
-	pdi->netdev = netdev;
-	pdev->dev.platform_data = pdi;
-	pdi->dev = &pdev->dev;
-
-	rt = pdi_init_irq(pdev);
-	if (rt) 
+	if (!pdi) {
+		debug_print("pdi: netdev_priv failed.\n");
+		rt = -ENOMEM;
 		goto err0;
+	}
+
+	pdi_set_pdi(pdi, pdev, netdev);
+	debug_print("pdi: init 2\n");
 
 	rt = pdi_init_registers(pdev);
-	if (rt) 
-		goto err1;
-
-	rt = pdi_init_ethernet(pdev);
-	if (rt) 
-		goto err2;
+	if (rt) {
+		debug_print("pdi: pdi_init_registers failed.\n");
+		rt = -EINVAL;
+		goto err0;
+	}
+	debug_print("pdi: init 3\n");
 
 	rt = pdi_init_dma_rings(pdev);
-	if (rt)
+	if (rt) {
+		debug_print("pdi: pdi_init_dma_rings failed.\n");
+		rt = -EINVAL;
+		goto err1;
+	}
+	debug_print("pdi: init 3\n");
+
+	pdi_reset_xgbe(pdi);
+	pdi_set_dma(pdi);
+
+	rt = pdi_init_irq(pdev);
+	if (rt) {
+		debug_print("pdi: pdi_init_irq failed.\n");
+		rt = -EINVAL;
+		goto err2;
+	}
+	debug_print("pdi: init 4\n");
+
+	rt = pdi_init_ethernet(pdev);
+	debug_print("pdi: init 5\n");
+	if (rt) {
+		debug_print("pdi: pdi_init_ethernet failed.\n");
 		goto err3;
-
-	/* Software reset on xgbe part of FPGA*/
-	iowrite32(cpu_to_le32(1), pdi->reg2);
+	}
 	wmb();
-	/* 
-	 * Softrst on fPGA has delay of ~2 ticks between clock domains. 
-	 * To be sure that reset was done on both clock domains,
-	 * little delay is used once.
-	 */
-	mdelay(1);
-	
-	/* Data reception and interrupt enable on FPGA */
-	iowrite32(cpu_to_le32(1 << 1 | 1 << 2), pdi->reg2);
+	/* Enable data reception, interrupts and DMA. */
+	iowrite32(1 << 1 | 1 << 2 | 1 << 3, pdi->reg2); 
 	wmb();
-
-	/* Move both functions to netdev open. */
-	netif_start_queue(netdev);	
-	napi_enable(&pdi->napi);
-
-	pdi_init_dma(pdi);
-
+	debug_print("pdi: init 6\n");
 	return 0;
-
 err3:
-	unregister_netdev(pdi->netdev);
-	netif_napi_del(&pdi->napi);
+	pdi_deinit_irq(pdev);
 err2:
-	pdi_deinit_registers(pdi);
+	pdi_deinit_dma_rings(pdev);
 err1:
-	free_irq(pdi->irq, pdi);
+	pdi_deinit_registers(pdi);
 err0:
-	free_netdev(pdi->netdev);
-	pdev->dev.platform_data = NULL;
+	free_netdev(netdev);
 	return rt;
 }
 
 static int pdi_remove(struct platform_device *pdev)
 {
 	struct pdi *pdi = pdev->dev.platform_data;
+	struct net_device *netdev;	
+	struct napi_struct *napi;
+	if (!pdi) {
+		debug_print("pdi: pdi_removed can't get struct pdi *pdi!\n");
+		return -EINVAL;
+	}
+
+	netdev = pdi->netdev;
+	napi = &pdi->napi;
 
 	/*Disabling data reception, DMA and interrupts on FPGA */
 	iowrite32(0, pdi->reg2);
 	wmb();
+	debug_print("pdi: 1\n");
 
-	napi_disable(&pdi->napi);
-	
-	if (!pdi)
-		return -EINVAL;
-
-	if (pdi->irq != -1)
-		free_irq(pdi->irq, pdi);
+	free_irq(pdi->irq, pdi);
+	debug_print("pdi: 2\n");
 
 	pdi_deinit_dma_rings(pdev);
+	debug_print("pdi: 3\n");
 
 	pdi_deinit_registers(pdi);
+	debug_print("pdi: 4\n");
 
-	if (pdi->netdev) {
-		unregister_netdev(pdi->netdev);
-		netif_napi_del(&pdi->napi);
-	}
-	
-	if (pdi->netdev)
-		free_netdev(pdi->netdev);
+	unregister_netdev(netdev);
+	debug_print("pdi: 5\n");
+
+	netif_napi_del(napi);
+	debug_print("pdi: 6\n");
+
+	free_netdev(netdev);
+	debug_print("pdi: 7\n");
 
 	pdev->dev.platform_data = NULL;
 
 	return 0;
 }
-
-//TODO: look at drivers/tty/serial/uartlite.c
-//how static struct ulite_of_match[] is defined.
-//If CONFIG_OF is not defined, ulite_of_match 
-//will dissapear. Futhermore, it won't compile (look at line 715).
 
 static const struct of_device_id pdi_of_match[] = {
 	{ .compatible = "xlnx,xgbe-pcs-pma-1.0", },
@@ -697,7 +709,7 @@ static int __init pdi_init(void)
 	
 	rt = platform_driver_register(&pdi_platform_driver);
 	if (rt) 
-		pr_info("pdi: platform_driver_register failed.\n");
+		debug_print("pdi: platform_driver_register failed.\n");
 
 	return rt;
 }
