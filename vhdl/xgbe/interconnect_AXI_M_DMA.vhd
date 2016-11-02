@@ -126,7 +126,7 @@ process(clk) begin
 					strb_1 <= '0';
 					ADDR_TO_AXI <= ADDR_1_REG;
 					DATA_TO_AXI <= DATA_1_REG;
-					if (rdwr_1 = '1') then
+					if (rdwr_1 = '0') then
 						INIT_AXI_RXN <= '1';
 					else
 						INIT_AXI_TXN <= '1';

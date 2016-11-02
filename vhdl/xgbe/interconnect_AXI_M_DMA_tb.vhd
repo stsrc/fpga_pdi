@@ -92,6 +92,7 @@ end process;
 
 process begin
 	wait for 21 ns;
+	--single TX from 0 CHN.
 	DATA_OUT_0 <= std_logic_vector(to_unsigned(50, 32));
 	ADDR_0 <= std_logic_vector(to_unsigned(32, 32));
 	INIT_AXI_TXN_0 <= '1';
@@ -106,6 +107,8 @@ process begin
 	wait for 10 ns;
 	assert AXI_TXN_DONE_0 = '1' report "4." severity failure;
 	AXI_TXN_DONE <= '0';
+
+	--single RX from 0 CHN.
 	wait for 20 ns;
 	ADDR_0 <= std_logic_vector(to_unsigned(64, 32));
 	INIT_AXI_RXN_0 <= '1';
@@ -122,6 +125,9 @@ process begin
 	assert DATA_IN_0 = std_logic_vector(to_unsigned(666, 32)) report "5." severity failure; 
 	AXI_RXN_DONE <= '0';
 
+	
+	--signle TX from 0 CHN.
+	wait for 10 ns;
 	DATA_OUT_1 <= std_logic_vector(to_unsigned(1337, 32));
 	ADDR_1 <= std_logic_vector(to_unsigned(96, 32));
 	INIT_AXI_TXN_1 <= '1';
@@ -136,6 +142,8 @@ process begin
 	wait for 10 ns;
 	assert AXI_TXN_DONE_1 = '1' report "4." severity failure;
 	AXI_TXN_DONE <= '0';
+
+	--single RX from 1 CHN.
 	wait for 20 ns;
 	ADDR_1 <= std_logic_vector(to_unsigned(128, 32));
 	INIT_AXI_RXN_1 <= '1';
@@ -143,14 +151,75 @@ process begin
 	INIT_AXI_RXN_1 <= '0';
 	wait for 10 ns;
 	DATA_FROM_AXI <= std_logic_vector(to_unsigned(3113, 32));
-	assert ADDR_TO_AXI = std_logic_vector(to_unsigned(64, 32)) report "1." severity failure;
+	assert ADDR_TO_AXI = std_logic_vector(to_unsigned(128, 32)) report "1." severity failure;
 	assert INIT_AXI_RXN = '1' report "3." severity failure;
 	wait for 20 ns;
 	AXI_RXN_DONE <= '1';
 	wait for 10 ns;
 	assert AXI_RXN_DONE_1 = '1' report "4." severity failure;
+	assert DATA_IN_1 = std_logic_vector(to_unsigned(3113, 32)) report "5." severity failure; 
+	AXI_RXN_DONE <= '0';
+	wait for 10 ns;
+
+	--simultanous TX from 0 CHN and RX from 1 CHN. First TX should take place, next RX.
+	DATA_OUT_0 <= std_logic_vector(to_unsigned(50, 32));
+	ADDR_0 <= std_logic_vector(to_unsigned(32, 32));
+	DATA_OUT_1 <= std_logic_vector(to_unsigned(1337, 32));
+	ADDR_1 <= std_logic_vector(to_unsigned(96, 32));
+	INIT_AXI_TXN_0 <= '1';
+	INIT_AXI_RXN_1 <= '1';
+	wait for 10 ns;
+	INIT_AXI_TXN_0 <= '0';
+	INIT_AXI_RXN_1 <= '0';
+	wait for 10 ns;
+	assert ADDR_TO_AXI = std_logic_vector(to_unsigned(32, 32)) report "1." severity failure;
+	assert DATA_TO_AXI = std_logic_vector(to_unsigned(50, 32)) report "2." severity failure;
+	assert INIT_AXI_TXN = '1' report "3." severity failure;
+	wait for 20 ns;
+	AXI_TXN_DONE <= '1';
+	wait for 10 ns;
+	assert AXI_TXN_DONE_0 = '1' report "4." severity failure;
+	AXI_TXN_DONE <= '0';
+	wait for 10 ns;
+	assert ADDR_TO_AXI = std_logic_vector(to_unsigned(96, 32)) report "1." severity failure;
+	assert INIT_AXI_RXN = '1' report "3." severity failure;
+	wait for 10 ns;
+	DATA_FROM_AXI <= std_logic_vector(to_unsigned(666, 32));
+	AXI_RXN_DONE <= '1';
+	wait for 10 ns;
+	assert AXI_RXN_DONE_1 = '1' report "4." severity failure;
 	assert DATA_IN_1 = std_logic_vector(to_unsigned(666, 32)) report "5." severity failure; 
 	AXI_RXN_DONE <= '0';
+	wait for 10 ns;
+
+	--simultanous RX from 0 CHN and TX from 1 CHN. First RX should take place, next TX.
+	ADDR_0 <= std_logic_vector(to_unsigned(32, 32));
+	DATA_OUT_1 <= std_logic_vector(to_unsigned(1337, 32));
+	ADDR_1 <= std_logic_vector(to_unsigned(96, 32));
+	INIT_AXI_RXN_0 <= '1';
+	INIT_AXI_TXN_1 <= '1';
+	wait for 10 ns;
+	INIT_AXI_RXN_0 <= '0';
+	INIT_AXI_TXN_1 <= '0';
+	wait for 10 ns;
+	assert ADDR_TO_AXI = std_logic_vector(to_unsigned(32, 32)) report "1." severity failure;
+	assert INIT_AXI_RXN = '1' report "3." severity failure;
+	wait for 20 ns;
+	DATA_FROM_AXI <= std_logic_vector(to_unsigned(666, 32));
+	AXI_RXN_DONE <= '1';
+	wait for 10 ns;
+	assert AXI_RXN_DONE_0 = '1' report "4." severity failure;
+	assert DATA_IN_0 = std_logic_vector(to_unsigned(666, 32)) report "5." severity failure;
+	AXI_RXN_DONE <= '0';
+	wait for 10 ns;
+	assert ADDR_TO_AXI = std_logic_vector(to_unsigned(96, 32)) report "1." severity failure;
+	assert DATA_TO_AXI = std_logic_vector(to_unsigned(1337, 32)) report "2." severity failure;
+	assert INIT_AXI_TXN = '1' report "3." severity failure;
+	wait for 10 ns;
+	AXI_TXN_DONE <= '1';
+	wait for 10 ns;
+	assert AXI_TXN_DONE_1 = '1' report "4." severity failure; 
+	AXI_TXN_DONE <= '0';
 	wait;
 end process;
 end tb_arch;
