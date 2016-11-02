@@ -335,13 +335,12 @@ component AXI_Master is
 	);
 end component;
 
-component  fsm_DMA is
+component  fsm_DMA_TX is
 	port (
 		clk			: in  std_logic;
 		aresetn			: in  std_logic;
 
 		DATA_IN 		: in  std_logic_vector(31 downto 0);
-		DATA_OUT		: out std_logic_vector(31 downto 0);
 		ADDR			: out std_logic_vector(31 downto 0);		
 		INIT_AXI_TXN		: out std_logic;
 		AXI_TXN_DONE		: in  std_logic;
@@ -357,15 +356,6 @@ component  fsm_DMA is
 		TX_PRCSSD_STRB		: in std_logic;
 		TX_PRCSSD_INT		: out std_logic;
 
-		RX_ADDR			: in std_logic_vector(31 downto 0);
-		RX_ADDR_STRB 		: in std_logic;
-		RX_SIZE			: in std_logic_vector(31 downto 0);
-		RX_SIZE_STRB		: in std_logic;
-		RX_PRCSSD		: out std_logic_vector(31 downto 0);
-		RX_PRCSSD_STRB		: in std_logic;
-		RX_PRCSSD_INT		: out std_logic;
-
-		XGBE_PACKET_RCV		: in std_logic;
 		DMA_EN			: in std_logic;
 
 		TX_PCKT_DATA		: out std_logic_vector(31 downto 0);
@@ -534,6 +524,7 @@ begin
 				slv_reg4_rd <= (others => '0');
 				slv_reg5_rd <= (others => '0');
 				slv_reg7_rd <= (others => '0');
+				axi_m_data_in <= (others => '0');
 			end if;
 		end if;
 	end process;	
@@ -857,13 +848,12 @@ begin
 			M_AXI_RREADY => m_axi_rready		
 		);
 
-	fsm_DMA_0 : fsm_DMA
+	fsm_DMA_TX_0 : fsm_DMA_TX
 		port map (
 			clk 			=> s_axi_aclk,
 			aresetn 		=> s_axi_aresetn,
 	
 			DATA_IN 		=> axi_m_data_out,
-			DATA_OUT 		=> axi_m_data_in,
 			ADDR 			=> axi_m_slave_addr,
 			INIT_AXI_TXN 		=> axi_m_init_txn,
 			AXI_TXN_DONE 		=> axi_m_done_txn,
@@ -877,14 +867,6 @@ begin
 			TX_PRCSSD 		=> slv_reg6_rd,
 			TX_PRCSSD_STRB 		=> slv_reg6_rd_strb,
 			TX_PRCSSD_INT 		=> interrupt_tx_prcssd,
-			RX_ADDR			=> (others => '0'),
-			RX_ADDR_STRB 		=> '0',
-			RX_SIZE 		=> (others => '0'),
-			RX_SIZE_STRB 		=> '0',
-			RX_PRCSSD 		=> open,
-			RX_PRCSSD_STRB	 	=> '0',
-			RX_PRCSSD_INT 		=> open,
-			XGBE_PACKET_RCV		=> '0',
 			DMA_EN 			=> dma_en_100MHz,
 			TX_PCKT_DATA	 	=> data_dma_mux,
 			TX_PCKT_DATA_STRB 	=> strb_data_dma_mux,

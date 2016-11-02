@@ -2,14 +2,13 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity fsm_DMA is
+entity fsm_DMA_TX is
 	port (
 		clk			: in  std_logic;
 		aresetn			: in  std_logic;
 
 		--AXI_Master interface
 		DATA_IN 		: in  std_logic_vector(31 downto 0);
-		DATA_OUT		: out std_logic_vector(31 downto 0);
 		ADDR			: out std_logic_vector(31 downto 0);
 		
 		INIT_AXI_TXN		: out std_logic;
@@ -34,22 +33,6 @@ entity fsm_DMA is
 		--Processed TX descriptor interrupt.
 		TX_PRCSSD_INT		: out std_logic;
 
-		--physical address of RX DMA ring created by linux.
-		RX_ADDR			: in std_logic_vector(31 downto 0);
-		RX_ADDR_STRB 		: in std_logic;
-		--size of RX DMA ring (in bytes).
-		RX_SIZE			: in std_logic_vector(31 downto 0);
-		RX_SIZE_STRB		: in std_logic;
-
-		--Processed RX descriptors size from the last read.
-		RX_PRCSSD		: out std_logic_vector(31 downto 0);
-		--Processed RX descriptors size read strobe (resets counter).
-		RX_PRCSSD_STRB		: in std_logic;
-		--Processed RX descriptor interrupt.
-		RX_PRCSSD_INT		: out std_logic;
-
-		--Packet received strobe.
-		XGBE_PACKET_RCV		: in std_logic;
 		--Enable MAC to work.
 		--(ensure that DMA rings are set.).
 		DMA_EN			: in std_logic;
@@ -61,9 +44,9 @@ entity fsm_DMA is
 		TX_PCKT_CNT		: out std_logic_vector(31 downto 0);
 		TX_PCKT_CNT_STRB	: out std_logic
 	);
-end fsm_DMA;
+end fsm_DMA_TX;
 
-architecture fsm_DMA_arch of fsm_DMA is
+architecture fsm_DMA_arch of fsm_DMA_TX is
 
 signal TX_DESC_ADDR_REG, TX_SIZE_REG	: unsigned(31 downto 0);
 signal TX_PRCSSD_REG			: unsigned(31 downto 0);
@@ -295,9 +278,6 @@ process (clk) begin
 	if (rising_edge(clk)) then
 		if (aresetn = '0') then
 			INIT_AXI_TXN <= '0';
-			RX_PRCSSD <= (others => '0');
-			RX_PRCSSD_INT <= '0';
-			DATA_OUT <= (others => '0');	
 		end if;
 	end if;
 end process;
