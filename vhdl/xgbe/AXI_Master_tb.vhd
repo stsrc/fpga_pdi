@@ -10,7 +10,14 @@ architecture tb_arch of tb is
 component AXI_Master is
 	generic (
 		C_M_AXI_ADDR_WIDTH	: integer	:= 32;
-		C_M_AXI_DATA_WIDTH	: integer	:= 32
+		C_M_AXI_DATA_WIDTH	: integer	:= 32;
+		C_M_AXI_ID_WIDTH	: integer	:= 1;
+		C_M_AXI_AWUSER_WIDTH	: integer	:= 0;
+		C_M_AXI_WUSER_WIDTH	: integer	:= 0;
+		C_M_AXI_BUSER_WIDTH	: integer	:= 0;
+		C_M_AXI_ARUSER_WIDTH	: integer	:= 0;
+		C_M_AXI_RUSER_WIDTH	: integer	:= 0;
+		C_M_AXI_BURST_LEN	: integer	:= 8
 	);
 	port (
 
@@ -20,185 +27,100 @@ component AXI_Master is
 
 		INIT_AXI_TXN	: in std_logic;
 		AXI_TXN_DONE	: out std_logic;
+		AXI_TXN_STRB	: out std_logic;
 		INIT_AXI_RXN	: in std_logic;
 		AXI_RXN_DONE	: out std_logic;
-
-		ERROR	: out std_logic;
+		AXI_RXN_STRB	: out std_logic;
 
 		M_AXI_ACLK	: in std_logic;
 		M_AXI_ARESETN	: in std_logic;
+		M_AXI_AWID	: out std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
 		M_AXI_AWADDR	: out std_logic_vector(C_M_AXI_ADDR_WIDTH-1 downto 0);
+		M_AXI_AWLEN	: out std_logic_vector(7 downto 0);
+		M_AXI_AWSIZE	: out std_logic_vector(2 downto 0);
+		M_AXI_AWBURST	: out std_logic_vector(1 downto 0);
+		M_AXI_AWLOCK	: out std_logic;
+		M_AXI_AWCACHE	: out std_logic_vector(3 downto 0);
 		M_AXI_AWPROT	: out std_logic_vector(2 downto 0);
+		M_AXI_AWQOS	: out std_logic_vector(3 downto 0);
+		M_AXI_AWUSER	: out std_logic_vector(C_M_AXI_AWUSER_WIDTH-1 downto 0);
 		M_AXI_AWVALID	: out std_logic;
 		M_AXI_AWREADY	: in std_logic;
 		M_AXI_WDATA	: out std_logic_vector(C_M_AXI_DATA_WIDTH-1 downto 0);
 		M_AXI_WSTRB	: out std_logic_vector(C_M_AXI_DATA_WIDTH/8-1 downto 0);
+		M_AXI_WLAST	: out std_logic;
+		M_AXI_WUSER	: out std_logic_vector(C_M_AXI_WUSER_WIDTH-1 downto 0);
 		M_AXI_WVALID	: out std_logic;
 		M_AXI_WREADY	: in std_logic;
+		M_AXI_BID	: in std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
 		M_AXI_BRESP	: in std_logic_vector(1 downto 0);
+		M_AXI_BUSER	: in std_logic_vector(C_M_AXI_BUSER_WIDTH-1 downto 0);
 		M_AXI_BVALID	: in std_logic;
 		M_AXI_BREADY	: out std_logic;
+		M_AXI_ARID	: out std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
 		M_AXI_ARADDR	: out std_logic_vector(C_M_AXI_ADDR_WIDTH-1 downto 0);
+		M_AXI_ARLEN	: out std_logic_vector(7 downto 0);
+		M_AXI_ARSIZE	: out std_logic_vector(2 downto 0);
+		M_AXI_ARBURST	: out std_logic_vector(1 downto 0);
+		M_AXI_ARLOCK	: out std_logic;
+		M_AXI_ARCACHE	: out std_logic_vector(3 downto 0);
 		M_AXI_ARPROT	: out std_logic_vector(2 downto 0);
+		M_AXI_ARQOS	: out std_logic_vector(3 downto 0);
+		M_AXI_ARUSER	: out std_logic_vector(C_M_AXI_ARUSER_WIDTH-1 downto 0);
 		M_AXI_ARVALID	: out std_logic;
 		M_AXI_ARREADY	: in std_logic;
+		M_AXI_RID	: in std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
 		M_AXI_RDATA	: in std_logic_vector(C_M_AXI_DATA_WIDTH-1 downto 0);
 		M_AXI_RRESP	: in std_logic_vector(1 downto 0);
+		M_AXI_RLAST	: in std_logic;
+		M_AXI_RUSER	: in std_logic_vector(C_M_AXI_RUSER_WIDTH-1 downto 0);
 		M_AXI_RVALID	: in std_logic;
 		M_AXI_RREADY	: out std_logic
+
 	);
 end component;
 
-component AXI_to_regs is
-	generic (
-		C_S_AXI_DATA_WIDTH	: integer	:= 32;
-		C_S_AXI_ADDR_WIDTH	: integer	:= 5
-	);
-	port (
-		interrupt : out std_logic;
-		interrupt_in    : in std_logic;       
+	signal aclk, aresetn, awvalid, awready 	: std_logic := '0';
+	signal arvalid, arready, rvalid, rready	: std_logic := '0';
+	signal wvalid, wready, bvalid, bready	: std_logic := '0';
 
-		slv_reg0_rd	: in std_logic_vector(C_s_axi_DATA_WIDTH - 1 downto 0);
-		slv_reg0_wr	: out std_logic_vector(C_s_axi_DATA_WIDTH - 1 downto 0);
-		slv_reg1_rd	: in std_logic_vector(C_s_axi_DATA_WIDTH - 1 downto 0);
-		slv_reg1_wr	: out std_logic_vector(C_s_axi_DATA_WIDTH - 1 downto 0);
-		slv_reg2_rd	: in std_logic_vector(C_s_axi_DATA_WIDTH - 1 downto 0);
-		slv_reg2_wr    : out std_logic_vector(C_s_axi_DATA_WIDTH - 1 downto 0);
-		slv_reg3_rd	: in std_logic_vector(C_s_axi_DATA_WIDTH - 1 downto 0);
-		slv_reg3_wr    : out std_logic_vector(C_s_axi_DATA_WIDTH - 1 downto 0);
-		slv_reg4_rd	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
-		slv_reg4_wr	: out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
-		slv_reg5_rd	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
-		slv_reg5_wr	: out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
-		slv_reg6_rd	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
-		slv_reg6_wr    	: out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
-		slv_reg7_rd	: in std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
-		slv_reg7_wr    	: out std_logic_vector(C_S_AXI_DATA_WIDTH - 1 downto 0);
-        
-		slv_reg0_rd_strb	: out std_logic;
-		slv_reg1_rd_strb	: out std_logic;
-		slv_reg2_rd_strb	: out std_logic;
-		slv_reg3_rd_strb	: out std_logic;
-		slv_reg4_rd_strb	: out std_logic;
-		slv_reg5_rd_strb	: out std_logic;
-		slv_reg6_rd_strb	: out std_logic;
-		slv_reg7_rd_strb	: out std_logic;
-		slv_reg0_wr_strb	: out std_logic;
-		slv_reg1_wr_strb	: out std_logic;
-		slv_reg2_wr_strb	: out std_logic;
-		slv_reg3_wr_strb	: out std_logic;
-		slv_reg4_wr_strb	: out std_logic;
-		slv_reg5_wr_strb	: out std_logic;
-		slv_reg6_wr_strb   	: out std_logic;
-		slv_reg7_wr_strb   	: out std_logic;
-
-		S_AXI_ACLK	: in std_logic;
-		S_AXI_ARESETN	: in std_logic;
-		S_AXI_AWADDR	: in std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
-		S_AXI_AWPROT	: in std_logic_vector(2 downto 0);
-		S_AXI_AWVALID	: in std_logic;
-		S_AXI_AWREADY	: out std_logic;
-		S_AXI_WDATA	: in std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
-		S_AXI_WSTRB	: in std_logic_vector((C_S_AXI_DATA_WIDTH/8)-1 downto 0);
-		S_AXI_WVALID	: in std_logic;
-		S_AXI_WREADY	: out std_logic;
-		S_AXI_BRESP	: out std_logic_vector(1 downto 0);
-		S_AXI_BVALID	: out std_logic;
-		S_AXI_BREADY	: in std_logic;
-		S_AXI_ARADDR	: in std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
-		S_AXI_ARPROT	: in std_logic_vector(2 downto 0);
-		S_AXI_ARVALID	: in std_logic;
-		S_AXI_ARREADY	: out std_logic;
-		S_AXI_RDATA	: out std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
-		S_AXI_RRESP	: out std_logic_vector(1 downto 0);
-		S_AXI_RVALID	: out std_logic;
-		S_AXI_RREADY	: in std_logic
-	);
-end component;
-	signal aclk, aresetn, awvalid, awready, wvalid, wready, bvalid, bready 	: std_logic := '0';
-	signal arvalid, arready, rvalid, rready				: std_logic := '0';
+	signal awid 	: std_logic_vector(0 downto 0) 	:= (others => '0');
+	signal awlen 	: std_logic_vector(7 downto 0) 	:= (others => '0');
+	signal awsize 	: std_logic_vector(2 downto 0) 	:= (others => '0');
+	signal awburst 	: std_logic_vector(1 downto 0) 	:= (others => '0');
+	signal awlock 	: std_logic := '0';
+	signal awcache 	: std_logic_vector(3 downto 0) 	:= (others => '0');
+	signal awqos 	: std_logic_vector(3 downto 0) 	:= (others => '0');
+	signal awuser 	: std_logic_vector(-1 downto 0) := (others => '0');
+	signal wlast 	: std_logic := '0';
+	signal wuser	: std_logic_vector(-1 downto 0) := (others => '0');
+	signal bid 	: std_logic_vector(0 downto 0) 	:= (others => '0'); 
+	signal buser 	: std_logic_vector(-1 downto 0) := (others => '0');
+	signal arid 	: std_logic_vector(0 downto 0) := (others => '0');
+	signal arlen 	: std_logic_vector(7 downto 0) 	:= (others => '0');
+	signal arsize 	: std_logic_vector(2 downto 0) 	:= (others => '0');
+	signal arburst 	: std_logic_vector(1 downto 0) 	:= (others => '0');
+	signal arlock 	: std_logic := '0';
+	signal arcache 	: std_logic_vector(3 downto 0) 	:= (others => '0');
+	signal arqos 	: std_logic_vector(3 downto 0) 	:= (others => '0');
+	signal aruser 	: std_logic_vector(-1 downto 0) := (others => '0');
+	signal rid 	: std_logic_vector(0 downto 0) 	:= (others => '0');
+	signal rlast 	: std_logic := '0';
+	signal ruser 	: std_logic_vector(-1 downto 0) := (others => '0');
+	 
 	signal awprot, arprot		: std_logic_vector(2 downto 0) := (others => '0');
 	signal bresp, rresp		: std_logic_vector(1 downto 0) := (others => '0');
 	signal wdata, rdata		: std_logic_vector(31 downto 0) := (others => '0');
 	signal wstrb			: std_logic_vector(3 downto 0) := (others => '0');
-	signal s_awaddr, s_araddr	: std_logic_vector(4 downto 0) := (others => '0');
 	signal m_awaddr, m_araddr	: std_logic_vector(31 downto 0) := (others => '0');
-	signal slv_reg0_rd, slv_reg1_rd, slv_reg2_rd, slv_reg3_rd : std_logic_vector(31 downto 0) := (others => '0');
-	signal slv_reg0_wr, slv_reg1_wr, slv_reg2_wr, slv_reg3_wr : std_logic_vector(31 downto 0) := (others => '0');
-	signal slv_reg0_rd_strb, slv_reg1_rd_strb, slv_reg2_rd_strb, slv_reg3_rd_strb : std_logic := '0';
-	signal slv_reg0_wr_strb, slv_reg1_wr_strb, slv_reg2_wr_strb, slv_reg3_wr_strb : std_logic := '0';
-
-	signal interrupt, interrupt_in	: std_logic := '0';	
 
 	signal m_data_in, m_data_out 	: std_logic_vector(31 downto 0) := (others => '0');
 	signal m_target_addr : std_logic_vector(31 downto 0) := (others => '0');
-	signal axi_init_txn, axi_done_txn, axi_init_rxn, axi_done_rxn, axi_error : std_logic := '0';
+
+	signal axi_init_txn, axi_done_txn, axi_init_rxn, axi_done_rxn : std_logic := '0';
+	signal axi_rxn_strb, axi_txn_strb : std_logic := '0';
 begin
 	
-	AXI_to_regs_0 : AXI_to_regs 
-		generic map (
-			C_S_AXI_DATA_WIDTH => 32,
-			C_S_AXI_ADDR_WIDTH => 5
-		)
-		port map (
-			interrupt => interrupt,
-			interrupt_in => interrupt_in,
-			slv_reg0_rd => slv_reg0_rd,
-			slv_reg0_wr => slv_reg0_wr,
-			slv_reg1_rd => slv_reg1_rd,
-			slv_reg1_wr => slv_reg1_wr,
-			slv_reg2_rd => slv_reg2_rd,
-			slv_reg2_wr => slv_reg2_wr,
-			slv_reg3_rd => slv_reg3_rd,
-			slv_reg3_wr => slv_reg3_wr,
-			slv_reg0_rd_strb => slv_reg0_rd_strb,
-			slv_reg1_rd_strb => slv_reg1_rd_strb,
-			slv_reg2_rd_strb => slv_reg2_rd_strb,
-			slv_reg3_rd_strb => slv_reg3_rd_strb,
-			slv_reg0_wr_strb => slv_reg0_wr_strb,
-			slv_reg1_wr_strb => slv_reg1_wr_strb,
-			slv_reg2_wr_strb => slv_reg2_wr_strb,
-			slv_reg3_wr_strb => slv_reg3_wr_strb,
-
-			slv_reg4_rd => (others => '0'),
-			slv_reg4_wr => open,
-			slv_reg5_rd => (others => '0'),
-			slv_reg5_wr => open,
-			slv_reg6_rd => (others => '0'),
-			slv_reg6_wr => open,
-			slv_reg7_rd => (others => '0'),
-			slv_reg7_wr => open,
-			slv_reg4_rd_strb => open,
-			slv_reg5_rd_strb => open,
-			slv_reg6_rd_strb => open,
-			slv_reg7_rd_strb => open,
-			slv_reg4_wr_strb => open,
-			slv_reg5_wr_strb => open,
-			slv_reg6_wr_strb => open,
-			slv_reg7_wr_strb => open,
-
-			S_AXI_ACLK => aclk,
-			S_AXI_ARESETN => aresetn,
-			S_AXI_AWADDR => s_awaddr,
-			S_AXI_AWPROT => awprot,
-			S_AXI_AWVALID => awvalid,
-			S_AXI_AWREADY => awready,
-			S_AXI_WDATA => wdata,
-			S_AXI_WSTRB => wstrb,
-			S_AXI_WVALID => wvalid,
-			S_AXI_WREADY => wready,
-			S_AXI_BRESP => bresp,
-			S_AXI_BVALID => bvalid,
-			S_AXI_BREADY => bready,
-			S_AXI_ARADDR => s_araddr,
-			S_AXI_ARPROT => arprot,
-			S_AXI_ARVALID => arvalid,
-			S_AXI_ARREADY => arready,
-			S_AXI_RDATA => rdata,
-			S_AXI_RRESP => rresp,
-			S_AXI_RVALID => rvalid,
-			S_AXI_RREADY => rready
-		);
 
 	AXI_Master_0 : AXI_Master
 		port map (
@@ -209,7 +131,8 @@ begin
 			AXI_TXN_DONE => axi_done_txn,
 			INIT_AXI_RXN => axi_init_rxn,
 			AXI_RXN_DONE => axi_done_rxn,
-			ERROR => axi_error,
+			AXI_TXN_STRB => axi_txn_strb,
+			AXI_RXN_STRB => axi_rxn_strb,
 
 			M_AXI_ACLK => aclk,
 			M_AXI_ARESETN => aresetn,
@@ -231,11 +154,31 @@ begin
 			M_AXI_RDATA => rdata,
 			M_AXI_RRESP => rresp,
 			M_AXI_RVALID => rvalid,
-			M_AXI_RREADY => rready		
+			M_AXI_RREADY => rready,
+			M_AXI_AWID => awid,
+			M_AXI_AWLEN => awlen,
+			M_AXI_AWSIZE => awsize,
+			M_AXI_AWBURST => awburst,
+			M_AXI_AWLOCK => awlock,
+			M_AXI_AWCACHE => awcache,
+			M_AXI_AWQOS => awqos,
+			M_AXI_AWUSER => awuser,
+			M_AXI_WLAST => wlast,
+			M_AXI_WUSER => wuser,
+			M_AXI_BID => bid,
+			M_AXI_BUSER => buser,
+			M_AXI_ARID => arid,
+			M_AXI_ARLEN => arlen,
+			M_AXI_ARSIZE => arsize,
+			M_AXI_ARBURST => arburst,
+			M_AXI_ARLOCK => arlock,
+			M_AXI_ARCACHE => arcache,
+			M_AXI_ARQOS => arqos,
+			M_AXI_ARUSER => aruser,
+			M_AXI_RID => rid,
+			M_AXI_RLAST => rlast,
+			M_AXI_RUSER => ruser
 		);
-
-	s_araddr <= m_araddr(4 downto 0);
-	s_awaddr <= m_awaddr(4 downto 0);
 process
 begin
 	aclk <= '1';
@@ -254,41 +197,54 @@ end process;
 
 process
 begin
-	wait until aresetn = '1';
+	wait until awvalid = '1';
+	awready <= '1';
+	wait until awvalid = '0';
+	awready <= '0';
+	for i in 0 to 7 loop
+		wready <= '1';
+		wait for 10 ns;
+		wready <= '0';
+		wait for 10 ns;	
+	end loop;
+	bvalid <= '1';
+	wait until bready = '0';
+	bvalid <= '0';
 	wait for 10 ns;
-	m_data_in <= std_logic_vector(to_unsigned(1212, 32));
-	m_target_addr <= std_logic_vector(to_unsigned(0, 32));
+
+end process;	
+
+process
+begin
+	wait until arvalid = '1';
+	arready <= '1';
+	wait until arvalid = '0';
+	arready <= '0';
+	for i in 0 to 7 loop
+		rvalid <= '1';
+		wait for 10 ns;
+		rvalid <= '0';
+		wait for 10 ns;
+	end loop;
+	rvalid <= '1';
+	rlast <= '1';
+	wait for 10 ns;
+	rvalid <= '0';
+	rlast <= '0';
+	wait for 10 ns;
+end process;	
+
+
+process
+begin
+	wait for 20 ns;
 	axi_init_txn <= '1';
 	wait for 10 ns;
 	axi_init_txn <= '0';
-	wait until slv_reg0_wr_strb = '1';
-	wait until axi_done_txn = '1';
-	assert unsigned(slv_reg0_wr) = 1212 report "Wrong first test." severity failure;
-
-	wait for 10 ns;
-	
-	m_data_in <= std_logic_vector(to_unsigned(2121, 32));
-	m_target_addr <= std_logic_vector(to_unsigned(4, 32));
-	axi_init_txn <= '1';
-	wait for 10 ns;
-	axi_init_txn <= '0';
-	wait until slv_reg1_wr_strb = '1';
-	wait until axi_done_txn = '1';
-	assert unsigned(slv_reg1_wr) = 2121 report "Wrong second test." severity failure;
-
-	wait for 10 ns;
-	
-	m_target_addr <= std_logic_vector(to_unsigned(12, 32));
-	slv_reg3_rd <= std_logic_vector(to_unsigned(98765, 32));
+	wait for 500 ns;
 	axi_init_rxn <= '1';
 	wait for 10 ns;
 	axi_init_rxn <= '0';
-	wait until slv_reg3_rd_strb = '1';
-	wait until axi_done_rxn = '1';
-
-	wait for 1 ps;	
-	assert unsigned(m_data_out) = 98765 report "Wrong third test." severity failure;	
-
 	wait;
 
 end process;
