@@ -84,6 +84,8 @@ architecture implementation of AXI_Master is
 --  The burst counters are used to track the number of burst transfers of
 -- C_M_AXI_BURST_LEN burst length needed to transfer 2^C_MASTER_LENGTH bytes of data.
 
+-- C_TRANSACTIONS_NUM is the width of the index counter for
+-- number of beats in a burst write or burst read transaction.
 
 	constant C_TRANSACTIONS_NUM	: integer := 3;
 	constant C_MASTER_LENGTH	: integer := 5;
@@ -118,16 +120,15 @@ architecture implementation of AXI_Master is
 	signal burst_read_active	: std_logic;
 	signal wnext, rnext        : std_logic;
 
-	signal M_DATA_OUT_S 	: std_logic_vector(C_M_AXI_DATA_WIDTH - 1 downto 0);
-	signal M_DATA_IN_S 	: std_logic_vector(C_M_AXI_DATA_WIDTH - 1 downto 0);
 	signal M_TARGET_ADDR_S 	: std_logic_vector(C_M_AXI_ADDR_WIDTH - 1 downto 0);
 
 begin
 	-- I/O Connections assignments
 	--TODO CACHE SIGNALS ETC!!!!
-	M_DATA_OUT_S <= M_AXI_RDATA;
+	--TODO M_DATA_IN and M_DATA_OUT REGISTERED!
+	M_DATA_OUT 	<= M_AXI_RDATA;
 	M_AXI_AWID	<= (others => '0');
-	M_AXI_AWADDR	<= axi_awaddr;
+	M_AXI_AWADDR	<= std_logic_vector(unsigned(M_TARGET_ADDR_S) + unsigned(axi_awaddr));
 	M_AXI_AWLEN	<= std_logic_vector(to_unsigned(C_M_AXI_BURST_LEN - 1, 8));
 	M_AXI_AWSIZE	<= std_logic_vector(to_unsigned(2, 3));
 	M_AXI_AWBURST	<= "01";
@@ -135,8 +136,7 @@ begin
 	M_AXI_AWCACHE	<= "0010";
 	M_AXI_AWQOS	<= x"0";
 	M_AXI_AWUSER	<= (others => '1');
-	M_AXI_WDATA	<= M_DATA_IN_S;
-	M_DATA_OUT	<= M_DATA_OUT_S;
+	M_AXI_WDATA	<= M_DATA_IN;
 	M_AXI_AWPROT	<= "000";
 	M_AXI_AWVALID	<= axi_awvalid;
 	M_AXI_WVALID	<= axi_wvalid;
@@ -150,7 +150,7 @@ begin
 	M_AXI_ARBURST	<= "01";
 	M_AXI_ARLOCK	<= '0';
 	M_AXI_ARCACHE	<= "0010";
-	M_AXI_ARADDR	<= axi_araddr;
+	M_AXI_ARADDR	<= std_logic_vector(unsigned(M_TARGET_ADDR_S) + unsigned(axi_araddr));
 	M_AXI_ARVALID	<= axi_arvalid;
 	M_AXI_ARPROT	<= "000";
 	M_AXI_RREADY	<= axi_rready;
@@ -206,13 +206,11 @@ begin
 	  process(M_AXI_ACLK)
 	  begin
 	    if (rising_edge (M_AXI_ACLK)) then
-	      if (M_AXI_ARESETN = '0') then
+	      if (M_AXI_ARESETN = '0' or writes_done = '1') then
 	        axi_awaddr <= (others => '0');
 	      else
 	        if (M_AXI_AWREADY= '1' and axi_awvalid = '1') then
-	          axi_awaddr <= std_logic_vector(
-				unsigned(M_TARGET_ADDR_S) + 4 * unsigned(write_burst_counter)
-				);
+	          axi_awaddr <= std_logic_vector(unsigned(axi_awaddr) + unsigned(burst_size_bytes));
 	        end if;
 	      end if;
 	    end if;
@@ -341,14 +339,12 @@ begin
 	-- Next address after ARREADY indicates previous address acceptance
 	  process(M_AXI_ACLK)
 	  begin
-	    if (rising_edge (M_AXI_ACLK)) then
+	    if (rising_edge (M_AXI_ACLK) or reads_done = '1') then
 	      if (M_AXI_ARESETN = '0') then
 	        axi_araddr <= (others => '0');
 	      else
 	        if (M_AXI_ARREADY = '1' and axi_arvalid = '1') then
-	          axi_araddr <= std_logic_vector(
-				unsigned(M_TARGET_ADDR_S) + 4 * unsigned(read_burst_counter)
-				);
+	          axi_araddr <= std_logic_vector(unsigned(axi_araddr) + unsigned(burst_size_bytes));
 	        end if;
 	      end if;
 	    end if;
@@ -539,8 +535,6 @@ begin
 		AXI_RXN_DONE <= '0';
 		AXI_TXN_STRB <= '0';
 		AXI_RXN_STRB <= '0';
-		M_DATA_OUT_S <= (others => '0');
-		M_DATA_IN_S <= (others => '0');
 		M_TARGET_ADDR_S <= (others => '0');
 
 	      else
@@ -554,9 +548,6 @@ begin
 		start_single_burst_write <= '0';
 		start_single_burst_read <= '0';
 
-		--TODO
- 		M_DATA_OUT_S <= M_DATA_OUT_S;
-		M_DATA_IN_S <= M_DATA_IN_S;
 		M_TARGET_ADDR_S <= M_TARGET_ADDR_S;
 
 	        case (mst_exec_state) is
@@ -566,7 +557,6 @@ begin
 	            if ( INIT_AXI_TXN = '1') then
 
 	              mst_exec_state  <= INIT_WRITE;
-			M_DATA_IN_S <= M_DATA_IN;
 			M_TARGET_ADDR_S <= M_TARGET_BASE_ADDR;
 	            elsif ( INIT_AXI_RXN = '1') then
 			mst_exec_state <= INIT_READ;
@@ -589,8 +579,6 @@ begin
 
 	when INIT_READ =>
 		mst_exec_state <= INIT_READ;
-
-
 		if (rnext = '1') then
 			AXI_RXN_STRB <= '1';
 		elsif (reads_done = '1') then

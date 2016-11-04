@@ -238,9 +238,16 @@ end process;
 process
 begin
 	wait for 20 ns;
+	m_target_addr <= std_logic_vector(to_unsigned(64, 32));	
+	m_data_in <=std_logic_vector(to_unsigned(512, 32));		
 	axi_init_txn <= '1';
 	wait for 10 ns;
 	axi_init_txn <= '0';
+	for i in 0 to 7 loop
+		wait until axi_txn_strb = '1';
+		m_data_in <= std_logic_vector(unsigned(m_data_in) - 1);	
+	end loop;
+
 	wait for 500 ns;
 	axi_init_rxn <= '1';
 	wait for 10 ns;
