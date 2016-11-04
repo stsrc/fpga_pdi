@@ -468,7 +468,10 @@ begin
 	      if (M_AXI_ARESETN = '0') then
 			writes_done <= '0';
 	      else
-	        if (((M_AXI_BVALID = '1') and (write_burst_counter = "1")) and (axi_bready = '1')) then
+	        if (M_AXI_BVALID = '1' 
+			and (write_burst_counter(C_NO_BURSTS_REQ) = '1') 
+			and axi_bready = '1')
+		then
 			writes_done <= '1';
 		else
 			writes_done <= '0';
@@ -511,7 +514,7 @@ begin
 	      else
 	        if (M_AXI_RVALID = '1' and axi_rready = '1' 
 		and (read_index = std_logic_vector (to_unsigned(C_M_AXI_BURST_LEN-1,C_TRANSACTIONS_NUM+1))) 
-		and (read_burst_counter = "1")) then
+		and (read_burst_counter(C_NO_BURSTS_REQ) = '1')) then
 			reads_done <= '1';
 		else
 			reads_done <= '0';
