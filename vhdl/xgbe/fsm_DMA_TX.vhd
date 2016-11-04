@@ -13,8 +13,10 @@ entity fsm_DMA_TX is
 		
 		INIT_AXI_TXN		: out std_logic;
 		AXI_TXN_DONE		: in  std_logic;
+		AXI_TXN_STRB		: in  std_logic;
 		INIT_AXI_RXN		: out std_logic;
 		AXI_RXN_DONE 		: in  std_logic;
+		AXI_RXN_STRB		: in  std_logic;
 
 		--physical address of TX DMA ring created by linux.
 		TX_DESC_ADDR		: in std_logic_vector(31 downto 0);
@@ -67,13 +69,12 @@ signal TX_PRCSSD_INT_S 		: std_logic;
 
 type tx_states is (
 		IDLE,
-		FETCH_CNT,
-		FETCH_CNT_WAIT,
-		FETCH_PTR, 
-		FETCH_PTR_WAIT,
+		FETCH_DESC,
+		FETCH_DESC_WAIT_0,
+		FETCH_DESC_WAIT_1,
 		SET_FLAGS, 
-		FETCH_WORD,
-		FETCH_WORD_WAIT,
+		FETCH_WORDS,
+		FETCH_WORDS_WAIT,
 		FAKE_TX_STRB,
 		PUSH_PCKT_CNT
 		);
@@ -156,48 +157,45 @@ process(clk) begin
 						if (TX_PRCSSD_REG = TX_SIZE_REG) then
 							TX_STATE <= IDLE;
 						else
-							TX_STATE <= FETCH_CNT;
+							TX_STATE <= FETCH_DESC;
 						end if;
 					end if;
 				end if;
 
-			when FETCH_CNT =>
+			when FETCH_DESC =>
 				ADDR <= std_logic_vector(TX_DESC_ADDR_ACTUAL);
 				INIT_AXI_RXN <= '1';	
-				TX_DESC_ADDR_ACTUAL <= TX_DESC_ADDR_ACTUAL + 4;
-				TX_STATE <= FETCH_CNT_WAIT;
+				TX_DESC_ADDR_ACTUAL <= TX_DESC_ADDR_ACTUAL + 8;
+				if (TX_DESC_ADDR_ACTUAL + 8 = TX_DESC_ADDR_REG + TX_SIZE_REG) then
+					TX_DESC_ADDR_ACTUAL <= TX_DESC_ADDR_REG;
+				end if;
+				TX_STATE <= FETCH_DESC_WAIT_0;
 
-			when FETCH_CNT_WAIT =>
-				INIT_AXI_RXN <= '0';
-				if (AXI_RXN_DONE = '1') then
+			when FETCH_DESC_WAIT_0 =>
+				if (AXI_RXN_STRB = '1') then
 					TX_BYTES_REG <= unsigned(DATA_IN);
 					TX_BYTES_ACTUAL <= unsigned(DATA_IN);
 
-					TX_STATE <= FETCH_PTR; 
+					TX_STATE <= FETCH_DESC_WAIT_1; 
 				else
-					TX_STATE <= FETCH_CNT_WAIT;
+					TX_STATE <= FETCH_DESC_WAIT_0;
 				end if;
-
-			when FETCH_PTR =>
-				ADDR <= std_logic_vector(TX_DESC_ADDR_ACTUAL);
-				INIT_AXI_RXN <= '1';
-				TX_DESC_ADDR_ACTUAL <= TX_DESC_ADDR_ACTUAL + 4;
-
-				if (TX_DESC_ADDR_ACTUAL + 4 = TX_DESC_ADDR_REG + TX_SIZE_REG) then
-					TX_DESC_ADDR_ACTUAL <= TX_DESC_ADDR_REG;
-				end if;
-				TX_STATE <= FETCH_PTR_WAIT;
-
-			when FETCH_PTR_WAIT =>
-				if (AXI_RXN_DONE = '1') then
+			when FETCH_DESC_WAIT_1 =>
+				if (AXI_RXN_STRB = '1') then
 					TX_BUFF_ADDR <= unsigned(DATA_IN(31 downto 2) & "00");
 					TX_BUFF_ADDR_MOD <= unsigned(DATA_IN(1 downto 0));
 					TX_STATE <= SET_FLAGS;
 				else
-					TX_STATE <= FETCH_PTR_WAIT;
+					TX_STATE <= FETCH_DESC_WAIT_1;
 				end if; 
 			when SET_FLAGS =>
-				TX_STATE <= FETCH_WORD;	
+				--TODO HOW TO DECREASE BURST LENGTH DYNAMICALLY?
+				if (AXI_RXN_DONE = '1') then
+					TX_STATE <= FETCH_WORDS;	
+				else
+					TX_STATE <= SET_FLAGS;
+				end if;
+
 				TX_WRITE_PHASE <= '0';
 				if (TX_BYTES_REG mod 8 /= 0 and
 				    TX_BYTES_REG mod 8 <= 4) then
@@ -205,46 +203,30 @@ process(clk) begin
 				else
 					TX_FAKE_READ <= '0';
 				end if;
-			when FETCH_WORD =>
+
+			when FETCH_WORDS =>
 				ADDR <= std_logic_vector(TX_BUFF_ADDR);
-				TX_BUFF_ADDR <= TX_BUFF_ADDR + 4;
-				if (TX_BYTES_ACTUAL <= 4) then
-					TX_BYTES_ACTUAL <= (others => '0');
-				else
-					TX_BYTES_ACTUAL <= TX_BYTES_ACTUAL - 4;
-					if ((TX_BUFF_ADDR_MOD /= 0) and (TX_WRITE_PHASE = '0')) then
-						TX_BYTES_ACTUAL <= TX_BYTES_ACTUAL;
-					end if;
-				end if;
+				TX_BUFF_ADDR <= TX_BUFF_ADDR + 32;
 				INIT_AXI_RXN <= '1';
-				TX_STATE <= FETCH_WORD_WAIT;
+				TX_STATE <= FETCH_WORDS_WAIT;
 
-			when FETCH_WORD_WAIT =>
-				if (AXI_RXN_DONE = '1') then
-					case to_integer(TX_BUFF_ADDR_MOD) is
-					when 0 =>
-						TX_PCKT_DATA <= DATA_IN;
-						TX_PCKT_DATA_STRB <= '1';
-					when 2 =>
-						case (TX_WRITE_PHASE) is
-						when '0' =>
-							TX_PCKT_SAVE <= unsigned(DATA_IN(31 downto 16));
-							TX_WRITE_PHASE <= '1';
-						when '1' =>
-							TX_PCKT_DATA <= DATA_IN(15 downto 0) & 
-									std_logic_vector(TX_PCKT_SAVE);
-							TX_PCKT_SAVE <= unsigned(DATA_IN(31 downto 16));
-							TX_PCKT_DATA_STRB <= '1';
-							TX_WRITE_PHASE <= '1';					
-						when others =>
-							TX_WRITE_PHASE <= '0';
-						end case;					
-					when others =>
-						
-					end case;
+			when FETCH_WORDS_WAIT =>
 
-					if (TX_BYTES_ACTUAL > 0) then
-						TX_STATE <= FETCH_WORD;
+				if (AXI_RXN_STRB = '1' and TX_BYTES_ACTUAL /= 0) then
+					if (TX_BYTES_ACTUAL >= 4) then
+						TX_BYTES_ACTUAL <= TX_BYTES_ACTUAL - 4;
+					else
+						TX_BYTES_ACTUAL <= (others => '0');
+					end if;
+
+					TX_PCKT_DATA <= DATA_IN;
+					TX_PCKT_DATA_STRB <= '1';
+					TX_STATE <= FETCH_WORDS_WAIT;
+
+				elsif (AXI_RXN_DONE = '1') then
+
+					if (TX_BYTES_ACTUAL  > 0) then
+						TX_STATE <= FETCH_WORDS;
 					elsif (TX_FAKE_READ = '1') then
 						TX_STATE <= FAKE_TX_STRB;
 					else
@@ -252,8 +234,9 @@ process(clk) begin
 					end if;
 
 				else
-					TX_STATE <= FETCH_WORD_WAIT;
+					TX_STATE <= FETCH_WORDS_WAIT;
 				end if;
+
 			when FAKE_TX_STRB =>
 				TX_PCKT_DATA <= (others => '0');
 				TX_PCKT_DATA_STRB <= '1';
