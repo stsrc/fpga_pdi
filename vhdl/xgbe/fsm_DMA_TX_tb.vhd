@@ -152,13 +152,6 @@ process
 		AXI_RXN_DONE <= '1';
 		wait for 10 ns;
 		AXI_RXN_DONE <= '0';
--- Uncomment to test TX_PRCSSD register.
---		if (i = 5) then
---			delay_tim := 510 ns;
---			trig_pckt_cnt_read <= '1';
---			wait for 1 ns;
---			trig_pckt_cnt_read <= '0';
---		end if;
 		for j in 0 to 15 loop
 			wait until INIT_AXI_RXN = '1';
 			wait until INIT_AXI_RXN = '0';

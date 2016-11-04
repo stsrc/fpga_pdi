@@ -7,8 +7,6 @@ entity xgbe is
 		C_AXI_DATA_WIDTH	: integer	:= 32;
 		C_S_AXI_ADDR_WIDTH	: integer	:= 5;
 		C_M_AXI_ADDR_WIDTH	: integer	:= 32;
-
-		C_M_AXI_ADDR_WIDTH	: integer	:= 32;
 		C_M_AXI_DATA_WIDTH	: integer	:= 32;
 		C_M_AXI_ID_WIDTH	: integer	:= 1;
 		C_M_AXI_AWUSER_WIDTH	: integer	:= 0;
@@ -544,8 +542,8 @@ end component reset_con;
 	signal axi_m_data_in 	: std_logic_vector(C_AXI_DATA_WIDTH - 1 downto 0);
 	signal axi_m_data_out 	: std_logic_vector(C_AXI_DATA_WIDTH - 1 downto 0);
 	signal axi_m_slave_addr : std_logic_vector(C_M_AXI_ADDR_WIDTH - 1 downto 0);
-	signal axi_m_init_txn, axi_m_done_txn : std_logic := '0';
-	signal axi_m_init_rxn, axi_m_done_rxn : std_logic := '0';
+	signal axi_m_init_txn, axi_m_done_txn, axi_m_strb_txn : std_logic := '0';
+	signal axi_m_init_rxn, axi_m_done_rxn, axi_m_strb_rxn : std_logic := '0';
 
 	signal data_dma_mux, data_mux_fsm   : std_logic_vector(31 downto 0);
 	signal strb_data_dma_mux, strb_data_mux_fsm : std_logic;
@@ -579,14 +577,6 @@ begin
 				slv_reg5_rd 	<= (others => '0');
 				slv_reg7_rd 	<= (others => '0');
 				axi_m_data_in 	<= (others => '0');
-				data_out_0	<= (others => '0');
-				data_out_1	<= (others => '0');
-				data_in_0	<= (others => '0');
-				addr_0		<= (others => '0');
-				init_axi_txn_0	<= '0';
-				axi_txn_done_0	<= '0';
-				init_axi_rxn_0	<= '0';
-				axi_rxn_done_0	<= '0';
 			end if;
 		end if;
 	end process;	
@@ -876,34 +866,6 @@ begin
 			S_AXI_RREADY => s_axi_rready
 		);
 
-	interconnect_AXI_M_DMA_0 : interconnect_AXI_M_DMA
-		port map (
-			clk 		=> s_axi_aclk,
-			aresetn 	=> s_axi_aresetn,
-			DATA_OUT_0 	=> data_out_0,
-			DATA_OUT_1 	=> data_out_1,
-			DATA_TO_AXI 	=> axi_m_data_in,
-			DATA_FROM_AXI 	=> axi_m_data_out,
-			DATA_IN_0 	=> data_in_0,
-			DATA_IN_1 	=> data_in_1,
-			ADDR_0 		=> addr_0,
-			ADDR_1 		=> addr_1,
-			ADDR_TO_AXI 	=> axi_m_slave_addr,
-			INIT_AXI_TXN 	=> axi_m_init_txn,
-			INIT_AXI_RXN 	=> axi_m_init_rxn,
-			AXI_TXN_DONE 	=> axi_m_done_txn,
-			AXI_RXN_DONE 	=> axi_m_done_rxn,
-
-			INIT_AXI_TXN_0 	=> init_axi_txn_0,
-			AXI_TXN_DONE_0 	=> axi_txn_done_0,
-			INIT_AXI_RXN_0 	=> init_axi_rxn_0,
-			AXI_RXN_DONE_0 	=> axi_rxn_done_0,
-			INIT_AXI_TXN_1 	=> init_axi_txn_1,
-			AXI_TXN_DONE_1 	=> axi_txn_done_1,
-			INIT_AXI_RXN_1 	=> init_axi_rxn_1,
-			AXI_RXN_DONE_1 	=> axi_rxn_done_1
-	);
-
 
 	AXI_Master_0 : AXI_Master
 		port map (
@@ -916,7 +878,7 @@ begin
 			AXI_TXN_STRB	=> axi_m_strb_txn,
 			INIT_AXI_RXN	=> axi_m_init_rxn,
 			AXI_RXN_DONE	=> axi_m_done_rxn,
-			AXI_RXN_STRB	=> axi_m_strb_rxn
+			AXI_RXN_STRB	=> axi_m_strb_rxn,
 
 			M_AXI_ACLK	=> M_AXI_ACLK,
 			M_AXI_ARESETN	=> M_AXI_ARESETN,
@@ -969,7 +931,7 @@ begin
 			clk 			=> s_axi_aclk,
 			aresetn 		=> s_axi_aresetn,
 	
-			DATA_IN 		=> axi_m_data_in,
+			DATA_IN 		=> axi_m_data_out,
 			ADDR 			=> axi_m_slave_addr,
 			INIT_AXI_TXN 		=> axi_m_init_txn,
 			AXI_TXN_DONE 		=> axi_m_done_txn,

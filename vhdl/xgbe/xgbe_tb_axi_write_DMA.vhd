@@ -16,8 +16,6 @@ architecture STRUCTURE of tb is
 		C_AXI_DATA_WIDTH	: integer	:= 32;
 		C_S_AXI_ADDR_WIDTH	: integer	:= 5;
 		C_M_AXI_ADDR_WIDTH	: integer	:= 32;
-
-		C_M_AXI_ADDR_WIDTH	: integer	:= 32;
 		C_M_AXI_DATA_WIDTH	: integer	:= 32;
 		C_M_AXI_ID_WIDTH	: integer	:= 1;
 		C_M_AXI_AWUSER_WIDTH	: integer	:= 0;
@@ -126,32 +124,32 @@ signal s_axi_bresp, s_axi_rresp : std_logic_vector(1 downto 0) := (others => '0'
 signal M_AXI_ACLK, M_AXI_ARESETN, M_AXI_AWLOCK, M_AXI_AWVALID, M_AXI_AWREADY, M_AXI_WLAST : std_logic := '0';
 signal M_AXI_WVALID, M_AXI_WREADY, M_AXI_BVALID, M_AXI_BREADY, M_AXI_ARLOCK, M_AXI_ARVALID : std_logic := '0';
 signal M_AXI_ARREADY, M_AXI_RLAST, M_AXI_RVALID, M_AXI_RREADY : std_logic := '0';
-signal M_AXI_AWID, M_AXI_ARID : std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0) := (others => '0');
+signal M_AXI_AWID, M_AXI_ARID : std_logic_vector(0 downto 0) := (others => '0');
 signal M_AXI_AWADDR, M_AXI_ARADDR : std_logic_vector(31 downto 0);
-signal M_AXI_WUSER	: std_logic_vector(C_M_AXI_WUSER_WIDTH-1 downto 0); 
-signal M_AXI_AWLEN	: std_logic_vector(7 downto 0) := (others => '0');
-signal M_AXI_AWSIZE	: std_logic_vector(2 downto 0) := (others => '0');
-signal M_AXI_AWBURST	: std_logic_vector(1 downto 0) := (others => '0');
-signal M_AXI_AWCACHE	: std_logic_vector(3 downto 0) := (others => '0');
-signal M_AXI_AWPROT	: std_logic_vector(2 downto 0) := (others => '0');
-signal M_AXI_AWQOS	: std_logic_vector(3 downto 0) := (others => '0');
-signal M_AXI_AWUSER	: std_logic_vector(C_M_AXI_AWUSER_WIDTH-1 downto 0) := (others => '0');
-signal M_AXI_WSTRB	: std_logic_vector(C_M_AXI_DATA_WIDTH/8-1 downto 0) := (others => '0');
-signal M_AXI_BID	: std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0) := (others => '0');
-signal M_AXI_BRESP	: std_logic_vector(1 downto 0) := (others => '0');
-signal M_AXI_BUSER	: std_logic_vector(C_M_AXI_BUSER_WIDTH-1 downto 0) := (others => '0');
-signal M_AXI_ARADDR	: std_logic_vector(C_M_AXI_ADDR_WIDTH-1 downto 0) := (others => '0');
-signal M_AXI_ARLEN	: std_logic_vector(7 downto 0) := (others => '0');
-signal M_AXI_ARSIZE	: std_logic_vector(2 downto 0) := (others => '0');
-signal M_AXI_ARBURST	: std_logic_vector(1 downto 0) := (others => '0');
-signal M_AXI_ARCACHE	: std_logic_vector(3 downto 0) := (others => '0');
-signal M_AXI_ARPROT	: std_logic_vector(2 downto 0) := (others => '0');
-signal M_AXI_ARQOS	: std_logic_vector(3 downto 0) := (others => '0');
-signal M_AXI_ARUSER	: std_logic_vector(C_M_AXI_ARUSER_WIDTH-1 downto 0) := (others => '0');
-signal M_AXI_RID	: std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0) := (others => '0');
-signal M_AXI_RDATA	: std_logic_vector(C_M_AXI_DATA_WIDTH-1 downto 0) := (others => '0');
-signal M_AXI_RRESP	: std_logic_vector(1 downto 0) := (others => '0');
-signal M_AXI_RUSER	: std_logic_vector(C_M_AXI_RUSER_WIDTH-1 downto 0) := (others => '0');
+signal M_AXI_WUSER	: std_logic_vector(-1 downto 0); 
+signal M_AXI_AWLEN	: std_logic_vector(7 downto 0)  := (others => '0');
+signal M_AXI_AWSIZE	: std_logic_vector(2 downto 0)  := (others => '0');
+signal M_AXI_AWBURST	: std_logic_vector(1 downto 0)  := (others => '0');
+signal M_AXI_AWCACHE	: std_logic_vector(3 downto 0)  := (others => '0');
+signal M_AXI_AWPROT	: std_logic_vector(2 downto 0)  := (others => '0');
+signal M_AXI_AWQOS	: std_logic_vector(3 downto 0)  := (others => '0');
+signal M_AXI_AWUSER	: std_logic_vector(-1 downto 0) := (others => '0');
+signal M_AXI_WSTRB	: std_logic_vector(3 downto 0)  := (others => '0');
+signal M_AXI_BID	: std_logic_vector(0 downto 0)  := (others => '0');
+signal M_AXI_BRESP	: std_logic_vector(1 downto 0)  := (others => '0');
+signal M_AXI_BUSER	: std_logic_vector(-1 downto 0) := (others => '0');
+signal M_AXI_ARLEN	: std_logic_vector(7 downto 0)  := (others => '0');
+signal M_AXI_ARSIZE	: std_logic_vector(2 downto 0)  := (others => '0');
+signal M_AXI_ARBURST	: std_logic_vector(1 downto 0)  := (others => '0');
+signal M_AXI_ARCACHE	: std_logic_vector(3 downto 0)  := (others => '0');
+signal M_AXI_ARPROT	: std_logic_vector(2 downto 0)  := (others => '0');
+signal M_AXI_ARQOS	: std_logic_vector(3 downto 0)  := (others => '0');
+signal M_AXI_ARUSER	: std_logic_vector(-1 downto 0) := (others => '0');
+signal M_AXI_RID	: std_logic_vector(0 downto 0)  := (others => '0');
+signal M_AXI_WDATA	: std_logic_vector(31 downto 0) := (others => '0');
+signal M_AXI_RDATA	: std_logic_vector(31 downto 0) := (others => '0');
+signal M_AXI_RRESP	: std_logic_vector(1 downto 0)  := (others => '0');
+signal M_AXI_RUSER	: std_logic_vector(-1 downto 0) := (others => '0');
 
   
   signal xgmii_rxd, xgmii_txd : std_logic_vector(63 downto 0) := (others => '0');
@@ -159,8 +157,6 @@ signal M_AXI_RUSER	: std_logic_vector(C_M_AXI_RUSER_WIDTH-1 downto 0) := (others
 
   signal ReadIt, SendIt : std_logic := '0';
   shared variable cnt : integer := 0;
-
-  signal TO_READ : std_logic_vector(31 downto 0) := (others => '0');
 
 begin
 
@@ -197,7 +193,7 @@ block_design_i: xgbe
 
 	M_AXI_ACLK => M_AXI_ACLK,
 	M_AXI_ARESETN => M_AXI_ARESETN,
-	M_AXI_AWADDR => M_AXI_M_AWADDR,
+	M_AXI_AWADDR => M_AXI_AWADDR,
 	M_AXI_AWPROT => M_AXI_AWPROT,
 	M_AXI_AWVALID => M_AXI_AWVALID,
 	M_AXI_AWREADY => M_AXI_AWREADY,
@@ -208,7 +204,7 @@ block_design_i: xgbe
 	M_AXI_BRESP => M_AXI_BRESP,
 	M_AXI_BVALID => M_AXI_BVALID,
 	M_AXI_BREADY => M_AXI_BREADY,
-	M_AXI_ARADDR => M_AXI_M_ARADDR,
+	M_AXI_ARADDR => M_AXI_ARADDR,
 	M_AXI_ARPROT => M_AXI_ARPROT,
 	M_AXI_ARVALID => M_AXI_ARVALID,
 	M_AXI_ARREADY => M_AXI_ARREADY,
@@ -238,7 +234,7 @@ block_design_i: xgbe
 	M_AXI_ARUSER => M_AXI_ARUSER,
 	M_AXI_RID => M_AXI_RID,
 	M_AXI_RLAST => M_AXI_RLAST,
-	M_AXI_RUSER => M_AXI_RUSER
+	M_AXI_RUSER => M_AXI_RUSER,
 
       xgmii_rxd => xgmii_rxd,
       xgmii_txd => xgmii_txd,
@@ -345,36 +341,45 @@ send : process
      end loop;
   end process read;
      
-m_write : process
+process
 begin
-	loop
-		wait until m_axi_awvalid = '1';
-		wait until m_axi_wvalid = '1';
-		wait until m_axi_awready = '1';
-		wait until m_axi_wready = '1';
+	wait until m_axi_awvalid = '1';
+	m_axi_awready <= '1';
+	wait until m_axi_awvalid = '0';
+	m_axi_awready <= '0';
+	for i in 0 to 7 loop
+		m_axi_wready <= '1';
 		wait for 10 ns;
-		m_axi_bvalid <= '1';
-		wait for 10 ns;
-		m_axi_bready <= '1';
-		wait for 10 ns;
-		m_axi_bvalid <= '0';
-		m_axi_bready <= '0';
+		m_axi_wready <= '0';
+		wait for 10 ns;	
 	end loop;
-end process m_write;
+	m_axi_bvalid <= '1';
+	wait until m_axi_bready = '0';
+	m_axi_bvalid <= '0';
+	wait for 10 ns;
 
-m_read : process
+end process;	
+
+process
 begin
 	wait until m_axi_arvalid = '1';
-	wait for 1 ns;
 	m_axi_arready <= '1';
-	wait for 10 ns;
+	wait until m_axi_arvalid = '0';
 	m_axi_arready <= '0';
-	m_axi_rdata <= TO_READ;
+	for i in 0 to 7 loop
+		m_axi_rvalid <= '1';
+		wait for 10 ns;
+		m_axi_rvalid <= '0';
+		wait for 10 ns;
+	end loop;
 	m_axi_rvalid <= '1';
-	wait until m_axi_rready <= '1';
+	m_axi_rlast <= '1';
 	wait for 10 ns;
 	m_axi_rvalid <= '0';
-end process m_read;
+	m_axi_rlast <= '0';
+	wait for 10 ns;
+end process;	
+
  
 process
 	variable to_add : integer := 0;
@@ -402,7 +407,6 @@ begin
 	wait until s_axi_bvalid = '1';
 	wait until s_axi_bvalid = '0';  --axi write finished
 	s_axi_wstrb<=b"0000";
-
 
  	s_axi_awaddr<="01000";
 	s_axi_wdata<=x"00000006";
@@ -446,67 +450,22 @@ begin
 	wait until s_axi_bvalid = '1';
 	wait until s_axi_bvalid = '0';  --axi write finished
 	s_axi_wstrb<=b"0000";
-	while (true) loop
-		for i in 0 to 7 loop
-			--Trigger byte transmission.
-		 	s_axi_awaddr<="11100";
-			s_axi_wdata<=x"FFFFFFFF";
-			s_axi_wstrb<=b"1111";
-			sendit<='1';                --start axi write to slave
-			wait for 1 ns; 
-			sendit<='0'; --clear start send flag
-			wait until s_axi_bvalid = '1';
-			wait until s_axi_bvalid = '0';  --axi write finished
-			s_axi_wstrb<=b"0000";
-			
-			--Packet size
-			wait until m_axi_arvalid = '1';
-			TO_READ <= std_logic_vector(to_unsigned(56 + i, 32));
-			wait until m_axi_rready = '1';
-			wait until m_axi_rready = '0';
 
-			--Packet address
-			wait until m_axi_arvalid = '1';
-			TO_READ <= std_logic_vector(to_unsigned(1024 + 128 * i + 2, 32));
-			wait until m_axi_rready = '1';
-			wait until m_axi_rready = '0';	
-			
-			if (i >= 1 and i <= 4) then
-				to_add := 1;
-			elsif (i >= 5 and i <= 8) then
-				to_add := 2;
-			else
-				to_add := 0;
-			end if;
+	wait for 100 ns;
 
-			for j in 0 to 14 + to_add loop
-				wait until m_axi_arvalid = '1';
-				TO_READ <= std_logic_vector(to_unsigned(16#00010000# 
-									+ j * 16#00010001#
-									+ i * 16#10001000#, 32));
-				wait until m_axi_rready = '1';
-				wait until m_axi_rready = '0';			
-			end loop;
-			if (i = 3) then	
-				--Read used descriptors count.
-				wait for 40 ns;
-	 			s_axi_araddr<="11000";	
-				readit<='1';
-				wait for 1 ns; 
-				readit<='0'; 
-				wait until s_axi_rready = '1';
-				wait until s_axi_rready = '0';
-			end if;
-		end loop;
-		wait for 200 ns; 
-		--Read used descriptors count.
-	 	s_axi_araddr<="11000";	
-		readit<='1';
-		wait for 1 ns; 
-		readit<='0'; 
-		wait until s_axi_rready = '1';
-		wait until s_axi_rready = '0';
-	end loop;
+	--Trigger byte transmission.
+	s_axi_awaddr<="11100";
+	s_axi_wdata<=x"FFFFFFFF";
+	s_axi_wstrb<=b"1111";
+	sendit<='1';                --start axi write to slave
+	wait for 1 ns; 
+	sendit<='0'; --clear start send flag
+	wait until s_axi_bvalid = '1';
+	wait until s_axi_bvalid = '0';  --axi write finished
+	s_axi_wstrb<=b"0000";
+			
+	M_AXI_RDATA <= std_logic_vector(to_unsigned(64, 32));
+	wait;
 end process;
  
 end structure;
