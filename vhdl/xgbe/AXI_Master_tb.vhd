@@ -23,7 +23,7 @@ component AXI_Master is
 
 		M_DATA_IN			: in std_logic_vector(C_M_AXI_DATA_WIDTH - 1 downto 0);
 		M_DATA_OUT			: out std_logic_vector(C_M_AXI_DATA_WIDTH - 1 downto 0);
-		M_TARGET_SLAVE_BASE_ADDR 	: in std_logic_vector(C_M_AXI_ADDR_WIDTH - 1 downto 0);
+		M_TARGET_BASE_ADDR	 	: in std_logic_vector(C_M_AXI_ADDR_WIDTH - 1 downto 0);
 
 		INIT_AXI_TXN	: in std_logic;
 		AXI_TXN_DONE	: out std_logic;
@@ -126,7 +126,7 @@ begin
 		port map (
 			M_DATA_IN => m_data_in,
 			M_DATA_OUT => m_data_out,
-			M_TARGET_SLAVE_BASE_ADDR => m_target_addr,
+			M_TARGET_BASE_ADDR => m_target_addr,
 			INIT_AXI_TXN => axi_init_txn,
 			AXI_TXN_DONE => axi_done_txn,
 			INIT_AXI_RXN => axi_init_rxn,

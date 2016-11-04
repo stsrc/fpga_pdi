@@ -20,7 +20,7 @@ entity AXI_Master is
 
 		M_DATA_IN			: in std_logic_vector(C_M_AXI_DATA_WIDTH - 1 downto 0);
 		M_DATA_OUT			: out std_logic_vector(C_M_AXI_DATA_WIDTH - 1 downto 0);
-		M_TARGET_SLAVE_BASE_ADDR 	: in std_logic_vector(C_M_AXI_ADDR_WIDTH - 1 downto 0);
+		M_TARGET_BASE_ADDR 		: in std_logic_vector(C_M_AXI_ADDR_WIDTH - 1 downto 0);
 
 		INIT_AXI_TXN	: in std_logic;
 		AXI_TXN_DONE	: out std_logic;
@@ -564,10 +564,10 @@ begin
 
 	              mst_exec_state  <= INIT_WRITE;
 			M_DATA_IN_S <= M_DATA_IN;
-			M_TARGET_ADDR_S <= M_TARGET_SLAVE_BASE_ADDR;
+			M_TARGET_ADDR_S <= M_TARGET_BASE_ADDR;
 	            elsif ( INIT_AXI_RXN = '1') then
 			mst_exec_state <= INIT_READ;
-			M_TARGET_ADDR_S <= M_TARGET_SLAVE_BASE_ADDR;
+			M_TARGET_ADDR_S <= M_TARGET_BASE_ADDR;
 		    else
 	              mst_exec_state  <= IDLE;
 	            end if;
