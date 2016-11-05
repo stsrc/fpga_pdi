@@ -339,8 +339,8 @@ begin
 	-- Next address after ARREADY indicates previous address acceptance
 	  process(M_AXI_ACLK)
 	  begin
-	    if (rising_edge (M_AXI_ACLK) or reads_done = '1') then
-	      if (M_AXI_ARESETN = '0') then
+	    if (rising_edge (M_AXI_ACLK)) then
+	      if (M_AXI_ARESETN = '0' or reads_done = '1') then
 	        axi_araddr <= (others => '0');
 	      else
 	        if (M_AXI_ARREADY = '1' and axi_arvalid = '1') then

@@ -37,27 +37,50 @@ entity xgbe_pcs_pma is
 		s_axi_rvalid		: out std_logic;
 		s_axi_rready		: in  std_logic;
 
-		m_axi_aclk		: in std_logic;
-		m_axi_aresetn		: in std_logic;
-		m_axi_awaddr		: out std_logic_vector(31 downto 0);
-		m_axi_awprot		: out std_logic_vector(2 downto 0);
-		m_axi_awvalid		: out std_logic;
-		m_axi_awready		: in std_logic;
-		m_axi_wdata		: out std_logic_vector(31 downto 0);
-		m_axi_wstrb		: out std_logic_vector(3 downto 0);
-		m_axi_wvalid		: out std_logic;
-		m_axi_wready		: in std_logic;
-		m_axi_bresp		: in std_logic_vector(1 downto 0);
-		m_axi_bvalid		: in std_logic;
-		m_axi_bready		: out std_logic;
-		m_axi_araddr		: out std_logic_vector(31 downto 0);
-		m_axi_arprot		: out std_logic_vector(2 downto 0);
-		m_axi_arvalid		: out std_logic;
-		m_axi_arready		: in std_logic;
-		m_axi_rdata		: in std_logic_vector(31 downto 0);
-		m_axi_rresp		: in std_logic_vector(1 downto 0);
-		m_axi_rvalid		: in std_logic;
-		m_axi_rready		: out std_logic;
+    M_AXI_ACLK : IN STD_LOGIC;
+    M_AXI_ARESETN : IN STD_LOGIC;
+    M_AXI_AWID : OUT STD_LOGIC_VECTOR(0 DOWNTO 0);
+    M_AXI_AWADDR : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+    M_AXI_AWLEN : OUT STD_LOGIC_VECTOR(7 DOWNTO 0);
+    M_AXI_AWSIZE : OUT STD_LOGIC_VECTOR(2 DOWNTO 0);
+    M_AXI_AWBURST : OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
+    M_AXI_AWLOCK : OUT STD_LOGIC;
+    M_AXI_AWCACHE : OUT STD_LOGIC_VECTOR(3 DOWNTO 0);
+    M_AXI_AWPROT : OUT STD_LOGIC_VECTOR(2 DOWNTO 0);
+    M_AXI_AWQOS : OUT STD_LOGIC_VECTOR(3 DOWNTO 0);
+    M_AXI_AWUSER : OUT STD_LOGIC_VECTOR(0 DOWNTO 0);
+    M_AXI_AWVALID : OUT STD_LOGIC;
+    M_AXI_AWREADY : IN STD_LOGIC;
+    M_AXI_WDATA : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+    M_AXI_WSTRB : OUT STD_LOGIC_VECTOR(3 DOWNTO 0);
+    M_AXI_WLAST : OUT STD_LOGIC;
+    M_AXI_WUSER : OUT STD_LOGIC_VECTOR(0 DOWNTO 0);
+    M_AXI_WVALID : OUT STD_LOGIC;
+    M_AXI_WREADY : IN STD_LOGIC;
+    M_AXI_BID : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
+    M_AXI_BRESP : IN STD_LOGIC_VECTOR(1 DOWNTO 0);
+    M_AXI_BUSER : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
+    M_AXI_BVALID : IN STD_LOGIC;
+    M_AXI_BREADY : OUT STD_LOGIC;
+    M_AXI_ARID : OUT STD_LOGIC_VECTOR(0 DOWNTO 0);
+    M_AXI_ARADDR : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+    M_AXI_ARLEN : OUT STD_LOGIC_VECTOR(7 DOWNTO 0);
+    M_AXI_ARSIZE : OUT STD_LOGIC_VECTOR(2 DOWNTO 0);
+    M_AXI_ARBURST : OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
+    M_AXI_ARLOCK : OUT STD_LOGIC;
+    M_AXI_ARCACHE : OUT STD_LOGIC_VECTOR(3 DOWNTO 0);
+    M_AXI_ARPROT : OUT STD_LOGIC_VECTOR(2 DOWNTO 0);
+    M_AXI_ARQOS : OUT STD_LOGIC_VECTOR(3 DOWNTO 0);
+    M_AXI_ARUSER : OUT STD_LOGIC_VECTOR(0 DOWNTO 0);
+    M_AXI_ARVALID : OUT STD_LOGIC;
+    M_AXI_ARREADY : IN STD_LOGIC;
+    M_AXI_RID : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
+    M_AXI_RDATA : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
+    M_AXI_RRESP : IN STD_LOGIC_VECTOR(1 DOWNTO 0);
+    M_AXI_RLAST : IN STD_LOGIC;
+    M_AXI_RUSER : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
+    M_AXI_RVALID : IN STD_LOGIC;
+    M_AXI_RREADY : OUT STD_LOGIC;
 
 		rxp 			: in  std_logic;
 		rxn 			: in  std_logic;
@@ -152,27 +175,52 @@ component xgbe_0 is
 		s_axi_rresp		: out std_logic_vector(1 downto 0);
 		s_axi_rvalid		: out std_logic;
 		s_axi_rready		: in std_logic;
-		m_axi_aclk		: in std_logic;
-		m_axi_aresetn		: in std_logic;
-		m_axi_awaddr		: out std_logic_vector(31 downto 0);
-		m_axi_awprot		: out std_logic_vector(2 downto 0);
-		m_axi_awvalid		: out std_logic;
-		m_axi_awready		: in std_logic;
-		m_axi_wdata		: out std_logic_vector(31 downto 0);
-		m_axi_wstrb		: out std_logic_vector(3 downto 0);
-		m_axi_wvalid		: out std_logic;
-		m_axi_wready		: in std_logic;
-		m_axi_bresp		: in std_logic_vector(1 downto 0);
-		m_axi_bvalid		: in std_logic;
-		m_axi_bready		: out std_logic;
-		m_axi_araddr		: out std_logic_vector(31 downto 0);
-		m_axi_arprot		: out std_logic_vector(2 downto 0);
-		m_axi_arvalid		: out std_logic;
-		m_axi_arready		: in std_logic;
-		m_axi_rdata		: in std_logic_vector(31 downto 0);
-		m_axi_rresp		: in std_logic_vector(1 downto 0);
-		m_axi_rvalid		: in std_logic;
-		m_axi_rready		: out std_logic;
+
+    M_AXI_ACLK : IN STD_LOGIC;
+    M_AXI_ARESETN : IN STD_LOGIC;
+    M_AXI_AWID : OUT STD_LOGIC_VECTOR(0 DOWNTO 0);
+    M_AXI_AWADDR : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+    M_AXI_AWLEN : OUT STD_LOGIC_VECTOR(7 DOWNTO 0);
+    M_AXI_AWSIZE : OUT STD_LOGIC_VECTOR(2 DOWNTO 0);
+    M_AXI_AWBURST : OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
+    M_AXI_AWLOCK : OUT STD_LOGIC;
+    M_AXI_AWCACHE : OUT STD_LOGIC_VECTOR(3 DOWNTO 0);
+    M_AXI_AWPROT : OUT STD_LOGIC_VECTOR(2 DOWNTO 0);
+    M_AXI_AWQOS : OUT STD_LOGIC_VECTOR(3 DOWNTO 0);
+    M_AXI_AWUSER : OUT STD_LOGIC_VECTOR(0 DOWNTO 0);
+    M_AXI_AWVALID : OUT STD_LOGIC;
+    M_AXI_AWREADY : IN STD_LOGIC;
+    M_AXI_WDATA : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+    M_AXI_WSTRB : OUT STD_LOGIC_VECTOR(3 DOWNTO 0);
+    M_AXI_WLAST : OUT STD_LOGIC;
+    M_AXI_WUSER : OUT STD_LOGIC_VECTOR(0 DOWNTO 0);
+    M_AXI_WVALID : OUT STD_LOGIC;
+    M_AXI_WREADY : IN STD_LOGIC;
+    M_AXI_BID : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
+    M_AXI_BRESP : IN STD_LOGIC_VECTOR(1 DOWNTO 0);
+    M_AXI_BUSER : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
+    M_AXI_BVALID : IN STD_LOGIC;
+    M_AXI_BREADY : OUT STD_LOGIC;
+    M_AXI_ARID : OUT STD_LOGIC_VECTOR(0 DOWNTO 0);
+    M_AXI_ARADDR : OUT STD_LOGIC_VECTOR(31 DOWNTO 0);
+    M_AXI_ARLEN : OUT STD_LOGIC_VECTOR(7 DOWNTO 0);
+    M_AXI_ARSIZE : OUT STD_LOGIC_VECTOR(2 DOWNTO 0);
+    M_AXI_ARBURST : OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
+    M_AXI_ARLOCK : OUT STD_LOGIC;
+    M_AXI_ARCACHE : OUT STD_LOGIC_VECTOR(3 DOWNTO 0);
+    M_AXI_ARPROT : OUT STD_LOGIC_VECTOR(2 DOWNTO 0);
+    M_AXI_ARQOS : OUT STD_LOGIC_VECTOR(3 DOWNTO 0);
+    M_AXI_ARUSER : OUT STD_LOGIC_VECTOR(0 DOWNTO 0);
+    M_AXI_ARVALID : OUT STD_LOGIC;
+    M_AXI_ARREADY : IN STD_LOGIC;
+    M_AXI_RID : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
+    M_AXI_RDATA : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
+    M_AXI_RRESP : IN STD_LOGIC_VECTOR(1 DOWNTO 0);
+    M_AXI_RLAST : IN STD_LOGIC;
+    M_AXI_RUSER : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
+    M_AXI_RVALID : IN STD_LOGIC;
+    M_AXI_RREADY : OUT STD_LOGIC;
+
 		xgmii_rxc 		: in std_logic_vector(7 downto 0);
 		xgmii_rxd 		: in std_logic_vector(63 downto 0);
 		xgmii_txc 		: out std_logic_vector(7 downto 0);
@@ -268,27 +316,52 @@ begin
 		s_axi_rresp   	=> s_axi_rresp,
 		s_axi_rvalid  	=> s_axi_rvalid,
 		s_axi_rready  	=> s_axi_rready,
-		m_axi_aclk	=> m_axi_aclk,
-		m_axi_aresetn 	=> m_axi_aresetn,
-		m_axi_awaddr 	=> m_axi_awaddr,
-		m_axi_awprot 	=> m_axi_awprot,
-		m_axi_awvalid => m_axi_awvalid,
-		m_axi_awready => m_axi_awready,
-		m_axi_wdata   => m_axi_wdata,
-		m_axi_wstrb   => m_axi_wstrb,
-		m_axi_wvalid  => m_axi_wvalid,
-		m_axi_wready  => m_axi_wready,
-		m_axi_bresp   => m_axi_bresp,
-		m_axi_bvalid  => m_axi_bvalid,
-		m_axi_bready  => m_axi_bready,
-		m_axi_araddr  => m_axi_araddr,
-		m_axi_arprot  => m_axi_arprot,
-		m_axi_arvalid => m_axi_arvalid,
-		m_axi_arready => m_axi_arready,
-		m_axi_rdata   => m_axi_rdata,
-		m_axi_rresp   => m_axi_rresp,
-		m_axi_rvalid  => m_axi_rvalid,
-		m_axi_rready  => m_axi_rready,
+
+		M_AXI_ACLK => M_AXI_ACLK,
+		M_AXI_ARESETN => M_AXI_ARESETN,
+		M_AXI_AWADDR => M_AXI_AWADDR,
+		M_AXI_AWPROT => M_AXI_AWPROT,
+		M_AXI_AWVALID => M_AXI_AWVALID,
+		M_AXI_AWREADY => M_AXI_AWREADY,
+		M_AXI_WDATA => M_AXI_WDATA,
+		M_AXI_WSTRB => M_AXI_WSTRB,
+		M_AXI_WVALID => M_AXI_WVALID,
+		M_AXI_WREADY => M_AXI_WREADY,
+		M_AXI_BRESP => M_AXI_BRESP,
+		M_AXI_BVALID => M_AXI_BVALID,
+		M_AXI_BREADY => M_AXI_BREADY,
+		M_AXI_ARADDR => M_AXI_ARADDR,
+		M_AXI_ARPROT => M_AXI_ARPROT,
+		M_AXI_ARVALID => M_AXI_ARVALID,
+		M_AXI_ARREADY => M_AXI_ARREADY,
+		M_AXI_RDATA => M_AXI_RDATA,
+		M_AXI_RRESP => M_AXI_RRESP,
+		M_AXI_RVALID => M_AXI_RVALID,
+		M_AXI_RREADY => M_AXI_RREADY,
+		M_AXI_AWID => M_AXI_AWID,
+		M_AXI_AWLEN => M_AXI_AWLEN,
+		M_AXI_AWSIZE => M_AXI_AWSIZE,
+		M_AXI_AWBURST => M_AXI_AWBURST,
+		M_AXI_AWLOCK => M_AXI_AWLOCK,
+		M_AXI_AWCACHE => M_AXI_AWCACHE,
+		M_AXI_AWQOS => M_AXI_AWQOS,
+		M_AXI_AWUSER => M_AXI_AWUSER,
+		M_AXI_WLAST => M_AXI_WLAST,
+		M_AXI_WUSER => M_AXI_WUSER,
+		M_AXI_BID => M_AXI_BID,
+		M_AXI_BUSER => M_AXI_BUSER,
+		M_AXI_ARID => M_AXI_ARID,
+		M_AXI_ARLEN => M_AXI_ARLEN,
+		M_AXI_ARSIZE => M_AXI_ARSIZE,
+		M_AXI_ARBURST => M_AXI_ARBURST,
+		M_AXI_ARLOCK => M_AXI_ARLOCK,
+		M_AXI_ARCACHE => M_AXI_ARCACHE,
+		M_AXI_ARQOS => M_AXI_ARQOS,
+		M_AXI_ARUSER => M_AXI_ARUSER,
+		M_AXI_RID => M_AXI_RID,
+		M_AXI_RLAST => M_AXI_RLAST,
+		M_AXI_RUSER => M_AXI_RUSER,
+
 		xgmii_rxc     => xgmii_rxc_reg,
 		xgmii_rxd     => xgmii_rxd_reg,
 		xgmii_txc     => xgmii_txc,
