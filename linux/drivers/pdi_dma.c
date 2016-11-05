@@ -118,6 +118,7 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	uint32_t cnt = 0;
 	struct dma_ring *tx_ring = NULL;
 	struct pdi *pdi = (struct pdi *)netdev_priv(dev);
+	u32 packets = 0, bytes = 0;
 
 	tx_ring = &pdi->tx_ring;
 
@@ -129,8 +130,10 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	cnt = tx_ring->desc_cur;
 
-	tx_ring->buffer[cnt].skb = skb;
-	tx_ring->buffer[cnt].map = dma_map_single(pdi->dev, skb->data,
+	tx_ring->buffer[cnt].skb = kzalloc(skb->len, GFP_KERNEL | GFP_DMA);
+	memcpy(tx_ring->buffer[cnt].skb, skb->data, skb->len);
+
+	tx_ring->buffer[cnt].map = dma_map_single(pdi->dev, tx_ring->buffer[cnt].skb,
 					skb->len, DMA_TO_DEVICE);
 
 	if (dma_mapping_error(pdi->dev, tx_ring->buffer[cnt].map)) {
@@ -150,8 +153,12 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	wmb();
 	iowrite32(0xFFFFFFFF, pdi->reg7);	
 	wmb();
-	netdev_sent_queue(dev, skb->len);
 
+	netdev_sent_queue(dev, skb->len);
+	bytes += skb->len;
+	packets++;
+	dev_kfree_skb(skb);
+	netdev_completed_queue(pdi->netdev, packets, bytes);
 	return NETDEV_TX_OK;
 }
 
@@ -159,7 +166,6 @@ static int pdi_complete_xmit(struct pdi *pdi)
 {
 	struct sk_buff *skb = NULL;
 	struct dma_ring *tx_ring = &pdi->tx_ring;
-	u32 packets = 0, bytes = 0;
 	u32 i = 0;
 	u32 processed = 0;
 	u32 cons = 0;
@@ -187,14 +193,10 @@ static int pdi_complete_xmit(struct pdi *pdi)
 		skb = tx_ring->buffer[i].skb;
 		dma_unmap_single(pdi->dev, tx_ring->buffer[i].map, skb->len, 
 				 DMA_TO_DEVICE);
-
-		bytes += skb->len;
-		packets++;
-		dev_kfree_skb(skb);
+		kfree(skb);
 	}
 
 	tx_ring->desc_cons = i;
-	netdev_completed_queue(pdi->netdev, packets, bytes);
 	return 0;
 }
 

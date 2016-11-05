@@ -80,6 +80,125 @@ component AXI_Master is
 	);
 end component;
 
+component AXI_Slave is
+	generic (
+		-- Users to add parameters here
+
+		-- User parameters ends
+		-- Do not modify the parameters beyond this line
+
+		-- Width of ID for for write address, write data, read address and read data
+		C_S_AXI_ID_WIDTH	: integer	:= 1;
+		-- Width of S_AXI data bus
+		C_S_AXI_DATA_WIDTH	: integer	:= 32;
+		-- Width of S_AXI address bus
+		C_S_AXI_ADDR_WIDTH	: integer	:= 6;
+		-- Width of optional user defined signal in write address channel
+		C_S_AXI_AWUSER_WIDTH	: integer	:= 0;
+		-- Width of optional user defined signal in read address channel
+		C_S_AXI_ARUSER_WIDTH	: integer	:= 0;
+		-- Width of optional user defined signal in write data channel
+		C_S_AXI_WUSER_WIDTH	: integer	:= 0;
+		-- Width of optional user defined signal in read data channel
+		C_S_AXI_RUSER_WIDTH	: integer	:= 0;
+		-- Width of optional user defined signal in write response channel
+		C_S_AXI_BUSER_WIDTH	: integer	:= 0
+	);
+	port (
+		-- Global Clock Signal
+		S_AXI_ACLK	: in std_logic;
+		-- Global Reset Signal. This Signal is Active LOW
+		S_AXI_ARESETN	: in std_logic;
+		-- Write Address ID
+		S_AXI_AWID	: in std_logic_vector(C_S_AXI_ID_WIDTH-1 downto 0);
+		-- Write address
+		S_AXI_AWADDR	: in std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
+		-- Burst length. The burst length gives the exact number of transfers in a burst
+		S_AXI_AWLEN	: in std_logic_vector(7 downto 0);
+		-- Burst size. This signal indicates the size of each transfer in the burst
+		S_AXI_AWSIZE	: in std_logic_vector(2 downto 0);
+		-- Burst type. The burst type and the size information, 
+    -- determine how the address for each transfer within the burst is calculated.
+		S_AXI_AWBURST	: in std_logic_vector(1 downto 0);
+		-- Lock type. Provides additional information about the
+    -- atomic characteristics of the transfer.
+		S_AXI_AWLOCK	: in std_logic;
+		-- Memory type. This signal indicates how transactions
+    -- are required to progress through a system.
+		S_AXI_AWCACHE	: in std_logic_vector(3 downto 0);
+		-- Protection type. This signal indicates the privilege
+    -- and security level of the transaction, and whether
+    -- the transaction is a data access or an instruction access.
+		S_AXI_AWPROT	: in std_logic_vector(2 downto 0);
+		-- Quality of Service, QoS identifier sent for each
+    -- write transaction.
+		S_AXI_AWQOS	: in std_logic_vector(3 downto 0);
+		-- Region identifier. Permits a single physical interface
+    -- on a slave to be used for multiple logical interfaces.
+		S_AXI_AWREGION	: in std_logic_vector(3 downto 0);
+		-- Optional User-defined signal in the write address channel.
+		S_AXI_AWUSER	: in std_logic_vector(C_S_AXI_AWUSER_WIDTH-1 downto 0);
+		-- Write address valid. This signal indicates that
+    -- the channel is signaling valid write address and
+    -- control information.
+		S_AXI_AWVALID	: in std_logic;
+		-- Write address ready. This signal indicates that
+    -- the slave is ready to accept an address and associated
+    -- control signals.
+		S_AXI_AWREADY	: out std_logic;
+		-- Write Data
+		S_AXI_WDATA	: in std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
+		-- Write strobes. This signal indicates which byte
+    -- lanes hold valid data. There is one write strobe
+    -- bit for each eight bits of the write data bus.
+		S_AXI_WSTRB	: in std_logic_vector((C_S_AXI_DATA_WIDTH/8)-1 downto 0);
+		-- Write last. This signal indicates the last transfer
+    -- in a write burst.
+		S_AXI_WLAST	: in std_logic;
+		-- Optional User-defined signal in the write data channel.
+		S_AXI_WUSER	: in std_logic_vector(C_S_AXI_WUSER_WIDTH-1 downto 0);
+		-- Write valid. This signal indicates that valid write
+    -- data and strobes are available.
+		S_AXI_WVALID	: in std_logic;
+		-- Write ready. This signal indicates that the slave
+    -- can accept the write data.
+		S_AXI_WREADY	: out std_logic;
+		-- Response ID tag. This signal is the ID tag of the
+    -- write response.
+		S_AXI_BID	: out std_logic_vector(C_S_AXI_ID_WIDTH-1 downto 0);
+		-- Write response. This signal indicates the status
+    -- of the write transaction.
+		S_AXI_BRESP	: out std_logic_vector(1 downto 0);
+		-- Optional User-defined signal in the write response channel.
+		S_AXI_BUSER	: out std_logic_vector(C_S_AXI_BUSER_WIDTH-1 downto 0);
+		-- Write response valid. This signal indicates that the
+    -- channel is signaling a valid write response.
+		S_AXI_BVALID	: out std_logic;
+		S_AXI_BREADY	: in std_logic;
+		S_AXI_ARID	: in std_logic_vector(C_S_AXI_ID_WIDTH-1 downto 0);
+		S_AXI_ARADDR	: in std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
+		S_AXI_ARLEN	: in std_logic_vector(7 downto 0);
+		S_AXI_ARSIZE	: in std_logic_vector(2 downto 0);
+		S_AXI_ARBURST	: in std_logic_vector(1 downto 0);
+		S_AXI_ARLOCK	: in std_logic;
+		S_AXI_ARCACHE	: in std_logic_vector(3 downto 0);
+		S_AXI_ARPROT	: in std_logic_vector(2 downto 0);
+		S_AXI_ARQOS	: in std_logic_vector(3 downto 0);
+		S_AXI_ARREGION	: in std_logic_vector(3 downto 0);
+		S_AXI_ARUSER	: in std_logic_vector(C_S_AXI_ARUSER_WIDTH-1 downto 0);
+		S_AXI_ARVALID	: in std_logic;
+		S_AXI_ARREADY	: out std_logic;
+		S_AXI_RID	: out std_logic_vector(C_S_AXI_ID_WIDTH-1 downto 0);
+		S_AXI_RDATA	: out std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
+		S_AXI_RRESP	: out std_logic_vector(1 downto 0);
+		S_AXI_RLAST	: out std_logic;
+		S_AXI_RUSER	: out std_logic_vector(C_S_AXI_RUSER_WIDTH-1 downto 0);
+		S_AXI_RVALID	: out std_logic;
+		S_AXI_RREADY	: in std_logic
+	);
+end component;
+
+
 	signal aclk, aresetn, awvalid, awready 	: std_logic := '0';
 	signal arvalid, arready, rvalid, rready	: std_logic := '0';
 	signal wvalid, wready, bvalid, bready	: std_logic := '0';
@@ -112,7 +231,7 @@ end component;
 	signal bresp, rresp		: std_logic_vector(1 downto 0) := (others => '0');
 	signal wdata, rdata		: std_logic_vector(31 downto 0) := (others => '0');
 	signal wstrb			: std_logic_vector(3 downto 0) := (others => '0');
-	signal m_awaddr, m_araddr	: std_logic_vector(31 downto 0) := (others => '0');
+	signal awaddr, araddr	: std_logic_vector(31 downto 0) := (others => '0');
 
 	signal m_data_in, m_data_out 	: std_logic_vector(31 downto 0) := (others => '0');
 	signal m_target_addr : std_logic_vector(31 downto 0) := (others => '0');
@@ -136,7 +255,7 @@ begin
 
 			M_AXI_ACLK => aclk,
 			M_AXI_ARESETN => aresetn,
-			M_AXI_AWADDR => m_awaddr,
+			M_AXI_AWADDR => awaddr,
 			M_AXI_AWPROT => awprot,
 			M_AXI_AWVALID => awvalid,
 			M_AXI_AWREADY => awready,
@@ -147,7 +266,7 @@ begin
 			M_AXI_BRESP => bresp,
 			M_AXI_BVALID => bvalid,
 			M_AXI_BREADY => bready,
-			M_AXI_ARADDR => m_araddr,
+			M_AXI_ARADDR => araddr,
 			M_AXI_ARPROT => arprot,
 			M_AXI_ARVALID => arvalid,
 			M_AXI_ARREADY => arready,
@@ -179,6 +298,58 @@ begin
 			M_AXI_RLAST => rlast,
 			M_AXI_RUSER => ruser
 		);
+
+AXI_Slave_0 : AXI_Slave
+	port map (
+		S_AXI_ACLK	=> aclk,
+		S_AXI_ARESETN	=> aresetn,
+		S_AXI_AWID	=> awid,
+		S_AXI_AWADDR	=> awaddr(5 downto 0),
+		S_AXI_AWLEN	=> awlen,
+		S_AXI_AWSIZE	=> awsize,
+		S_AXI_AWBURST	=> awburst,
+		S_AXI_AWLOCK	=> awlock,
+		S_AXI_AWCACHE	=> awcache,
+		S_AXI_AWPROT	=> awprot,
+		S_AXI_AWQOS	=> awqos,
+		S_AXI_AWREGION	=> (others => '0'),
+		S_AXI_AWUSER	=> awuser,
+		S_AXI_AWVALID	=> awvalid,
+		S_AXI_AWREADY	=> awready,
+		S_AXI_WDATA	=> wdata,
+		S_AXI_WSTRB	=> wstrb,
+		S_AXI_WLAST	=> wlast,
+		S_AXI_WUSER	=> wuser,
+		S_AXI_WVALID	=> wvalid,
+		S_AXI_WREADY	=> wready,
+		S_AXI_BID	=> bid,
+		S_AXI_BRESP	=> bresp,
+		S_AXI_BUSER	=> buser,
+		S_AXI_BVALID	=> bvalid,
+		S_AXI_BREADY	=> bready,
+		S_AXI_ARID	=> arid,
+		S_AXI_ARADDR	=> araddr(5 downto 0),
+		S_AXI_ARLEN	=> arlen,
+		S_AXI_ARSIZE	=> arsize,
+		S_AXI_ARBURST	=> arburst,
+		S_AXI_ARLOCK	=> arlock,
+		S_AXI_ARCACHE	=> arcache,
+		S_AXI_ARPROT	=> arprot,
+		S_AXI_ARQOS	=> arqos,
+		S_AXI_ARREGION	=> (others => '0'),
+		S_AXI_ARUSER	=> aruser,
+		S_AXI_ARVALID	=> arvalid,
+		S_AXI_ARREADY	=> arready,
+		S_AXI_RID	=> rid,
+		S_AXI_RDATA	=> rdata,
+		S_AXI_RRESP	=> rresp,
+		S_AXI_RLAST	=> rlast,
+		S_AXI_RUSER	=> ruser,
+		S_AXI_RVALID	=> rvalid,
+		S_AXI_RREADY	=> rready
+	);
+
+
 process
 begin
 	aclk <= '1';
@@ -195,57 +366,23 @@ begin
 	wait;
 end process;
 
-process
-begin
-	wait until awvalid = '1';
-	awready <= '1';
-	wait until awvalid = '0';
-	awready <= '0';
-	for i in 0 to 7 loop
-		wready <= '1';
-		wait for 10 ns;
-		wready <= '0';
-		wait for 10 ns;	
-	end loop;
-	bvalid <= '1';
-	wait until bready = '0';
-	bvalid <= '0';
-	wait for 10 ns;
-
-end process;	
-
-process
-begin
-	wait until arvalid = '1';
-	arready <= '1';
-	wait until arvalid = '0';
-	arready <= '0';
-	for i in 0 to 7 loop
-		rvalid <= '1';
-		wait for 10 ns;
-		rvalid <= '0';
-		wait for 10 ns;
-	end loop;
-	rvalid <= '1';
-	rlast <= '1';
-	wait for 10 ns;
-	rvalid <= '0';
-	rlast <= '0';
-	wait for 10 ns;
-end process;	
-
 
 process
 begin
 	wait for 20 ns;
-	m_target_addr <= std_logic_vector(to_unsigned(64, 32));	
-	m_data_in <=std_logic_vector(to_unsigned(512, 32));		
+	m_target_addr <= std_logic_vector(to_unsigned(0, 32));	
+	m_data_in <=std_logic_vector(to_unsigned(1, 32));		
 	axi_init_txn <= '1';
 	wait for 10 ns;
 	axi_init_txn <= '0';
 	for i in 0 to 7 loop
-		wait until axi_txn_strb = '1';
-		m_data_in <= std_logic_vector(unsigned(m_data_in) - 1);	
+		wait for 1 ns;
+		if (axi_txn_strb /= '1') then
+			wait until axi_txn_strb = '1';
+		else
+			wait for 9 ns;
+		end if;
+		m_data_in <= std_logic_vector(unsigned(m_data_in) + 1);
 	end loop;
 
 	wait for 500 ns;

@@ -120,23 +120,24 @@ architecture implementation of AXI_Master is
 	signal burst_read_active	: std_logic;
 	signal wnext, rnext        : std_logic;
 
+	signal M_DATA_OUT_S 	: std_logic_vector(C_M_AXI_DATA_WIDTH - 1 downto 0);
+	signal M_DATA_IN_S	: std_logic_vector(C_M_AXI_DATA_WIDTH - 1 downto 0);
 	signal M_TARGET_ADDR_S 	: std_logic_vector(C_M_AXI_ADDR_WIDTH - 1 downto 0);
 
 begin
 	-- I/O Connections assignments
 	--TODO CACHE SIGNALS ETC!!!!
-	--TODO M_DATA_IN and M_DATA_OUT REGISTERED!
-	M_DATA_OUT 	<= M_AXI_RDATA;
+	M_DATA_OUT	<= M_DATA_OUT_S;
 	M_AXI_AWID	<= (others => '0');
-	M_AXI_AWADDR	<= std_logic_vector(unsigned(M_TARGET_ADDR_S) + unsigned(axi_awaddr));
+	M_AXI_AWADDR	<= axi_awaddr;
 	M_AXI_AWLEN	<= std_logic_vector(to_unsigned(C_M_AXI_BURST_LEN - 1, 8));
 	M_AXI_AWSIZE	<= std_logic_vector(to_unsigned(2, 3));
 	M_AXI_AWBURST	<= "01";
 	M_AXI_AWLOCK	<= '0';
-	M_AXI_AWCACHE	<= "0010";
+	M_AXI_AWCACHE	<= "0011";
 	M_AXI_AWQOS	<= x"0";
 	M_AXI_AWUSER	<= (others => '1');
-	M_AXI_WDATA	<= M_DATA_IN;
+	M_AXI_WDATA	<= M_DATA_IN_S;
 	M_AXI_AWPROT	<= "000";
 	M_AXI_AWVALID	<= axi_awvalid;
 	M_AXI_WVALID	<= axi_wvalid;
@@ -149,8 +150,8 @@ begin
 	M_AXI_ARSIZE	<= std_logic_vector(to_unsigned(2,3));
 	M_AXI_ARBURST	<= "01";
 	M_AXI_ARLOCK	<= '0';
-	M_AXI_ARCACHE	<= "0010";
-	M_AXI_ARADDR	<= std_logic_vector(unsigned(M_TARGET_ADDR_S) + unsigned(axi_araddr));
+	M_AXI_ARCACHE	<= "0011";
+	M_AXI_ARADDR	<= axi_araddr;
 	M_AXI_ARVALID	<= axi_arvalid;
 	M_AXI_ARPROT	<= "000";
 	M_AXI_RREADY	<= axi_rready;
@@ -206,8 +207,10 @@ begin
 	  process(M_AXI_ACLK)
 	  begin
 	    if (rising_edge (M_AXI_ACLK)) then
-	      if (M_AXI_ARESETN = '0' or writes_done = '1') then
+	      if (M_AXI_ARESETN = '0') then
 	        axi_awaddr <= (others => '0');
+	      elsif (start_single_burst_write = '1') then
+		axi_awaddr <= M_TARGET_ADDR_S;
 	      else
 	        if (M_AXI_AWREADY= '1' and axi_awvalid = '1') then
 	          axi_awaddr <= std_logic_vector(unsigned(axi_awaddr) + unsigned(burst_size_bytes));
@@ -232,7 +235,7 @@ begin
 	           axi_wvalid <= '1';
 	         elsif (wnext = '1' and axi_wlast = '1') then
 			axi_wvalid <= '0';
-		 else
+		else
 			axi_wvalid <= axi_wvalid;
 	         end if;
 	       end if;
@@ -342,6 +345,8 @@ begin
 	    if (rising_edge (M_AXI_ACLK)) then
 	      if (M_AXI_ARESETN = '0' or reads_done = '1') then
 	        axi_araddr <= (others => '0');
+	      elsif (start_single_burst_read = '1') then
+		axi_araddr <= M_TARGET_ADDR_S;
 	      else
 	        if (M_AXI_ARREADY = '1' and axi_arvalid = '1') then
 	          axi_araddr <= std_logic_vector(unsigned(axi_araddr) + unsigned(burst_size_bytes));
@@ -530,25 +535,26 @@ begin
 	      if (M_AXI_ARESETN = '0' ) then
 	        -- reset condition
 	        -- All the signals are ed default values under reset condition
+		AXI_TXN_DONE 	<= '0';
+		AXI_TXN_STRB 	<= '0';
+		AXI_RXN_DONE 	<= '0';
+		AXI_RXN_STRB 	<= '0';	
 
-		AXI_TXN_DONE <= '0';
-		AXI_RXN_DONE <= '0';
-		AXI_TXN_STRB <= '0';
-		AXI_RXN_STRB <= '0';
 		M_TARGET_ADDR_S <= (others => '0');
-
+		M_DATA_OUT_S <= (others => '0');
+		M_DATA_IN_S <= (others => '0');
 	      else
 	        -- state transition
-
-		AXI_TXN_DONE <= '0';
-		AXI_TXN_STRB <= '0';
-		AXI_RXN_DONE <= '0';
-		AXI_RXN_STRB <= '0';
 
 		start_single_burst_write <= '0';
 		start_single_burst_read <= '0';
 
 		M_TARGET_ADDR_S <= M_TARGET_ADDR_S;
+
+		AXI_TXN_DONE 	<= '0';
+		AXI_TXN_STRB 	<= '0';
+		AXI_RXN_DONE 	<= '0';
+		AXI_RXN_STRB 	<= '0';	
 
 	        case (mst_exec_state) is
 
@@ -570,19 +576,24 @@ begin
 		if (writes_done = '1') then
 			mst_exec_state <= IDLE;
 			AXI_TXN_DONE <= '1';
-		elsif  (wnext = '1') then
-			AXI_TXN_STRB <= '1';	
+		elsif  (M_AXI_WREADY = '1') then
+			M_DATA_IN_S <= M_DATA_IN;
+			AXI_TXN_STRB <= '1';
 		elsif (axi_awvalid = '0' and start_single_burst_write = '0' and
 			burst_write_active = '0') then
 			start_single_burst_write <= '1';
+			M_DATA_IN_S <= M_DATA_IN;
+			AXI_TXN_STRB <= '1';
 		end if;
 
 	when INIT_READ =>
 		mst_exec_state <= INIT_READ;
 		if (rnext = '1') then
+			M_DATA_OUT_S <= M_AXI_RDATA;
 			AXI_RXN_STRB <= '1';
 		elsif (reads_done = '1') then
 			mst_exec_state <= IDLE;
+			AXI_RXN_STRB <= '1';
 			AXI_RXN_DONE <= '1';
 		elsif (axi_arvalid = '0' and burst_read_active = '0' and
 		start_single_burst_read = '0') then
