@@ -335,14 +335,6 @@ begin
 	              end if;
 	            end loop;
 	          when others =>
-	            slv_reg0_wr_s <= slv_reg0_wr_s;
-	            slv_reg1_wr_s <= slv_reg1_wr_s;
-	            slv_reg2_wr_s <= slv_reg2_wr_s;
-	            slv_reg3_wr_s <= slv_reg3_wr_s;
-	            slv_reg4_wr_s <= slv_reg4_wr_s;
-	            slv_reg5_wr_s <= slv_reg5_wr_s;
-	            slv_reg6_wr_s <= slv_reg6_wr_s;
-	            slv_reg7_wr_s <= slv_reg7_wr_s;
 	        end case;
 	      end if;
 	    end if;

@@ -576,7 +576,7 @@ begin
 		if (writes_done = '1') then
 			mst_exec_state <= IDLE;
 			AXI_TXN_DONE <= '1';
-		elsif  (M_AXI_WREADY = '1') then
+		elsif  (wnext = '1') then
 			M_DATA_IN_S <= M_DATA_IN;
 			AXI_TXN_STRB <= '1';
 		elsif (axi_awvalid = '0' and start_single_burst_write = '0' and
@@ -593,7 +593,6 @@ begin
 			AXI_RXN_STRB <= '1';
 		elsif (reads_done = '1') then
 			mst_exec_state <= IDLE;
-			AXI_RXN_STRB <= '1';
 			AXI_RXN_DONE <= '1';
 		elsif (axi_arvalid = '0' and burst_read_active = '0' and
 		start_single_burst_read = '0') then

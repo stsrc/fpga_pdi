@@ -82,97 +82,40 @@ end component;
 
 component AXI_Slave is
 	generic (
-		-- Users to add parameters here
-
-		-- User parameters ends
-		-- Do not modify the parameters beyond this line
-
-		-- Width of ID for for write address, write data, read address and read data
 		C_S_AXI_ID_WIDTH	: integer	:= 1;
-		-- Width of S_AXI data bus
 		C_S_AXI_DATA_WIDTH	: integer	:= 32;
-		-- Width of S_AXI address bus
 		C_S_AXI_ADDR_WIDTH	: integer	:= 6;
-		-- Width of optional user defined signal in write address channel
 		C_S_AXI_AWUSER_WIDTH	: integer	:= 0;
-		-- Width of optional user defined signal in read address channel
 		C_S_AXI_ARUSER_WIDTH	: integer	:= 0;
-		-- Width of optional user defined signal in write data channel
 		C_S_AXI_WUSER_WIDTH	: integer	:= 0;
-		-- Width of optional user defined signal in read data channel
 		C_S_AXI_RUSER_WIDTH	: integer	:= 0;
-		-- Width of optional user defined signal in write response channel
 		C_S_AXI_BUSER_WIDTH	: integer	:= 0
 	);
 	port (
-		-- Global Clock Signal
 		S_AXI_ACLK	: in std_logic;
-		-- Global Reset Signal. This Signal is Active LOW
 		S_AXI_ARESETN	: in std_logic;
-		-- Write Address ID
 		S_AXI_AWID	: in std_logic_vector(C_S_AXI_ID_WIDTH-1 downto 0);
-		-- Write address
 		S_AXI_AWADDR	: in std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
-		-- Burst length. The burst length gives the exact number of transfers in a burst
 		S_AXI_AWLEN	: in std_logic_vector(7 downto 0);
-		-- Burst size. This signal indicates the size of each transfer in the burst
 		S_AXI_AWSIZE	: in std_logic_vector(2 downto 0);
-		-- Burst type. The burst type and the size information, 
-    -- determine how the address for each transfer within the burst is calculated.
 		S_AXI_AWBURST	: in std_logic_vector(1 downto 0);
-		-- Lock type. Provides additional information about the
-    -- atomic characteristics of the transfer.
 		S_AXI_AWLOCK	: in std_logic;
-		-- Memory type. This signal indicates how transactions
-    -- are required to progress through a system.
 		S_AXI_AWCACHE	: in std_logic_vector(3 downto 0);
-		-- Protection type. This signal indicates the privilege
-    -- and security level of the transaction, and whether
-    -- the transaction is a data access or an instruction access.
 		S_AXI_AWPROT	: in std_logic_vector(2 downto 0);
-		-- Quality of Service, QoS identifier sent for each
-    -- write transaction.
 		S_AXI_AWQOS	: in std_logic_vector(3 downto 0);
-		-- Region identifier. Permits a single physical interface
-    -- on a slave to be used for multiple logical interfaces.
 		S_AXI_AWREGION	: in std_logic_vector(3 downto 0);
-		-- Optional User-defined signal in the write address channel.
 		S_AXI_AWUSER	: in std_logic_vector(C_S_AXI_AWUSER_WIDTH-1 downto 0);
-		-- Write address valid. This signal indicates that
-    -- the channel is signaling valid write address and
-    -- control information.
 		S_AXI_AWVALID	: in std_logic;
-		-- Write address ready. This signal indicates that
-    -- the slave is ready to accept an address and associated
-    -- control signals.
 		S_AXI_AWREADY	: out std_logic;
-		-- Write Data
 		S_AXI_WDATA	: in std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
-		-- Write strobes. This signal indicates which byte
-    -- lanes hold valid data. There is one write strobe
-    -- bit for each eight bits of the write data bus.
 		S_AXI_WSTRB	: in std_logic_vector((C_S_AXI_DATA_WIDTH/8)-1 downto 0);
-		-- Write last. This signal indicates the last transfer
-    -- in a write burst.
 		S_AXI_WLAST	: in std_logic;
-		-- Optional User-defined signal in the write data channel.
 		S_AXI_WUSER	: in std_logic_vector(C_S_AXI_WUSER_WIDTH-1 downto 0);
-		-- Write valid. This signal indicates that valid write
-    -- data and strobes are available.
 		S_AXI_WVALID	: in std_logic;
-		-- Write ready. This signal indicates that the slave
-    -- can accept the write data.
 		S_AXI_WREADY	: out std_logic;
-		-- Response ID tag. This signal is the ID tag of the
-    -- write response.
 		S_AXI_BID	: out std_logic_vector(C_S_AXI_ID_WIDTH-1 downto 0);
-		-- Write response. This signal indicates the status
-    -- of the write transaction.
 		S_AXI_BRESP	: out std_logic_vector(1 downto 0);
-		-- Optional User-defined signal in the write response channel.
 		S_AXI_BUSER	: out std_logic_vector(C_S_AXI_BUSER_WIDTH-1 downto 0);
-		-- Write response valid. This signal indicates that the
-    -- channel is signaling a valid write response.
 		S_AXI_BVALID	: out std_logic;
 		S_AXI_BREADY	: in std_logic;
 		S_AXI_ARID	: in std_logic_vector(C_S_AXI_ID_WIDTH-1 downto 0);
@@ -375,17 +318,14 @@ begin
 	axi_init_txn <= '1';
 	wait for 10 ns;
 	axi_init_txn <= '0';
-	for i in 0 to 7 loop
-		wait for 1 ns;
-		if (axi_txn_strb /= '1') then
-			wait until axi_txn_strb = '1';
-		else
-			wait for 9 ns;
+	while (axi_done_txn /= '1') loop
+		wait for 10 ns;
+		if (axi_txn_strb = '1') then
+			m_data_in <= std_logic_vector(unsigned(m_data_in) + 1);
 		end if;
-		m_data_in <= std_logic_vector(unsigned(m_data_in) + 1);
 	end loop;
 
-	wait for 500 ns;
+	wait for 10 ns;
 	axi_init_rxn <= '1';
 	wait for 10 ns;
 	axi_init_rxn <= '0';
