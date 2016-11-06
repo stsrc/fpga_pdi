@@ -131,6 +131,11 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	cnt = tx_ring->desc_cur;
 
 	tx_ring->buffer[cnt].skb = kzalloc(skb->len, GFP_KERNEL | GFP_DMA);
+	if (!tx_ring->buffer[cnt].skb) {
+		debug_print("pdi: could not allocate memory for skb data.\n");
+		return NETDEV_TX_BUSY;
+	}
+
 	memcpy(tx_ring->buffer[cnt].skb, skb->data, skb->len);
 
 	tx_ring->buffer[cnt].map = dma_map_single(pdi->dev, tx_ring->buffer[cnt].skb,
@@ -191,8 +196,8 @@ static int pdi_complete_xmit(struct pdi *pdi)
 	for (i = cons; i != (cons + processed) % tx_ring->desc_max; 
 	     i = (i + 1) % tx_ring->desc_max) {
 		skb = tx_ring->buffer[i].skb;
-		dma_unmap_single(pdi->dev, tx_ring->buffer[i].map, skb->len, 
-				 DMA_TO_DEVICE);
+		dma_unmap_single(pdi->dev, tx_ring->buffer[i].map, 
+				 tx_ring->desc[i].cnt, DMA_TO_DEVICE);
 		kfree(skb);
 	}
 

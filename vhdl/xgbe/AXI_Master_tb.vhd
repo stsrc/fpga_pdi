@@ -31,6 +31,7 @@ component AXI_Master is
 		INIT_AXI_RXN	: in std_logic;
 		AXI_RXN_DONE	: out std_logic;
 		AXI_RXN_STRB	: out std_logic;
+		BURST		: in  std_logic_vector(7 downto 0);
 
 		M_AXI_ACLK	: in std_logic;
 		M_AXI_ARESETN	: in std_logic;
@@ -181,6 +182,7 @@ end component;
 
 	signal axi_init_txn, axi_done_txn, axi_init_rxn, axi_done_rxn : std_logic := '0';
 	signal axi_rxn_strb, axi_txn_strb : std_logic := '0';
+	signal burst	: std_logic_vector(7 downto 0) := (others => '0');
 begin
 	
 
@@ -195,7 +197,7 @@ begin
 			AXI_RXN_DONE => axi_done_rxn,
 			AXI_TXN_STRB => axi_txn_strb,
 			AXI_RXN_STRB => axi_rxn_strb,
-
+			BURST	=> burst,
 			M_AXI_ACLK => aclk,
 			M_AXI_ARESETN => aresetn,
 			M_AXI_AWADDR => awaddr,
@@ -313,11 +315,29 @@ end process;
 process
 begin
 	wait for 20 ns;
-	m_target_addr <= std_logic_vector(to_unsigned(0, 32));	
-	m_data_in <=std_logic_vector(to_unsigned(1, 32));		
+	m_target_addr <= std_logic_vector(to_unsigned(0, 32));
+	m_data_in <= std_logic_vector(to_unsigned(64, 32));
+	burst <= std_logic_vector(to_unsigned(1, 8));
 	axi_init_txn <= '1';
 	wait for 10 ns;
+	burst <= (others => '0');
 	axi_init_txn <= '0';
+
+	while (axi_done_txn /= '1') loop
+		wait for 10 ns;
+		if (axi_txn_strb = '1') then
+			m_data_in <= std_logic_vector(unsigned(m_data_in) + 1);
+		end if;
+	end loop;
+
+	m_target_addr <= std_logic_vector(to_unsigned(32, 32));	
+	m_data_in <=std_logic_vector(to_unsigned(1, 32));
+	burst <= std_logic_vector(to_unsigned(7, 8));
+	axi_init_txn <= '1';
+	wait for 10 ns;
+	burst <= (others => '0');
+	axi_init_txn <= '0';
+
 	while (axi_done_txn /= '1') loop
 		wait for 10 ns;
 		if (axi_txn_strb = '1') then
@@ -326,9 +346,22 @@ begin
 	end loop;
 
 	wait for 10 ns;
+
+	m_target_addr <= std_logic_vector(to_unsigned(0, 32));
+	burst <=  std_logic_vector(to_unsigned(1, 8));
 	axi_init_rxn <= '1';
-	wait for 10 ns;
-	axi_init_rxn <= '0';
+	wait for 11 ns;
+	burst <= (others => '0');
+	axi_init_rxn <= '0';	
+	wait for 200 ns;
+
+
+	m_target_addr <= std_logic_vector(to_unsigned(32, 32));
+	burst <= std_logic_vector(to_unsigned(7, 8));
+	axi_init_rxn <= '1';
+	wait for 11 ns;
+	burst <= (others => '0');
+	axi_init_rxn <= '0';	
 	wait;
 
 end process;

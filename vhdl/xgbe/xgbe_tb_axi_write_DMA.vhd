@@ -555,11 +555,13 @@ begin
 	wait until M_RD_STRB = '0';
 	M_RD_DATA <= std_logic_vector(to_unsigned(128 , 32));
 
-	for i in 0 to 5 loop
-		wait until M_RD_STRB = '1';
-		wait until M_RD_STRB = '0';
-		M_RD_DATA <= std_logic_vector(to_unsigned(64 , 32));
-	end loop;
+--	if (unsigned(M_AXI_ARLEN) > 1) then
+--		for i in 0 to to_integer(unsigned(M_AXI_ARLEN) - 2) loop
+--			M_RD_DATA <= std_logic_vector(to_unsigned(64 , 32));
+--			wait until M_RD_STRB = '1';
+--			wait until M_RD_STRB = '0';
+--		end loop;
+--	end if;
 
 	if (j >= 1 and j <= 4) then
 		to_add := 1;

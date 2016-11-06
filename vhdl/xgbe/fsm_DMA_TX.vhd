@@ -17,6 +17,7 @@ entity fsm_DMA_TX is
 		INIT_AXI_RXN		: out std_logic;
 		AXI_RXN_DONE 		: in  std_logic;
 		AXI_RXN_STRB		: in  std_logic;
+		BURST			: out std_logic_vector(7 downto 0);
 
 		--physical address of TX DMA ring created by linux.
 		TX_DESC_ADDR		: in std_logic_vector(31 downto 0);
@@ -108,6 +109,7 @@ process(clk) begin
 			TX_PCKT_DATA <= (others => '0');
 			TX_PCKT_DATA_STRB <= '0';
 			TX_PCKT_CNT_STRB <= '0';
+			BURST <= (others => '0');
 		else			
 
 			INIT_AXI_RXN <= '0';
@@ -164,7 +166,8 @@ process(clk) begin
 
 			when FETCH_DESC =>
 				ADDR <= std_logic_vector(TX_DESC_ADDR_ACTUAL);
-				INIT_AXI_RXN <= '1';	
+				BURST <= std_logic_vector(to_unsigned(1, 8));
+				INIT_AXI_RXN <= '1';
 				TX_DESC_ADDR_ACTUAL <= TX_DESC_ADDR_ACTUAL + 8;
 				if (TX_DESC_ADDR_ACTUAL + 8 = TX_DESC_ADDR_REG + TX_SIZE_REG) then
 					TX_DESC_ADDR_ACTUAL <= TX_DESC_ADDR_REG;
@@ -207,6 +210,7 @@ process(clk) begin
 			when FETCH_WORDS =>
 				ADDR <= std_logic_vector(TX_BUFF_ADDR);
 				TX_BUFF_ADDR <= TX_BUFF_ADDR + 32;
+				BURST <= std_logic_vector(to_unsigned(7, 8));
 				INIT_AXI_RXN <= '1';
 				TX_STATE <= FETCH_WORDS_WAIT;
 

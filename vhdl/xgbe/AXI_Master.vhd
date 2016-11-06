@@ -22,12 +22,13 @@ entity AXI_Master is
 		M_DATA_OUT			: out std_logic_vector(C_M_AXI_DATA_WIDTH - 1 downto 0);
 		M_TARGET_BASE_ADDR 		: in std_logic_vector(C_M_AXI_ADDR_WIDTH - 1 downto 0);
 
-		INIT_AXI_TXN	: in std_logic;
+		INIT_AXI_TXN	: in  std_logic;
 		AXI_TXN_DONE	: out std_logic;
 		AXI_TXN_STRB	: out std_logic;
-		INIT_AXI_RXN	: in std_logic;
+		INIT_AXI_RXN	: in  std_logic;
 		AXI_RXN_DONE	: out std_logic;
 		AXI_RXN_STRB	: out std_logic;
+		BURST		: in  std_logic_vector(7 downto 0);
 
 		M_AXI_ACLK	: in std_logic;
 		M_AXI_ARESETN	: in std_logic;
@@ -105,6 +106,7 @@ architecture implementation of AXI_Master is
 	signal axi_araddr	: std_logic_vector(C_M_AXI_ADDR_WIDTH-1 downto 0);
 	signal axi_arvalid	: std_logic;
 	signal axi_rready	: std_logic;
+	signal axi_arwlen	: std_logic_vector(7 downto 0);
 
 	signal write_index	: std_logic_vector(C_TRANSACTIONS_NUM downto 0);
 	signal read_index	: std_logic_vector(C_TRANSACTIONS_NUM downto 0);
@@ -130,7 +132,7 @@ begin
 	M_DATA_OUT	<= M_DATA_OUT_S;
 	M_AXI_AWID	<= (others => '0');
 	M_AXI_AWADDR	<= axi_awaddr;
-	M_AXI_AWLEN	<= std_logic_vector(to_unsigned(C_M_AXI_BURST_LEN - 1, 8));
+	M_AXI_AWLEN	<= axi_arwlen;
 	M_AXI_AWSIZE	<= std_logic_vector(to_unsigned(2, 3));
 	M_AXI_AWBURST	<= "01";
 	M_AXI_AWLOCK	<= '0';
@@ -146,7 +148,7 @@ begin
 	M_AXI_WSTRB	<= "1111";
 	M_AXI_BREADY	<= axi_bready;
 	M_AXI_ARID	<= (others => '0');
-	M_AXI_ARLEN	<= std_logic_vector(to_unsigned(C_M_AXI_BURST_LEN - 1, 8));
+	M_AXI_ARLEN	<= axi_arwlen;
 	M_AXI_ARSIZE	<= std_logic_vector(to_unsigned(2,3));
 	M_AXI_ARBURST	<= "01";
 	M_AXI_ARLOCK	<= '0';
@@ -245,19 +247,20 @@ begin
 	  process(M_AXI_ACLK)
 	  begin
 	    if (rising_edge (M_AXI_ACLK)) then
-	      if (M_AXI_ARESETN = '0') then
+	      if (M_AXI_ARESETN = '0' or start_single_burst_write = '1') then
 	        axi_wlast <= '0';
 	      else
 	        if
-			((((write_index = std_logic_vector(to_unsigned(C_M_AXI_BURST_LEN-2,C_TRANSACTIONS_NUM+1)))
-			and C_M_AXI_BURST_LEN >= 2)
+			((((write_index = 
+			std_logic_vector(to_unsigned(to_integer(unsigned(axi_arwlen) - 1),C_TRANSACTIONS_NUM+1)))
+			and unsigned(axi_arwlen) >= 1)
 			and wnext = '1')
-			or (C_M_AXI_BURST_LEN = 1))
+			or (unsigned(axi_arwlen) = 0))
 		then
 	          axi_wlast <= '1';
 	        elsif (wnext = '1') then
 	          axi_wlast <= '0';
-	        elsif (axi_wlast = '1' and C_M_AXI_BURST_LEN = 1) then
+	        elsif (axi_wlast = '1' and unsigned(axi_arwlen) = 0) then
 	          axi_wlast <= '0';
 	        end if;
 	      end if;
@@ -272,7 +275,8 @@ begin
 	      else
 	        if
 			(wnext = '1' and (write_index /= std_logic_vector(
-			to_unsigned(C_M_AXI_BURST_LEN-1,C_TRANSACTIONS_NUM+1))))
+			to_unsigned(to_integer(unsigned(axi_arwlen)),
+			C_TRANSACTIONS_NUM+1))))
 		then
 	          write_index <= std_logic_vector(unsigned(write_index) + 1);
 	        end if;
@@ -372,7 +376,8 @@ begin
 	      else
 	        if
 			(rnext = '1' and
-			(read_index <= std_logic_vector(to_unsigned(C_M_AXI_BURST_LEN-1,C_TRANSACTIONS_NUM+1))))
+			(read_index <= std_logic_vector(to_unsigned(to_integer(unsigned(axi_arwlen)),
+					C_TRANSACTIONS_NUM+1))))
 		then
 	          read_index <= std_logic_vector(unsigned(read_index) + 1);
 	        end if;
@@ -514,7 +519,8 @@ begin
 	        reads_done <= '0';
 	      else
 	        if (M_AXI_RVALID = '1' and axi_rready = '1' 
-		and (read_index = std_logic_vector (to_unsigned(C_M_AXI_BURST_LEN-1,C_TRANSACTIONS_NUM+1))) 
+		and (read_index = std_logic_vector(to_unsigned(to_integer(unsigned(axi_arwlen)),
+					C_TRANSACTIONS_NUM+1))) 
 		and (read_burst_counter(C_NO_BURSTS_REQ) = '1')) then
 			reads_done <= '1';
 		else
@@ -524,11 +530,6 @@ begin
 	    end if;
 	  end process;
 
-	----------------------------------
-	--User Logic
-	----------------------------------
-
-	  --implement master command interface state machine
 	  MASTER_EXECUTION_PROC:process(M_AXI_ACLK)
 	  begin
 	    if (rising_edge (M_AXI_ACLK)) then
@@ -543,6 +544,9 @@ begin
 		M_TARGET_ADDR_S <= (others => '0');
 		M_DATA_OUT_S <= (others => '0');
 		M_DATA_IN_S <= (others => '0');
+
+		axi_arwlen <= (others => '0');
+--			axi_arwlen <= std_logic_vector(to_unsigned(C_M_AXI_BURST_LEN - 1, 8));
 	      else
 	        -- state transition
 
@@ -559,9 +563,9 @@ begin
 	        case (mst_exec_state) is
 
 	          when IDLE =>
+			axi_arwlen <= BURST;
 
 	            if ( INIT_AXI_TXN = '1') then
-
 	              mst_exec_state  <= INIT_WRITE;
 			M_TARGET_ADDR_S <= M_TARGET_BASE_ADDR;
 	            elsif ( INIT_AXI_RXN = '1') then

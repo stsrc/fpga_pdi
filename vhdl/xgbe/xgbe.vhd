@@ -339,6 +339,7 @@ component AXI_Master is
 		INIT_AXI_RXN	: in std_logic;
 		AXI_RXN_DONE	: out std_logic;
 		AXI_RXN_STRB	: out std_logic;
+		BURST		: in  std_logic_vector(7 downto 0);
 
 		M_AXI_ACLK	: in std_logic;
 		M_AXI_ARESETN	: in std_logic;
@@ -400,6 +401,7 @@ component  fsm_DMA_TX is
 		INIT_AXI_RXN		: out std_logic;
 		AXI_RXN_DONE 		: in  std_logic;
 		AXI_RXN_STRB 		: in  std_logic;
+		BURST			: out std_logic_vector(7 downto 0);
 
 		TX_DESC_ADDR		: in std_logic_vector(31 downto 0);
 		TX_DESC_ADDR_STRB 	: in std_logic;
@@ -544,6 +546,7 @@ end component reset_con;
 	signal axi_m_slave_addr : std_logic_vector(C_M_AXI_ADDR_WIDTH - 1 downto 0);
 	signal axi_m_init_txn, axi_m_done_txn, axi_m_strb_txn : std_logic := '0';
 	signal axi_m_init_rxn, axi_m_done_rxn, axi_m_strb_rxn : std_logic := '0';
+	signal axi_m_burst	: std_logic_vector(7 downto 0);
 
 	signal data_dma_mux, data_mux_fsm   : std_logic_vector(31 downto 0);
 	signal strb_data_dma_mux, strb_data_mux_fsm : std_logic;
@@ -879,6 +882,7 @@ begin
 			INIT_AXI_RXN	=> axi_m_init_rxn,
 			AXI_RXN_DONE	=> axi_m_done_rxn,
 			AXI_RXN_STRB	=> axi_m_strb_rxn,
+			BURST		=> axi_m_burst,
 
 			M_AXI_ACLK	=> M_AXI_ACLK,
 			M_AXI_ARESETN	=> M_AXI_ARESETN,
@@ -939,6 +943,7 @@ begin
 			INIT_AXI_RXN 		=> axi_m_init_rxn,
 			AXI_RXN_DONE 		=> axi_m_done_rxn,
 			AXI_RXN_STRB		=> axi_m_strb_rxn,
+			BURST			=> axi_m_burst,
 			TX_DESC_ADDR	 	=> slv_reg4_wr,
 			TX_DESC_ADDR_STRB	=> slv_reg4_wr_strb,
 			TX_SIZE 		=> slv_reg5_wr,

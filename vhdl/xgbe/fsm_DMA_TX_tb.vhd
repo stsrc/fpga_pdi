@@ -20,6 +20,7 @@ component fsm_DMA_TX is
 		INIT_AXI_RXN		: out std_logic;
 		AXI_RXN_DONE 		: in  std_logic;
 		AXI_RXN_STRB		: in  std_logic;
+		BURST			: out std_logic_vector(7 downto 0);
 
 		TX_DESC_ADDR		: in std_logic_vector(31 downto 0);
 		TX_DESC_ADDR_STRB 	: in std_logic;
@@ -40,6 +41,7 @@ component fsm_DMA_TX is
 end component;
 
 signal clk, aresetn 									: std_logic := '0';
+signal BURST : std_logic_vector(7 downto 0) := (others => '0');
 signal INIT_AXI_TXN, AXI_TXN_DONE, INIT_AXI_RXN, AXI_RXN_DONE 				: std_logic := '0';
 signal TX_DESC_ADDR_STRB, TX_SIZE_STRB, TX_INCR_STRB, TX_PRCSSD_STRB, TX_PRCSSD_INT 	: std_logic := '0';
 signal AXI_RXN_STRB, AXI_TXN_STRB	: std_logic := '0';
@@ -70,6 +72,7 @@ fsm_DMA_0 : fsm_DMA_TX
 		AXI_RXN_DONE => AXI_RXN_DONE,
 		TX_DESC_ADDR => TX_DESC_ADDR,
 		TX_DESC_ADDR_STRB => TX_DESC_ADDR_STRB,
+		BURST => BURST,
 		TX_SIZE => TX_SIZE,
 		TX_SIZE_STRB => TX_SIZE_STRB,
 		TX_INCR_STRB => TX_INCR_STRB,
