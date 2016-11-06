@@ -192,7 +192,6 @@ process(clk) begin
 					TX_STATE <= FETCH_DESC_WAIT_1;
 				end if; 
 			when SET_FLAGS =>
-				--TODO HOW TO DECREASE BURST LENGTH DYNAMICALLY?
 				if (AXI_RXN_DONE = '1') then
 					TX_STATE <= FETCH_WORDS;	
 				else
@@ -215,20 +214,40 @@ process(clk) begin
 				TX_STATE <= FETCH_WORDS_WAIT;
 
 			when FETCH_WORDS_WAIT =>
-
 				if (AXI_RXN_STRB = '1' and TX_BYTES_ACTUAL /= 0) then
-					if (TX_BYTES_ACTUAL >= 4) then
-						TX_BYTES_ACTUAL <= TX_BYTES_ACTUAL - 4;
-					else
-						TX_BYTES_ACTUAL <= (others => '0');
-					end if;
+					case (to_integer(TX_BUFF_ADDR_MOD)) is
+					when 0 =>
+						if (TX_BYTES_ACTUAL >= 4) then
+							TX_BYTES_ACTUAL <= TX_BYTES_ACTUAL - 4;
+						else
+							TX_BYTES_ACTUAL <= (others => '0');
+						end if;
 
-					TX_PCKT_DATA <= DATA_IN;
-					TX_PCKT_DATA_STRB <= '1';
-					TX_STATE <= FETCH_WORDS_WAIT;
-
+						TX_PCKT_DATA <= DATA_IN;
+						TX_PCKT_DATA_STRB <= '1';
+						TX_STATE <= FETCH_WORDS_WAIT;
+					when 2 =>
+						case (TX_WRITE_PHASE) is
+						when '0' =>
+							TX_PCKT_SAVE <= unsigned(DATA_IN(31 downto 16));
+							TX_WRITE_PHASE <= '1';
+							TX_STATE <= FETCH_WORDS_WAIT;
+						when '1' =>
+							TX_PCKT_DATA <= DATA_IN(15 downto 0) &
+									std_logic_vector(TX_PCKT_SAVE);
+							TX_PCKT_DATA_STRB <= '1';
+							TX_PCKT_SAVE <= unsigned(DATA_IN(31 downto 16));
+							if (TX_BYTES_ACTUAL >= 4) then
+								TX_BYTES_ACTUAL <= TX_BYTES_ACTUAL - 4;
+							else
+								TX_BYTES_ACTUAL <= (others => '0');
+							end if;
+					when others =>
+						TX_WRITE_PHASE <= '0';
+					end case;
+				when others =>
+				end case;
 				elsif (AXI_RXN_DONE = '1') then
-
 					if (TX_BYTES_ACTUAL  > 0) then
 						TX_STATE <= FETCH_WORDS;
 					elsif (TX_FAKE_READ = '1') then
@@ -236,7 +255,6 @@ process(clk) begin
 					else
 						TX_STATE <= PUSH_PCKT_CNT;
 					end if;
-
 				else
 					TX_STATE <= FETCH_WORDS_WAIT;
 				end if;
