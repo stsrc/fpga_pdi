@@ -421,6 +421,82 @@ component  fsm_DMA_TX is
 	);
 end component;
 
+component fsm_DMA_RX is
+	port (
+		clk			: in std_logic;
+		aresetn			: in std_logic;
+	
+		DATA_IN 		: in  std_logic_vector(31 downto 0);
+		DATA_OUT		: out std_logic_vector(31 downto 0);
+		ADDR			: out std_logic_vector(31 downto 0);
+		INIT_AXI_TXN		: out std_logic;
+		AXI_TXN_DONE		: in  std_logic;
+		AXI_TXN_STRB		: in  std_logic;
+		INIT_AXI_RXN		: out std_logic;
+		AXI_RXN_DONE 		: in  std_logic;
+		AXI_RXN_STRB		: in  std_logic;
+		BURST			: out std_logic_vector(7 downto 0);
+		RX_DESC_ADDR		: in std_logic_vector(31 downto 0);
+		RX_DESC_ADDR_STRB 	: in std_logic;
+		RX_SIZE			: in std_logic_vector(31 downto 0);
+		RX_SIZE_STRB		: in std_logic;
+		RX_PRCSSD		: out std_logic_vector(31 downto 0);
+		RX_PRCSSD_STRB		: in std_logic;
+		RX_PRCSSD_INT		: out std_logic;
+		XGBE_PCKT_RCV		: in std_logic;
+		DMA_EN			: in std_logic;
+		RCV_EN			: in std_logic;
+		RX_PCKT_DATA		: in std_logic_vector(31 downto 0);
+		RX_PCKT_DATA_STRB	: out std_logic;
+		RX_PCKT_CNT		: in std_logic_vector(31 downto 0);
+		RX_PCKT_CNT_STRB	: out std_logic	
+	);
+end component;
+
+component interconnect_AXI_M_DMA is
+	port (
+		clk 		: in  std_logic;
+		aresetn		: in  std_logic;
+
+		BRST_0		: in std_logic_vector(7 downto 0);
+		BRST_1		: in std_logic_vector(7 downto 0);
+		BRST_TO_AXI	: out std_logic_vector(7 downto 0);
+
+		DATA_OUT_0 	: in  std_logic_vector(31 downto 0);
+		DATA_OUT_1 	: in  std_logic_vector(31 downto 0);
+		DATA_TO_AXI  	: out std_logic_vector(31 downto 0);
+
+		DATA_FROM_AXI	: in  std_logic_vector(31 downto 0);
+		DATA_IN_0	: out std_logic_vector(31 downto 0);
+		DATA_IN_1	: out std_logic_vector(31 downto 0);
+
+		ADDR_0 		: in  std_logic_vector(31 downto 0);
+		ADDR_1 		: in  std_logic_vector(31 downto 0);
+		ADDR_TO_AXI  	: out std_logic_vector(31 downto 0);
+
+		INIT_AXI_TXN	: out std_logic;
+		INIT_AXI_RXN	: out std_logic;
+		AXI_TXN_DONE	: in std_logic;
+		AXI_RXN_DONE	: in std_logic;
+		AXI_TXN_STRB	: in std_logic;
+		AXI_RXN_STRB	: in std_logic;
+
+		INIT_AXI_TXN_0	: in  std_logic;
+		AXI_TXN_DONE_0	: out std_logic;
+		AXI_TXN_STRB_0	: out std_logic;
+		INIT_AXI_RXN_0	: in  std_logic;
+		AXI_RXN_DONE_0 	: out std_logic;
+		AXI_RXN_STRB_0	: out std_logic;
+
+		INIT_AXI_TXN_1	: in  std_logic;
+		AXI_TXN_DONE_1	: out std_logic;
+		AXI_TXN_STRB_1	: out std_logic;
+		INIT_AXI_RXN_1	: in  std_logic;
+		AXI_RXN_DONE_1 	: out std_logic;
+		AXI_RXN_STRB_1	: out std_logic
+	);
+end component;
+
 component fsm_axi_to_fifo is
 port (
 	clk 			: in std_logic;
@@ -548,10 +624,32 @@ end component reset_con;
 	signal axi_m_init_rxn, axi_m_done_rxn, axi_m_strb_rxn : std_logic := '0';
 	signal axi_m_burst	: std_logic_vector(7 downto 0);
 
-	signal data_dma_mux, data_mux_fsm   : std_logic_vector(31 downto 0);
-	signal strb_data_dma_mux, strb_data_mux_fsm : std_logic;
-	signal cnt_dma_mux, cnt_mux_fsm   : std_logic_vector(31 downto 0);
-	signal strb_cnt_dma_mux, strb_cnt_mux_fsm : std_logic;
+	signal dma_tx_burst	: std_logic_vector(7 downto 0);
+	signal dma_tx_data_out  : std_logic_vector(31 downto 0);
+	signal dma_tx_data_in	: std_logic_vector(31 downto 0);
+	signal dma_tx_addr	: std_logic_vector(31 downto 0);
+	signal dma_tx_init_txn  : std_logic;
+	signal dma_tx_init_rxn	: std_logic;
+	signal dma_tx_txn_done  : std_logic;
+	signal dma_tx_rxn_done  : std_logic;
+	signal dma_tx_txn_strb	: std_logic;
+	signal dma_tx_rxn_strb	: std_logic;
+
+	signal dma_rx_burst	: std_logic_vector(7 downto 0);
+	signal dma_rx_data_out  : std_logic_vector(31 downto 0);
+	signal dma_rx_data_in	: std_logic_vector(31 downto 0);
+	signal dma_rx_addr	: std_logic_vector(31 downto 0);
+	signal dma_rx_init_txn  : std_logic;
+	signal dma_rx_init_rxn	: std_logic;
+	signal dma_rx_txn_done  : std_logic;
+	signal dma_rx_rxn_done  : std_logic;
+	signal dma_rx_txn_strb	: std_logic;
+	signal dma_rx_rxn_strb	: std_logic;
+
+	signal data_dma_mux_tx, data_mux_fsm_tx  : std_logic_vector(31 downto 0);
+	signal strb_data_dma_mux_tx, strb_data_mux_fsm_tx : std_logic;
+	signal cnt_dma_mux_tx, cnt_mux_fsm_tx   : std_logic_vector(31 downto 0);
+	signal strb_cnt_dma_mux_tx, strb_cnt_mux_fsm_tx : std_logic;
 
 	signal data_axi_fifo, data_fifo_mac : std_logic_vector(63 downto 0);
 	signal data_mac_fifo, data_fifo_axi : std_logic_vector(63 downto 0);
@@ -687,12 +785,12 @@ begin
 		port map (
 			clk => s_axi_aclk,
 			resetn => con_100MHz_resetn,
-			data_from_axi => data_mux_fsm,
-			data_from_axi_strb => strb_data_mux_fsm, 
+			data_from_axi => data_mux_fsm_tx,
+			data_from_axi_strb => strb_data_mux_fsm_tx, 
 			data_to_fifo => data_axi_fifo, 
 			data_to_fifo_strb => strb_data_axi_fifo, 
-			cnt_from_axi   => cnt_mux_fsm,
-			cnt_from_axi_strb => strb_cnt_mux_fsm,
+			cnt_from_axi   => cnt_mux_fsm_tx,
+			cnt_from_axi_strb => strb_cnt_mux_fsm_tx,
 			cnt_to_fifo  => cnt_axi_fifo,
 			cnt_to_fifo_strb => strb_cnt_axi_fifo,
 			packet_strb => interrupt_axi_fifo
@@ -929,21 +1027,58 @@ begin
 			M_AXI_RVALID	=> M_AXI_RVALID,
 			M_AXI_RREADY	=> M_AXI_RREADY
 		);
+	--TODO CLOCKS! s_axi_aclk and m_axi_aclk should be synchronized!!!!
+	interconnect_AXI_M_DMA_0 : interconnect_AXI_M_DMA
+		port map (
+		clk 		=> s_axi_aclk,
+		aresetn 	=> s_axi_aresetn,
+		DATA_OUT_0 	=> dma_rx_data_out, 
+		DATA_OUT_1 	=> dma_tx_data_out,
+		DATA_TO_AXI 	=> axi_m_data_in,
+		DATA_FROM_AXI 	=> axi_m_data_out,
+		DATA_IN_0 	=> dma_rx_data_in,
+		DATA_IN_1 	=> dma_tx_data_in,
+		ADDR_0 		=> dma_rx_addr,
+		ADDR_1 		=> dma_tx_addr,
+		ADDR_TO_AXI 	=> axi_m_slave_addr,
+		INIT_AXI_TXN 	=> axi_m_init_txn,
+		INIT_AXI_RXN 	=> axi_m_init_rxn,
+		AXI_TXN_DONE 	=> axi_m_txn_done,
+		AXI_RXN_DONE 	=> axi_m_rxn_done,
+		AXI_TXN_STRB    => axi_m_txn_strb,
+		AXI_RXN_STRB    => axi_m_rxn_strb,
+		INIT_AXI_TXN_0 	=> dma_rx_init_txn,
+		AXI_TXN_DONE_0 	=> dma_rx_txn_done,
+		INIT_AXI_RXN_0 	=> dma_rx_init_rxn,
+		AXI_RXN_DONE_0 	=> dma_rx_rxn_done,
+		INIT_AXI_TXN_1 	=> dma_tx_init_txn,
+		AXI_TXN_DONE_1 	=> dma_tx_txn_done,
+		INIT_AXI_RXN_1 	=> dma_tx_init_rxn,
+		AXI_RXN_DONE_1 	=> dma_tx_rxn_done,
+		AXI_RXN_STRB_0 	=> dma_rx_rxn_strb,
+		AXI_TXN_STRB_0 	=> dma_rx_txn_strb,
+		AXI_RXN_STRB_1 	=> dma_tx_rxn_strb,
+		AXI_TXN_STRB_1	=> dma_tx_txn_strb,
+		BRST_0		=> dma_rx_burst,
+		BRST_1		=> dma_tx_burst,
+		BRST_TO_AXI	=> axi_m_burst
+	);
+
 
 	fsm_DMA_TX_0 : fsm_DMA_TX
 		port map (
 			clk 			=> s_axi_aclk,
 			aresetn 		=> s_axi_aresetn,
 	
-			DATA_IN 		=> axi_m_data_out,
-			ADDR 			=> axi_m_slave_addr,
-			INIT_AXI_TXN 		=> axi_m_init_txn,
-			AXI_TXN_DONE 		=> axi_m_done_txn,
-			AXI_TXN_STRB		=> axi_m_strb_txn,
-			INIT_AXI_RXN 		=> axi_m_init_rxn,
-			AXI_RXN_DONE 		=> axi_m_done_rxn,
-			AXI_RXN_STRB		=> axi_m_strb_rxn,
-			BURST			=> axi_m_burst,
+			DATA_IN 		=> dma_tx_data_in,
+			ADDR 			=> dma_tx_addr,
+			INIT_AXI_TXN 		=> dma_tx_init_txn,
+			AXI_TXN_DONE 		=> dma_tx_txn_done,
+			AXI_TXN_STRB		=> dma_tx_txn_strb,
+			INIT_AXI_RXN 		=> dma_tx_init_rxn,
+			AXI_RXN_DONE 		=> dma_tx_rxn_done,
+			AXI_RXN_STRB		=> dma_tx_rxn_strb,
+			BURST			=> dma_tx_burst,
 			TX_DESC_ADDR	 	=> slv_reg4_wr,
 			TX_DESC_ADDR_STRB	=> slv_reg4_wr_strb,
 			TX_SIZE 		=> slv_reg5_wr,
@@ -953,54 +1088,84 @@ begin
 			TX_PRCSSD_STRB 		=> slv_reg6_rd_strb,
 			TX_PRCSSD_INT 		=> interrupt_tx_prcssd,
 			DMA_EN 			=> dma_en_100MHz,
-			TX_PCKT_DATA	 	=> data_dma_mux,
-			TX_PCKT_DATA_STRB 	=> strb_data_dma_mux,
-			TX_PCKT_CNT 		=> cnt_dma_mux,
-			TX_PCKT_CNT_STRB 	=> strb_cnt_dma_mux
+			TX_PCKT_DATA	 	=> data_dma_mux_tx,
+			TX_PCKT_DATA_STRB 	=> strb_data_dma_mux_tx,
+			TX_PCKT_CNT 		=> cnt_dma_mux_tx,
+			TX_PCKT_CNT_STRB 	=> strb_cnt_dma_mux_tx
 		);
 
+	fsm_DMA_RX_0 : fsm_DMA_RX
+		port map (
+			clk 			=> s_axi_aclk,
+			aresetn 		=> s_axi_aresetn,
+			DATA_IN 		=> dma_rx_data_in,
+			DATA_OUT	 	=> dma_rx_data_out,
+			ADDR 			=> dma_rx_addr,
+			INIT_AXI_TXN		=> dma_rx_init_txn,
+			AXI_TXN_DONE 		=> dma_rx_txn_done,
+			AXI_TXN_STRB 		=> dma_rx_txn_strb,
+			INIT_AXI_RXN 		=> dma_rx_init_rxn,
+			AXI_RXN_DONE 		=> dma_rx_rxn_done,
+			AXI_RXN_STRB 		=> dma_rx_rxn_strb,
+			BURST 			=> dma_rx_burst,
+			RX_DESC_ADDR 		=> slv_reg6_wr,
+			RX_DESC_ADDR_STRB 	=> slv_reg6_wr_strb,
+			RX_SIZE 		=> slv_reg5_wr,
+			RX_SIZE_STRB 		=> slv_reg5_wr_strb,
+			RX_PRCSSD 		=> slv_reg4_rd,
+			RX_PRCSSD_STRB 		=> slv_reg4_rd_strb,
+			RX_PRCSSD_INT 		=> 
+			XGBE_PCKT_RCV 		=>
+			DMA_EN			=> dma_en_100MHz,
+			RCV_EN			=> rcv_en_100MHz,
+			RX_PCKT_DATA		=> 
+			RX_PCKT_DATA_STRB	=>
+			RX_PCKT_CNT		=>
+			RX_PCKT_CNT_STRB 	=>
+	);
 
-	data_reg_or_dma : MUX
+
+	data_reg_or_dma_tx : MUX
 		generic map (
 			DATA_WIDTH => 32
 		)
 		port map (
 			DIN_0 => slv_reg1_wr,
-			DIN_1 => data_dma_mux,
-			DOUT => data_mux_fsm,
+			DIN_1 => data_dma_mux_tx,
+			DOUT => data_mux_fsm_tx,
 			ADDR => dma_en_100MHz
 		);
 
-	strb_data_reg_or_dma : MUX
+	strb_data_reg_or_dma_tx : MUX
 		generic map (
 			DATA_WIDTH => 1
 		)
 		port map (
 			DIN_0(0) => slv_reg1_wr_strb,
-			DIN_1(0) => strb_data_dma_mux,
-			DOUT(0) => strb_data_mux_fsm,
+			DIN_1(0) => strb_data_dma_mux_tx,
+			DOUT(0) => strb_data_mux_fsm_tx,
 			ADDR => dma_en_100MHz
 		);
 
-	cnt_reg_or_dma : MUX
+	cnt_reg_or_dma_tx : MUX
 		generic map (
 			DATA_WIDTH => 32
 		)
 		port map (
 			DIN_0 => slv_reg0_wr,
-			DIN_1 => cnt_dma_mux,
-			DOUT => cnt_mux_fsm,
+			DIN_1 => cnt_dma_mux_tx,
+			DOUT => cnt_mux_fsm_tx,
 			ADDR => dma_en_100MHz
 		);
 
-	strb_cnt_reg_or_dma : MUX
+	strb_cnt_reg_or_dma_tx : MUX
 		generic map (
 			DATA_WIDTH => 1
 		)
 		port map (
 			DIN_0(0) => slv_reg0_wr_strb,
-			DIN_1(0) => strb_cnt_dma_mux,
-			DOUT(0) => strb_cnt_mux_fsm,
+			DIN_1(0) => strb_cnt_dma_mux_tx,
+			DOUT(0) => strb_cnt_mux_fsm_tx,
 			ADDR => dma_en_100MHz
 		);
 
