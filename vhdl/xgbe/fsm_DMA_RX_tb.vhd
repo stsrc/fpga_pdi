@@ -117,7 +117,21 @@ process begin
 	wait;
 end process;
 
-process begin
+process
+begin
+	wait for 1 ns;
+	if RX_PCKT_DATA_STRB = '1' then
+		RX_PCKT_DATA <= std_logic_vector(unsigned(RX_PCKT_DATA) + 1);
+	elsif RX_PCKT_CNT_STRB = '1' then
+		RX_PCKT_DATA <= std_logic_vector(to_unsigned(0, 32));
+	end if;
+	wait until clk = '0';
+	wait until clk = '1';
+end process;
+
+process 
+	variable to_add : integer := 0;	
+begin
 	wait for 10 ns;
 	RX_DESC_ADDR <= std_logic_vector(to_unsigned(64, 32));
 	RX_DESC_ADDR_STRB <= '1';
@@ -131,10 +145,11 @@ process begin
 	RCV_EN <= '1';
 	wait for 10 ns;
 	while (true) loop
-	for i in 0 to 7 loop
+	for i in 0 to 8 loop
 		XGBE_PACKET_RCV <= '1';
-		RX_PCKT_CNT <= std_logic_vector(to_unsigned(65, 32));
-		DATA_IN <= std_logic_vector(to_unsigned(128, 32));
+		RX_PCKT_CNT <= std_logic_vector(to_unsigned(56 + i, 32));
+
+		DATA_IN <= std_logic_vector(to_unsigned(128 + i, 32));
 		wait for 10 ns;
 		XGBE_PACKET_RCV <= '0';
 		wait until INIT_AXI_TXN = '1';
@@ -147,7 +162,12 @@ process begin
 		AXI_RXN_DONE <= '1';
 		wait for 10 ns;
 		AXI_RXN_DONE <= '0';
-		for i in 0 to 2 loop
+		if (i = 8) then
+			to_add := 1;
+		else
+			to_add := 0;
+		end if;
+		for i in 0 to 1 + to_add loop
 			wait until INIT_AXI_TXN = '1';
 			for j in 0 to 7 loop
 				wait for 10 ns;
