@@ -10,7 +10,6 @@ entity tb is
 end tb;
 
 architecture STRUCTURE of tb is
-
 	component xgbe is 
 	generic (
 		C_AXI_DATA_WIDTH	: integer	:= 32;
@@ -228,6 +227,169 @@ signal M_AXI_RUSER	: std_logic_vector(-1 downto 0) := (others => '0');
   signal ReadIt, SendIt : std_logic := '0';
   shared variable cnt : integer := 0;
 
+
+shared variable packet_cnt : integer := 0;
+shared variable bytes_cnt  : integer := 0;
+shared variable read_cnt   : integer := 0;
+
+
+type column_typ is record
+                      d : std_logic_vector(63 downto 0);
+                      c : std_logic_vector(7 downto 0);
+                    end record;
+
+type column_array_typ is array (natural range <>) of column_typ;
+
+type frame_typ is record
+                     stim : column_array_typ(0 to 31);
+                     length : integer;
+                   end record;
+
+type frame_typ_array is array (natural range 0 to 3) of frame_typ;
+
+constant frame_data : frame_typ_array := (
+
+0 => (
+stim => (
+0 => ( d => X"555555fb07070707", c => "00011111"),
+1 => ( d => X"00000000d5555555", c => X"00"),
+2 => ( d => X"0000000000000000", c => X"00"),
+3 => ( d => X"0000000000000000", c => X"00"),
+4 => ( d => X"0000000000000000", c => X"00"),
+5 => ( d => X"0000000000000000", c => X"00"),
+6 => ( d => X"0000000000000000", c => X"00"),
+7 => ( d => X"0000000000000000", c => X"00"),
+8 => ( d => X"0000000000000000", c => X"00"),
+9 => ( d => X"758d633600000000", c => X"00"),
+10 => ( d => X"07070707070707fd", c => X"FF"),
+11 => ( d => X"0707070707070707", c => X"FF"),
+12 => ( d => X"0707070707070707", c => X"FF"),
+13 => ( d => X"0707070707070707", c => X"FF"),
+14 => ( d => X"0707070707070707", c => X"FF"),
+15 => ( d => X"0707070707070707", c => X"FF"),
+16 => ( d => X"0707070707070707", c => X"FF"),
+17 => ( d => X"0707070707070707", c => X"FF"),
+18 => ( d => X"0707070707070707", c => X"FF"),
+19 => ( d => X"0707070707070707", c => X"FF"),
+20 => ( d => X"0707070707070707", c => X"FF"),
+21 => ( d => X"0707070707070707", c => X"FF"),
+22 => ( d => X"0707070707070707", c => X"FF"),
+23 => ( d => X"0707070707070707", c => X"FF"),
+24 => ( d => X"0707070707070707", c => X"FF"),
+25 => ( d => X"0707070707070707", c => X"FF"),
+26 => ( d => X"0707070707070707", c => X"FF"),
+27 => ( d => X"0707070707070707", c => X"FF"),
+28 => ( d => X"0707070707070707", c => X"FF"),
+29 => ( d => X"0707070707070707", c => X"FF"),
+30 => ( d => X"0707070707070707", c => X"FF"),
+31 => ( d => X"0707070707070707", c => X"FF")),
+length => 11),
+1 => (
+stim => (
+0 => ( d => X"555555fb07070707", c => "00011111"),
+1 => ( d => X"ffffffffd5555555", c => X"00"),
+2 => ( d => X"ffffffffffffffff", c => X"00"),
+3 => ( d => X"ffffffffffffffff", c => X"00"),
+4 => ( d => X"ffffffffffffffff", c => X"00"),
+5 => ( d => X"ffffffffffffffff", c => X"00"),
+6 => ( d => X"ffffffffffffffff", c => X"00"),
+7 => ( d => X"ffffffffffffffff", c => X"00"),
+8 => ( d => X"ffffffffffffffff", c => X"00"),
+9 => ( d => X"BB3B15ffffffffff", c => X"00"),
+10 => ( d => X"070707070707fdD4", c => "11111110"),
+11 => ( d => X"0707070707070707", c => X"FF"),
+12 => ( d => X"0707070707070707", c => X"FF"),
+13 => ( d => X"0707070707070707", c => X"FF"),
+14 => ( d => X"0707070707070707", c => X"FF"),
+15 => ( d => X"0707070707070707", c => X"FF"),
+16 => ( d => X"0707070707070707", c => X"FF"),
+17 => ( d => X"0707070707070707", c => X"FF"),
+18 => ( d => X"0707070707070707", c => X"FF"),
+19 => ( d => X"0707070707070707", c => X"FF"),
+20 => ( d => X"0707070707070707", c => X"FF"),
+21 => ( d => X"0707070707070707", c => X"FF"),
+22 => ( d => X"0707070707070707", c => X"FF"),
+23 => ( d => X"0707070707070707", c => X"FF"),
+24 => ( d => X"0707070707070707", c => X"FF"),
+25 => ( d => X"0707070707070707", c => X"FF"),
+26 => ( d => X"0707070707070707", c => X"FF"),
+27 => ( d => X"0707070707070707", c => X"FF"),
+28 => ( d => X"0707070707070707", c => X"FF"),
+29 => ( d => X"0707070707070707", c => X"FF"),
+30 => ( d => X"0707070707070707", c => X"FF"),
+31 => ( d => X"0707070707070707", c => X"FF")),
+length => 11),
+2 => (
+stim => (
+0 => ( d => X"555555fb07070707", c => "00011111"),
+1 => ( d => X"ffffffffd5555555", c => X"00"),
+2 => ( d => X"ffffffffffffffff", c => X"00"),
+3 => ( d => X"ffffffffffffffff", c => X"00"),
+4 => ( d => X"ffffffffffffffff", c => X"00"),
+5 => ( d => X"ffffffffffffffff", c => X"00"),
+6 => ( d => X"ffffffffffffffff", c => X"00"),
+7 => ( d => X"ffffffffffffffff", c => X"00"),
+8 => ( d => X"ffffffffffffffff", c => X"00"),
+9 => ( d => X"fd6E14FE90ffffff", c => "10000000"),
+10 => ( d => X"0707070707070707", c => X"FF"),
+11 => ( d => X"0707070707070707", c => X"FF"),
+12 => ( d => X"0707070707070707", c => X"FF"),
+13 => ( d => X"0707070707070707", c => X"FF"),
+14 => ( d => X"0707070707070707", c => X"FF"),
+15 => ( d => X"0707070707070707", c => X"FF"),
+16 => ( d => X"0707070707070707", c => X"FF"),
+17 => ( d => X"0707070707070707", c => X"FF"),
+18 => ( d => X"0707070707070707", c => X"FF"),
+19 => ( d => X"0707070707070707", c => X"FF"),
+20 => ( d => X"0707070707070707", c => X"FF"),
+21 => ( d => X"0707070707070707", c => X"FF"),
+22 => ( d => X"0707070707070707", c => X"FF"),
+23 => ( d => X"0707070707070707", c => X"FF"),
+24 => ( d => X"0707070707070707", c => X"FF"),
+25 => ( d => X"0707070707070707", c => X"FF"),
+26 => ( d => X"0707070707070707", c => X"FF"),
+27 => ( d => X"0707070707070707", c => X"FF"),
+28 => ( d => X"0707070707070707", c => X"FF"),
+29 => ( d => X"0707070707070707", c => X"FF"),
+30 => ( d => X"0707070707070707", c => X"FF"),
+31 => ( d => X"0707070707070707", c => X"FF")),
+length => 10),
+3 => (
+stim => (
+0 => ( d => X"555555fb07070707", c => "00011111"),
+1 => ( d => X"f0f0f0f0d5555555", c => X"00"),
+2 => ( d => X"f0f0f0f0f0f0f0f0", c => X"00"),
+3 => ( d => X"f0f0f0f0f0f0f0f0", c => X"00"),
+4 => ( d => X"f0f0f0f0f0f0f0f0", c => X"00"),
+5 => ( d => X"f0f0f0f0f0f0f0f0", c => X"00"),
+6 => ( d => X"f0f0f0f0f0f0f0f0", c => X"00"),
+7 => ( d => X"f0f0f0f0f0f0f0f0", c => X"00"),
+8 => ( d => X"f0f0f0f0f0f0f0f0", c => X"00"),
+9 => ( d => X"E97357f0f0f0f0f0", c => X"00"),
+10 => ( d => X"070707070707fdD8", c => "11111110"),
+11 => ( d => X"0707070707070707", c => X"FF"),
+12 => ( d => X"0707070707070707", c => X"FF"),
+13 => ( d => X"0707070707070707", c => X"FF"),
+14 => ( d => X"0707070707070707", c => X"FF"),
+15 => ( d => X"0707070707070707", c => X"FF"),
+16 => ( d => X"0707070707070707", c => X"FF"),
+17 => ( d => X"0707070707070707", c => X"FF"),
+18 => ( d => X"0707070707070707", c => X"FF"),
+19 => ( d => X"0707070707070707", c => X"FF"),
+20 => ( d => X"0707070707070707", c => X"FF"),
+21 => ( d => X"0707070707070707", c => X"FF"),
+22 => ( d => X"0707070707070707", c => X"FF"),
+23 => ( d => X"0707070707070707", c => X"FF"),
+24 => ( d => X"0707070707070707", c => X"FF"),
+25 => ( d => X"0707070707070707", c => X"FF"),
+26 => ( d => X"0707070707070707", c => X"FF"),
+27 => ( d => X"0707070707070707", c => X"FF"),
+28 => ( d => X"0707070707070707", c => X"FF"),
+29 => ( d => X"0707070707070707", c => X"FF"),
+30 => ( d => X"0707070707070707", c => X"FF"),
+31 => ( d => X"0707070707070707", c => X"FF")),
+length => 11));
+
 begin
 
 block_design_i: xgbe
@@ -389,12 +551,12 @@ process begin
 end process;
 
 process begin
-    s_axi_aclk <= '0';
+	s_axi_aclk <= '0';
 	m_axi_aclk <= '0';
-    wait for 5 ns;
-    s_axi_aclk <= '1';
+	wait for 5 ns;
+	s_axi_aclk <= '1';
 	m_axi_aclk <= '1';
-    wait for 5 ns;
+	wait for 5 ns;
 end process;
  
 process begin
@@ -419,8 +581,8 @@ process begin
 	wait for 6.4 ns;
 	rst_clk_156_25MHz <= '1';
 	wait for 3.6 ns;
-	m_axi_aresetn <= '1';
 	s_axi_aresetn <= '1';
+	m_axi_aresetn <= '1';
 	wait for 40 ns;
 	rst_clk_20MHz <= '1';
 	wait;
@@ -436,7 +598,7 @@ send : process
         wait until s_axi_aclk= '0';
             s_axi_awvalid<='1';
             s_axi_wvalid<='1';
-        wait until (s_axi_awready and s_axi_wready) = '1';  
+        wait until (s_axi_awready and s_axi_wready) = '1';  --client ready to read address/data        
             s_axi_bready<='1';
         wait until s_axi_bvalid = '1';  -- write result valid
             assert s_axi_bresp = "00" report "axi data not written" severity failure;
@@ -456,7 +618,7 @@ send : process
          wait until readit = '1';
          wait until s_axi_aclk= '0';
              s_axi_arvalid<='1';
-            wait until (s_axi_rvalid) = '1';
+            wait until (s_axi_rvalid) = '1';  --client provided data (removed and s_axi_arready???)
             s_axi_rready<='1';
             s_axi_arvalid <= '0';
             assert s_axi_rresp = "00" report "axi data not written" severity failure;
@@ -464,11 +626,12 @@ send : process
             s_axi_rready<='0';
      end loop;
   end process read;
-     
- 
+      
 process
-	variable to_add : integer := 0;
 begin
+	xgmii_rxd <= x"0707070707070707";
+	xgmii_rxc <= x"ff";
+
 	wait until rst_clk_20MHz = '1';
 	wait for 30 ns;
  	s_axi_awaddr<="01000";
@@ -503,8 +666,19 @@ begin
 	wait until s_axi_bvalid = '1';
 	wait until s_axi_bvalid = '0';  --axi write finished
 	s_axi_wstrb<=b"0000";
+
+	--Write RX descriptor ring start address. 64.
+ 	s_axi_awaddr<="11000";
+	s_axi_wdata<=x"00000040";
+	s_axi_wstrb<=b"1111";
+	sendit<='1';                --start axi write to slave
+	wait for 1 ns; 
+	sendit<='0'; --clear start send flag
+	wait until s_axi_bvalid = '1';
+	wait until s_axi_bvalid = '0';  --axi write finished
+	s_axi_wstrb<=b"0000";
 	
-	--Write TX descriptor ring size in bytes. 128, (16 descriptors).
+	--Write TX and RX descriptor ring size in bytes. 128, (16 descriptors).
  	s_axi_awaddr<="10100";
 	s_axi_wdata<=x"00000050";
 	s_axi_wstrb<=b"1111";
@@ -526,58 +700,18 @@ begin
 	wait until s_axi_bvalid = '0';  --axi write finished
 	s_axi_wstrb<=b"0000";
 
-	while (true) loop
-	for j in 0 to 8 loop
+	for i in 2 to 3 loop	
+		xgmii_rxd <= x"0707070707070707";
+		xgmii_rxc <= x"ff";
+		wait until rising_edge(clk_156_25MHz);
 
-	--Trigger byte transmission.
-	s_axi_awaddr<="11100";
-	s_axi_wdata<=x"FFFFFFFF";
-	s_axi_wstrb<=b"1111";
-	sendit<='1';                --start axi write to slave
-	wait for 1 ns; 
-	sendit<='0'; --clear start send flag
-	wait until s_axi_bvalid = '1';
-	wait until s_axi_bvalid = '0';  --axi write finished
-	s_axi_wstrb<=b"0000";
-			
-	M_RD_DATA <= std_logic_vector(to_unsigned(56 + j , 32));
-	wait until M_RD_STRB = '1';
-	wait until M_RD_STRB = '0';
-	M_RD_DATA <= std_logic_vector(to_unsigned(128 , 32));
-
---	if (unsigned(M_AXI_ARLEN) > 1) then
---		for i in 0 to to_integer(unsigned(M_AXI_ARLEN) - 2) loop
---			M_RD_DATA <= std_logic_vector(to_unsigned(64 , 32));
---			wait until M_RD_STRB = '1';
---			wait until M_RD_STRB = '0';
---		end loop;
---	end if;
-
-	if (j >= 1 and j <= 4) then
-		to_add := 1;
-	elsif (j >= 5 and j <= 8) then
-		to_add := 2;
-	else
-		to_add := 0;
-	end if;
-
-	for i in 0 to 14 + to_add loop
-		wait until M_RD_STRB = '1';
-		wait until M_RD_STRB = '0';
-		M_RD_DATA <= std_logic_vector(to_unsigned(i, 32));
-	end loop;
-
-	if j = 5 then	
-	       s_axi_araddr<="11000";  
-               readit<='1';
-               wait for 1 ns; 
-               readit<='0'; 
-               wait until s_axi_rready = '1';
-               wait until s_axi_rready = '0';
-	end if;
-
-	end loop;
-	end loop;
+		for j in 0 to frame_data(i).length - 1 loop
+			xgmii_rxd <= frame_data(i).stim(j).d;
+			xgmii_rxc <= frame_data(i).stim(j).c;
+			wait until rising_edge(clk_156_25MHz);
+		end loop;
+	end loop;	
+	wait;
 end process;
- 
+     
 end structure;
