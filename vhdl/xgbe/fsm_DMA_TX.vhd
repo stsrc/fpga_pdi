@@ -110,6 +110,7 @@ process(clk) begin
 			TX_PCKT_DATA_STRB <= '0';
 			TX_PCKT_CNT_STRB <= '0';
 			BURST <= (others => '0');
+			TX_STATE <= IDLE;
 		else			
 
 			INIT_AXI_RXN <= '0';
