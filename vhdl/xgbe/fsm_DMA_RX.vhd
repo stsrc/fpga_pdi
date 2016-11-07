@@ -51,8 +51,8 @@ end fsm_DMA_RX;
 architecture fsm_DMA_RX_arch of fsm_DMA_RX is
 
 signal RX_BYTES_REG			: unsigned(31 downto 0);
-signal RX_DESC_ADDR_REG : unsigned(31 downto 0);
-signal RX_SIZE_REG	: unsigned(31 downto 0);
+signal RX_DESC_ADDR_REG 		: unsigned(31 downto 0);
+signal RX_SIZE_REG			: unsigned(31 downto 0);
 signal RX_DESC_ADDR_ACTUAL		: unsigned(31 downto 0);
 signal RX_PRCSSD_REG			: unsigned(31 downto 0);
 signal RX_PRCSSD_INT_S			: std_logic;
