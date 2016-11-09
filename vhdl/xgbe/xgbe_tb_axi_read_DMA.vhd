@@ -700,32 +700,47 @@ begin
 	wait until s_axi_bvalid = '0';  --axi write finished
 	s_axi_wstrb<=b"0000";
 
-	for i in 0 to 3 loop	
-		xgmii_rxd <= x"0707070707070707";
-		xgmii_rxc <= x"ff";
-		wait until rising_edge(clk_156_25MHz);
-
-		for j in 0 to frame_data(i).length - 1 loop
-			xgmii_rxd <= frame_data(i).stim(j).d;
-			xgmii_rxc <= frame_data(i).stim(j).c;
+	while (true) loop
+		for i in 0 to 3 loop	
+			xgmii_rxd <= x"0707070707070707";
+			xgmii_rxc <= x"ff";
 			wait until rising_edge(clk_156_25MHz);
+
+			for j in 0 to frame_data(i).length - 1 loop
+				xgmii_rxd <= frame_data(i).stim(j).d;
+				xgmii_rxc <= frame_data(i).stim(j).c;
+				wait until rising_edge(clk_156_25MHz);
+			end loop;
 		end loop;
+
+		for i in 3 downto 0 loop	
+			xgmii_rxd <= x"0707070707070707";
+			xgmii_rxc <= x"ff";
+			wait until rising_edge(clk_156_25MHz);
+
+			for j in 0 to frame_data(i).length - 1 loop
+				xgmii_rxd <= frame_data(i).stim(j).d;
+				xgmii_rxc <= frame_data(i).stim(j).c;
+				wait until rising_edge(clk_156_25MHz);
+			end loop;
+		end loop;	
+
+		s_axi_araddr<="01100";  
+		readit<='1';
+		wait for 1 ns; 
+		readit<='0'; 
+		wait until s_axi_rready = '1';
+		wait until s_axi_rready = '0';	
+
+		s_axi_araddr<="10000";  
+		readit<='1';
+		wait for 1 ns; 
+		readit<='0'; 
+		wait until s_axi_rready = '1';
+		wait until s_axi_rready = '0';	
+
 	end loop;
 
-	wait for 500 ns;
-
-	for i in 3 downto 0 loop	
-		xgmii_rxd <= x"0707070707070707";
-		xgmii_rxc <= x"ff";
-		wait until rising_edge(clk_156_25MHz);
-
-		for j in 0 to frame_data(i).length - 1 loop
-			xgmii_rxd <= frame_data(i).stim(j).d;
-			xgmii_rxc <= frame_data(i).stim(j).c;
-			wait until rising_edge(clk_156_25MHz);
-		end loop;
-	end loop;	
-	
 	wait;
 end process;
      
