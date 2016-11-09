@@ -53,6 +53,9 @@
 
 MODULE_LICENSE("GPL");
 
+#define PCKT_SIZE 2048
+
+
 /*
  * reg0 - packet's size in bytes. To push packet into MAC write
  * packet bytes count into it.
@@ -393,6 +396,77 @@ static void pdi_set_dma(struct pdi *pdi)
 	wmb();
 }
 
+static int pdi_alloc_rx_skb(struct pdi *pdi, int dest)
+{
+	struct dma_ring *ring = &pdi->rx_ring;
+	struct ring_info *ri = &ring[dest];
+
+	char *buf;
+	dma_addr_t mapping;
+
+	buf = kzalloc(PCKT_SIZE, GFP_KERNEL | GFP_DMA);
+	if (!buf)
+		return -ENOMEM;
+
+	mapping = dma_map_single(pdi->dev, buf, PCKT_SIZE, DMA_FROM_DEVICE);
+	if (dma_mapping_error(pdi->dev, mapping)) {
+		debug_print("pdi: mapping error!\n");
+		kfree(buf);
+		return -ENOMEM;
+	} 
+	
+	ri->skb = buf;
+	ri->mapping = mapping;
+	ring->desc[dest].addr = mapping;	
+	return 0;	
+}
+
+static void pdi_free_rx_skb(struct pdi *pdi, int dest)
+{
+	struct dma_ring *ring = &pdi->rx_ring;
+	struct ring_info *ri = &ring[dest];
+
+	dma_unmap_single(pdi->dev, ri->mapping, PCKT_SIZE, 
+			 DMA_FROM_DEVICE); 
+	kfree(ri->skb);
+	ri->skb = NULL;
+}
+
+static int pdi_init_dma_rx_ring_info(struct pdi *pdi)
+{
+	struct dma_ring *ring = &pdi->rx_ring;
+	struct ring_info *ri;
+	int ret;
+	
+	for (int i = 0; i < ring->desc_max; i++) {
+		ret = pdi_alloc_rx_skb(pdi, i);	 
+		if (ret) {
+			for (int j = 0; j < i; j++)
+				pdi_free_rx_skb(pdi, j);
+			return ret;
+		}	
+	}
+	return 0;
+}
+
+static void pdi_deinit_dma_rx_ring_info(struct pdi *pdi)
+{
+	struct dma_ring *ring = &pdi->rx_ring;
+	struct ring_info *ri;
+
+	for (int i = 0; i < ring->desc_max; i++) {
+		ri = &ring->buffer[i];
+		if (ri->skb != NULL) {
+			pdi_free_rx_skb(pdi, i);
+		}
+	}
+}
+
+static void pdi_deinit_dma_tx_ring_info(struct pdi *pdi)
+{
+	/* UNMAP MAPPED PACKETS! */
+}
+
 static int pdi_init_dma_rings(struct platform_device *pdev)
 {
 	struct pdi *pdi = pdev->dev.platform_data;
@@ -408,6 +482,17 @@ static int pdi_init_dma_rings(struct platform_device *pdev)
 		return ret;
 	}	
 
+	ret = pdi_init_dma_rx_ring_info(pdi);
+	if (ret) {
+		/* 
+		 * TODO: change pdi_(de)init_dma_ring functions parameters
+		 * 	 into something smarter.
+		 */
+		pdi_deinit_dma_ring(pdi, &pdi->tx_ring);
+		pdi_deinit_dma_ring(pdi, &pdi->rx_ring);
+		return ret;
+	}
+
 	return 0;
 }
 
@@ -415,8 +500,11 @@ static void pdi_deinit_dma_rings(struct platform_device *pdev)
 {
 	struct pdi *pdi = pdev->dev.platform_data;
 
-	pdi_deinit_dma_ring(pdi, &pdi->tx_ring);
+	pdi_deinit_dma_rx_ring_info(pdi);
+	pdi_deinit_dma_tx_ring_info(pdi);
 	pdi_deinit_dma_ring(pdi, &pdi->rx_ring);
+	pdi_deinit_dma_ring(pdi, &pdi->tx_ring);
+
 }
 
 /*
@@ -556,7 +644,7 @@ static void pdi_set_pdi(struct pdi *pdi, struct platform_device *pdev,
 {
 	memset(pdi, 0, sizeof(struct pdi));
 	*(u32 *)&pdi->tx_ring.desc_max = 1024;
-	*(u32 *)&pdi->rx_ring.desc_max = 1024;
+	*(u32 *)&pdi->rx_ring.desc_max = 64;
 	pdi->netdev = netdev;
 	pdev->dev.platform_data = pdi;
 	pdi->dev = &pdev->dev;
