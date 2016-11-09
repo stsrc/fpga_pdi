@@ -333,16 +333,17 @@ component AXI_Master is
 		M_DATA_OUT			: out std_logic_vector(C_M_AXI_DATA_WIDTH - 1 downto 0);
 		M_TARGET_BASE_ADDR 		: in std_logic_vector(C_M_AXI_ADDR_WIDTH - 1 downto 0);
 
-		INIT_AXI_TXN	: in std_logic;
+		INIT_AXI_TXN	: in  std_logic;
 		AXI_TXN_DONE	: out std_logic;
 		AXI_TXN_STRB	: out std_logic;
-		INIT_AXI_RXN	: in std_logic;
+		AXI_TXN_IN_STRB : in  std_logic;
+		INIT_AXI_RXN	: in  std_logic;
 		AXI_RXN_DONE	: out std_logic;
 		AXI_RXN_STRB	: out std_logic;
 		BURST		: in  std_logic_vector(7 downto 0);
 
-		M_AXI_ACLK	: in std_logic;
-		M_AXI_ARESETN	: in std_logic;
+		M_AXI_ACLK	: in  std_logic;
+		M_AXI_ARESETN	: in  std_logic;
 		M_AXI_AWID	: out std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
 		M_AXI_AWADDR	: out std_logic_vector(C_M_AXI_ADDR_WIDTH-1 downto 0);
 		M_AXI_AWLEN	: out std_logic_vector(7 downto 0);
@@ -354,17 +355,17 @@ component AXI_Master is
 		M_AXI_AWQOS	: out std_logic_vector(3 downto 0);
 		M_AXI_AWUSER	: out std_logic_vector(C_M_AXI_AWUSER_WIDTH-1 downto 0);
 		M_AXI_AWVALID	: out std_logic;
-		M_AXI_AWREADY	: in std_logic;
+		M_AXI_AWREADY	: in  std_logic;
 		M_AXI_WDATA	: out std_logic_vector(C_M_AXI_DATA_WIDTH-1 downto 0);
 		M_AXI_WSTRB	: out std_logic_vector(C_M_AXI_DATA_WIDTH/8-1 downto 0);
 		M_AXI_WLAST	: out std_logic;
 		M_AXI_WUSER	: out std_logic_vector(C_M_AXI_WUSER_WIDTH-1 downto 0);
 		M_AXI_WVALID	: out std_logic;
-		M_AXI_WREADY	: in std_logic;
-		M_AXI_BID	: in std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
-		M_AXI_BRESP	: in std_logic_vector(1 downto 0);
-		M_AXI_BUSER	: in std_logic_vector(C_M_AXI_BUSER_WIDTH-1 downto 0);
-		M_AXI_BVALID	: in std_logic;
+		M_AXI_WREADY	: in  std_logic;
+		M_AXI_BID	: in  std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
+		M_AXI_BRESP	: in  std_logic_vector(1 downto 0);
+		M_AXI_BUSER	: in  std_logic_vector(C_M_AXI_BUSER_WIDTH-1 downto 0);
+		M_AXI_BVALID	: in  std_logic;
 		M_AXI_BREADY	: out std_logic;
 		M_AXI_ARID	: out std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
 		M_AXI_ARADDR	: out std_logic_vector(C_M_AXI_ADDR_WIDTH-1 downto 0);
@@ -377,13 +378,13 @@ component AXI_Master is
 		M_AXI_ARQOS	: out std_logic_vector(3 downto 0);
 		M_AXI_ARUSER	: out std_logic_vector(C_M_AXI_ARUSER_WIDTH-1 downto 0);
 		M_AXI_ARVALID	: out std_logic;
-		M_AXI_ARREADY	: in std_logic;
-		M_AXI_RID	: in std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
-		M_AXI_RDATA	: in std_logic_vector(C_M_AXI_DATA_WIDTH-1 downto 0);
-		M_AXI_RRESP	: in std_logic_vector(1 downto 0);
-		M_AXI_RLAST	: in std_logic;
-		M_AXI_RUSER	: in std_logic_vector(C_M_AXI_RUSER_WIDTH-1 downto 0);
-		M_AXI_RVALID	: in std_logic;
+		M_AXI_ARREADY	: in  std_logic;
+		M_AXI_RID	: in  std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
+		M_AXI_RDATA	: in  std_logic_vector(C_M_AXI_DATA_WIDTH-1 downto 0);
+		M_AXI_RRESP	: in  std_logic_vector(1 downto 0);
+		M_AXI_RLAST	: in  std_logic;
+		M_AXI_RUSER	: in  std_logic_vector(C_M_AXI_RUSER_WIDTH-1 downto 0);
+		M_AXI_RVALID	: in  std_logic;
 		M_AXI_RREADY	: out std_logic
 	);
 end component;
@@ -432,6 +433,7 @@ component fsm_DMA_RX is
 		INIT_AXI_TXN		: out std_logic;
 		AXI_TXN_DONE		: in  std_logic;
 		AXI_TXN_STRB		: in  std_logic;
+		AXI_TXN_IN_STRB		: out std_logic;
 		INIT_AXI_RXN		: out std_logic;
 		AXI_RXN_DONE 		: in  std_logic;
 		AXI_RXN_STRB		: in  std_logic;
@@ -621,8 +623,9 @@ end component reset_con;
 	signal axi_m_data_in 	: std_logic_vector(C_AXI_DATA_WIDTH - 1 downto 0);
 	signal axi_m_data_out 	: std_logic_vector(C_AXI_DATA_WIDTH - 1 downto 0);
 	signal axi_m_slave_addr : std_logic_vector(C_M_AXI_ADDR_WIDTH - 1 downto 0);
-	signal axi_m_init_txn, axi_m_done_txn, axi_m_strb_txn : std_logic := '0';
-	signal axi_m_init_rxn, axi_m_done_rxn, axi_m_strb_rxn : std_logic := '0';
+	signal axi_m_init_txn, axi_m_done_txn, axi_m_strb_txn 	: std_logic := '0';
+	signal axi_m_strb_txn_in 				: std_logic := '0';
+	signal axi_m_init_rxn, axi_m_done_rxn, axi_m_strb_rxn 	: std_logic := '0';
 	signal axi_m_burst	: std_logic_vector(7 downto 0);
 
 	signal dma_tx_burst	: std_logic_vector(7 downto 0);
@@ -980,6 +983,7 @@ begin
 			INIT_AXI_TXN	=> axi_m_init_txn,
 			AXI_TXN_DONE	=> axi_m_done_txn,
 			AXI_TXN_STRB	=> axi_m_strb_txn,
+			AXI_TXN_IN_STRB => axi_m_strb_txn_in,
 			INIT_AXI_RXN	=> axi_m_init_rxn,
 			AXI_RXN_DONE	=> axi_m_done_rxn,
 			AXI_RXN_STRB	=> axi_m_strb_rxn,
@@ -1107,6 +1111,7 @@ begin
 			INIT_AXI_TXN		=> dma_rx_init_txn,
 			AXI_TXN_DONE 		=> dma_rx_txn_done,
 			AXI_TXN_STRB 		=> dma_rx_txn_strb,
+			AXI_TXN_IN_STRB		=> axi_m_strb_txn_in,
 			INIT_AXI_RXN 		=> dma_rx_init_rxn,
 			AXI_RXN_DONE 		=> dma_rx_rxn_done,
 			AXI_RXN_STRB 		=> dma_rx_rxn_strb,

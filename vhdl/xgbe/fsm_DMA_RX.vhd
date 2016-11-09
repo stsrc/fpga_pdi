@@ -15,6 +15,7 @@ entity fsm_DMA_RX is
 		INIT_AXI_TXN		: out std_logic;
 		AXI_TXN_DONE		: in  std_logic;
 		AXI_TXN_STRB		: in  std_logic;
+		AXI_TXN_IN_STRB		: out std_logic;
 		INIT_AXI_RXN		: out std_logic;
 		AXI_RXN_DONE 		: in  std_logic;
 		AXI_RXN_STRB		: in  std_logic;
@@ -57,9 +58,10 @@ signal RX_DESC_ADDR_ACTUAL		: unsigned(31 downto 0);
 signal RX_PRCSSD_REG			: unsigned(31 downto 0);
 signal RX_PRCSSD_INT_S			: std_logic;
 signal RX_BUFF_ADDR			: unsigned(31 downto 0);
-signal RX_FAKE_READ         : std_logic;
-
+signal RX_FAKE_READ        		: std_logic;
 signal XGBE_PCKT_RCV_CNT		: unsigned(31 downto 0);
+
+signal delay_flag			: std_logic;
 
 type rx_states is 
 	(
@@ -69,6 +71,7 @@ type rx_states is
 		FETCH_DESC_WAIT,
 		WRITE_WORD,
 		WRITE_WORD_WAIT,
+		FIFO_WAIT,
 		FAKE_RX_STRB
 	);
 signal RX_STATE : rx_states;
@@ -90,6 +93,7 @@ process(clk) begin
 			DATA_OUT			<= (others => '0');
 			ADDR 				<= (others => '0');
 			XGBE_PCKT_RCV_CNT		<= (others => '0');
+			AXI_TXN_IN_STRB			<= '0';
 			INIT_AXI_TXN			<= '0';
 			INIT_AXI_RXN			<= '0';
 			RX_PCKT_DATA_STRB		<= '0';
@@ -97,12 +101,15 @@ process(clk) begin
 			RX_PRCSSD_INT_S			<= '0';
 			RX_FAKE_READ			<= '0';
 			RX_STATE 			<= IDLE;
+
+			delay_flag			<= '0';
 		else
 			INIT_AXI_TXN 			<= '0';
 			INIT_AXI_RXN 			<= '0';
 			RX_PCKT_CNT_STRB 		<= '0';
 			RX_PCKT_DATA_STRB		<= '0';
 			RX_PRCSSD_INT_S			<= '0';
+			AXI_TXN_IN_STRB			<= '0';
 
 			--TODO: Move it somewhere else	
 			if (RX_PRCSSD_STRB = '1') then
@@ -200,16 +207,8 @@ process(clk) begin
 				ADDR			<= std_logic_vector(RX_BUFF_ADDR);
 				RX_BUFF_ADDR 		<= RX_BUFF_ADDR + 32;
 				DATA_OUT		<= RX_PCKT_DATA;
-				RX_PCKT_DATA_STRB	<= '1';	
 				INIT_AXI_TXN 		<= '1';
 				RX_STATE 		<= WRITE_WORD_WAIT;
-
-				if(RX_BYTES_REG >= 4) then
-					RX_BYTES_REG <= RX_BYTES_REG - 4;
-				else
-					RX_BYTES_REG <= (others => '0');
-				end if;
-
 			when WRITE_WORD_WAIT =>
 				if (AXI_TXN_DONE = '1') then
 					if (RX_BYTES_REG = 0) then
@@ -230,16 +229,27 @@ process(clk) begin
 				elsif (AXI_TXN_STRB = '1' and RX_BYTES_REG /= 0) then
 
 					if(RX_BYTES_REG >= 4) then
-						RX_BYTES_REG <= RX_BYTES_REG - 4;
+						RX_BYTES_REG 	<= RX_BYTES_REG - 4;
 					else
-						RX_BYTES_REG <= (others => '0');
+						RX_BYTES_REG 	<= (others => '0');
 					end if;
-
-					DATA_OUT <= RX_PCKT_DATA;
-					RX_PCKT_DATA_STRB <= '1';
+					RX_PCKT_DATA_STRB 	<= '1';
+					RX_STATE		<= FIFO_WAIT;
+					delay_flag		<= '1';
+				elsif (AXI_TXN_STRB = '1') then
+					AXI_TXN_IN_STRB <= '1';
+					RX_STATE <= WRITE_WORD_WAIT;
 				else
 					RX_STATE <= WRITE_WORD_WAIT;
 				end if;
+			when FIFO_WAIT =>
+				if (delay_flag = '0') then
+					DATA_OUT 		<= RX_PCKT_DATA;
+					AXI_TXN_IN_STRB 	<= '1';
+					RX_STATE <= WRITE_WORD_WAIT;
+				else
+					delay_flag <= '0';
+				end if;	
 			when FAKE_RX_STRB =>
 				RX_PCKT_DATA_STRB <= '1';
 				RX_FAKE_READ <= '0';

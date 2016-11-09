@@ -25,13 +25,14 @@ entity AXI_Master is
 		INIT_AXI_TXN	: in  std_logic;
 		AXI_TXN_DONE	: out std_logic;
 		AXI_TXN_STRB	: out std_logic;
+		AXI_TXN_IN_STRB : in  std_logic;
 		INIT_AXI_RXN	: in  std_logic;
 		AXI_RXN_DONE	: out std_logic;
 		AXI_RXN_STRB	: out std_logic;
 		BURST		: in  std_logic_vector(7 downto 0);
 
-		M_AXI_ACLK	: in std_logic;
-		M_AXI_ARESETN	: in std_logic;
+		M_AXI_ACLK	: in  std_logic;
+		M_AXI_ARESETN	: in  std_logic;
 		M_AXI_AWID	: out std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
 		M_AXI_AWADDR	: out std_logic_vector(C_M_AXI_ADDR_WIDTH-1 downto 0);
 		M_AXI_AWLEN	: out std_logic_vector(7 downto 0);
@@ -43,17 +44,17 @@ entity AXI_Master is
 		M_AXI_AWQOS	: out std_logic_vector(3 downto 0);
 		M_AXI_AWUSER	: out std_logic_vector(C_M_AXI_AWUSER_WIDTH-1 downto 0);
 		M_AXI_AWVALID	: out std_logic;
-		M_AXI_AWREADY	: in std_logic;
+		M_AXI_AWREADY	: in  std_logic;
 		M_AXI_WDATA	: out std_logic_vector(C_M_AXI_DATA_WIDTH-1 downto 0);
 		M_AXI_WSTRB	: out std_logic_vector(C_M_AXI_DATA_WIDTH/8-1 downto 0);
 		M_AXI_WLAST	: out std_logic;
 		M_AXI_WUSER	: out std_logic_vector(C_M_AXI_WUSER_WIDTH-1 downto 0);
 		M_AXI_WVALID	: out std_logic;
-		M_AXI_WREADY	: in std_logic;
-		M_AXI_BID	: in std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
-		M_AXI_BRESP	: in std_logic_vector(1 downto 0);
-		M_AXI_BUSER	: in std_logic_vector(C_M_AXI_BUSER_WIDTH-1 downto 0);
-		M_AXI_BVALID	: in std_logic;
+		M_AXI_WREADY	: in  std_logic;
+		M_AXI_BID	: in  std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
+		M_AXI_BRESP	: in  std_logic_vector(1 downto 0);
+		M_AXI_BUSER	: in  std_logic_vector(C_M_AXI_BUSER_WIDTH-1 downto 0);
+		M_AXI_BVALID	: in  std_logic;
 		M_AXI_BREADY	: out std_logic;
 		M_AXI_ARID	: out std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
 		M_AXI_ARADDR	: out std_logic_vector(C_M_AXI_ADDR_WIDTH-1 downto 0);
@@ -66,13 +67,13 @@ entity AXI_Master is
 		M_AXI_ARQOS	: out std_logic_vector(3 downto 0);
 		M_AXI_ARUSER	: out std_logic_vector(C_M_AXI_ARUSER_WIDTH-1 downto 0);
 		M_AXI_ARVALID	: out std_logic;
-		M_AXI_ARREADY	: in std_logic;
-		M_AXI_RID	: in std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
-		M_AXI_RDATA	: in std_logic_vector(C_M_AXI_DATA_WIDTH-1 downto 0);
-		M_AXI_RRESP	: in std_logic_vector(1 downto 0);
-		M_AXI_RLAST	: in std_logic;
-		M_AXI_RUSER	: in std_logic_vector(C_M_AXI_RUSER_WIDTH-1 downto 0);
-		M_AXI_RVALID	: in std_logic;
+		M_AXI_ARREADY	: in  std_logic;
+		M_AXI_RID	: in  std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
+		M_AXI_RDATA	: in  std_logic_vector(C_M_AXI_DATA_WIDTH-1 downto 0);
+		M_AXI_RRESP	: in  std_logic_vector(1 downto 0);
+		M_AXI_RLAST	: in  std_logic;
+		M_AXI_RUSER	: in  std_logic_vector(C_M_AXI_RUSER_WIDTH-1 downto 0);
+		M_AXI_RVALID	: in  std_logic;
 		M_AXI_RREADY	: out std_logic
 	);
 end AXI_Master;
@@ -126,6 +127,7 @@ architecture implementation of AXI_Master is
 	signal M_DATA_IN_S	: std_logic_vector(C_M_AXI_DATA_WIDTH - 1 downto 0);
 	signal M_TARGET_ADDR_S 	: std_logic_vector(C_M_AXI_ADDR_WIDTH - 1 downto 0);
 
+	signal strb_axi_write	: std_logic;
 begin
 	-- I/O Connections assignments
 	--TODO CACHE SIGNALS ETC!!!!
@@ -238,7 +240,14 @@ begin
 	         elsif (wnext = '1' and axi_wlast = '1') then
 			axi_wvalid <= '0';
 		else
-			axi_wvalid <= axi_wvalid;
+			if (strb_axi_write = '1' and burst_write_active = '1'
+			    and axi_bready = '0') then
+				axi_wvalid <= '1';
+			elsif (M_AXI_WREADY = '1' and unsigned(axi_arwlen) /= 0) then
+				axi_wvalid <= '0';
+			elsif (axi_bready = '1') then
+				axi_wvalid <= '0';
+			end if;
 	         end if;
 	       end if;
 	     end if;
@@ -252,15 +261,15 @@ begin
 	      else
 	        if
 			((((write_index = 
-			std_logic_vector(to_unsigned(to_integer(unsigned(axi_arwlen) - 1),C_TRANSACTIONS_NUM+1)))
+			std_logic_vector(to_unsigned(to_integer(unsigned(axi_arwlen)),C_TRANSACTIONS_NUM+1)))
 			and unsigned(axi_arwlen) >= 1)
-			and wnext = '1')
-			or (unsigned(axi_arwlen) = 0))
+			and strb_axi_write = '1')
+			or (wnext = '1' and (unsigned(axi_arwlen) = 0)))
 		then
 	          axi_wlast <= '1';
 	        elsif (wnext = '1') then
 	          axi_wlast <= '0';
-	        elsif (axi_wlast = '1' and unsigned(axi_arwlen) = 0) then
+	        elsif (axi_wlast = '1') then
 	          axi_wlast <= '0';
 	        end if;
 	      end if;
@@ -270,7 +279,7 @@ begin
 	  process(M_AXI_ACLK)
 	  begin
 	    if (rising_edge (M_AXI_ACLK)) then
-	      if (M_AXI_ARESETN = '0' or start_single_burst_write = '1') then
+	      if (M_AXI_ARESETN = '0' or axi_wlast = '1') then
 	        write_index <= (others => '0');
 	      else
 	        if
@@ -534,21 +543,21 @@ begin
 	  begin
 	    if (rising_edge (M_AXI_ACLK)) then
 	      if (M_AXI_ARESETN = '0' ) then
-	        -- reset condition
-	        -- All the signals are ed default values under reset condition
+
 		AXI_TXN_DONE 	<= '0';
 		AXI_TXN_STRB 	<= '0';
 		AXI_RXN_DONE 	<= '0';
-		AXI_RXN_STRB 	<= '0';	
+		AXI_RXN_STRB 	<= '0';
+		strb_axi_write 	<= '0';	
 
 		M_TARGET_ADDR_S <= (others => '0');
 		M_DATA_OUT_S <= (others => '0');
 		M_DATA_IN_S <= (others => '0');
 
 		axi_arwlen <= (others => '0');
---			axi_arwlen <= std_logic_vector(to_unsigned(C_M_AXI_BURST_LEN - 1, 8));
+
 	      else
-	        -- state transition
+
 
 		start_single_burst_write <= '0';
 		start_single_burst_read <= '0';
@@ -558,7 +567,8 @@ begin
 		AXI_TXN_DONE 	<= '0';
 		AXI_TXN_STRB 	<= '0';
 		AXI_RXN_DONE 	<= '0';
-		AXI_RXN_STRB 	<= '0';	
+		AXI_RXN_STRB 	<= '0';
+		strb_axi_write	<= '0';
 
 	        case (mst_exec_state) is
 
@@ -581,13 +591,15 @@ begin
 			mst_exec_state <= IDLE;
 			AXI_TXN_DONE <= '1';
 		elsif  (wnext = '1') then
-			M_DATA_IN_S <= M_DATA_IN;
 			AXI_TXN_STRB <= '1';
 		elsif (axi_awvalid = '0' and start_single_burst_write = '0' and
 			burst_write_active = '0') then
 			start_single_burst_write <= '1';
 			M_DATA_IN_S <= M_DATA_IN;
-			AXI_TXN_STRB <= '1';
+			strb_axi_write <= '1';
+		elsif (AXI_TXN_IN_STRB = '1') then
+			M_DATA_IN_S <= M_DATA_IN;
+			strb_axi_write <= '1';
 		end if;
 
 	when INIT_READ =>

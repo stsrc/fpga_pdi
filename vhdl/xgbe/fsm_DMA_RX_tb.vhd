@@ -20,6 +20,7 @@ component fsm_DMA_RX is
 		INIT_AXI_TXN		: out std_logic;
 		AXI_TXN_DONE		: in  std_logic;
 		AXI_TXN_STRB		: in  std_logic;
+		AXI_TXN_STRB_IN		: out std_logic;
 		INIT_AXI_RXN		: out std_logic;
 		AXI_RXN_DONE 		: in  std_logic;
 		AXI_RXN_STRB		: in  std_logic;
@@ -56,7 +57,7 @@ end component;
 
 signal clk, aresetn 									: std_logic := '0';
 signal INIT_AXI_TXN, AXI_TXN_DONE, INIT_AXI_RXN, AXI_RXN_DONE 				: std_logic := '0';
-signal AXI_RXN_STRB, AXI_TXN_STRB							: std_logic := '0';
+signal AXI_RXN_STRB, AXI_TXN_STRB, AXI_TXN_STRB_IN					: std_logic := '0';
 
 signal DMA_EN, RCV_EN	 								: std_logic := '0';
 signal RX_PCKT_DATA_STRB, RX_PCKT_CNT_STRB 						: std_logic := '0';
@@ -82,6 +83,7 @@ begin
 		INIT_AXI_TXN	=> INIT_AXI_TXN,
 		AXI_TXN_DONE 	=> AXI_TXN_DONE,
 		AXI_TXN_STRB 	=> AXI_TXN_STRB,
+		AXI_TXN_STRB_IN => AXI_TXN_STRB_IN,
 		INIT_AXI_RXN 	=> INIT_AXI_RXN,
 		AXI_RXN_DONE 	=> AXI_RXN_DONE,
 		AXI_RXN_STRB 	=> AXI_RXN_STRB,
@@ -148,7 +150,6 @@ begin
 	for i in 0 to 8 loop
 		XGBE_PACKET_RCV <= '1';
 		RX_PCKT_CNT <= std_logic_vector(to_unsigned(56 + i, 32));
-
 		DATA_IN <= std_logic_vector(to_unsigned(128 + i, 32));
 		wait for 10 ns;
 		XGBE_PACKET_RCV <= '0';
@@ -170,11 +171,12 @@ begin
 		for i in 0 to 1 + to_add loop
 			wait until INIT_AXI_TXN = '1';
 			wait for 10 ns;
-			AXI_TXN_STRB <= '1';
 			for j in 0 to 7 loop
+				AXI_TXN_STRB <= '1';
 				wait for 10 ns;
+				AXI_TXN_STRB <= '0';
+				wait for 30 ns;
 			end loop;
-			AXI_TXN_STRB <= '0';
 			AXI_TXN_DONE <= '1';
 			wait for 10 ns;
 			AXI_TXN_DONE <= '0';

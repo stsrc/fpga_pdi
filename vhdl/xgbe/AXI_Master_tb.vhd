@@ -25,16 +25,17 @@ component AXI_Master is
 		M_DATA_OUT			: out std_logic_vector(C_M_AXI_DATA_WIDTH - 1 downto 0);
 		M_TARGET_BASE_ADDR	 	: in std_logic_vector(C_M_AXI_ADDR_WIDTH - 1 downto 0);
 
-		INIT_AXI_TXN	: in std_logic;
+		INIT_AXI_TXN	: in  std_logic;
 		AXI_TXN_DONE	: out std_logic;
 		AXI_TXN_STRB	: out std_logic;
-		INIT_AXI_RXN	: in std_logic;
+		AXI_TXN_IN_STRB : in  std_logic;
+		INIT_AXI_RXN	: in  std_logic;
 		AXI_RXN_DONE	: out std_logic;
 		AXI_RXN_STRB	: out std_logic;
 		BURST		: in  std_logic_vector(7 downto 0);
 
-		M_AXI_ACLK	: in std_logic;
-		M_AXI_ARESETN	: in std_logic;
+		M_AXI_ACLK	: in  std_logic;
+		M_AXI_ARESETN	: in  std_logic;
 		M_AXI_AWID	: out std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
 		M_AXI_AWADDR	: out std_logic_vector(C_M_AXI_ADDR_WIDTH-1 downto 0);
 		M_AXI_AWLEN	: out std_logic_vector(7 downto 0);
@@ -46,17 +47,17 @@ component AXI_Master is
 		M_AXI_AWQOS	: out std_logic_vector(3 downto 0);
 		M_AXI_AWUSER	: out std_logic_vector(C_M_AXI_AWUSER_WIDTH-1 downto 0);
 		M_AXI_AWVALID	: out std_logic;
-		M_AXI_AWREADY	: in std_logic;
+		M_AXI_AWREADY	: in  std_logic;
 		M_AXI_WDATA	: out std_logic_vector(C_M_AXI_DATA_WIDTH-1 downto 0);
 		M_AXI_WSTRB	: out std_logic_vector(C_M_AXI_DATA_WIDTH/8-1 downto 0);
 		M_AXI_WLAST	: out std_logic;
 		M_AXI_WUSER	: out std_logic_vector(C_M_AXI_WUSER_WIDTH-1 downto 0);
 		M_AXI_WVALID	: out std_logic;
-		M_AXI_WREADY	: in std_logic;
-		M_AXI_BID	: in std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
-		M_AXI_BRESP	: in std_logic_vector(1 downto 0);
-		M_AXI_BUSER	: in std_logic_vector(C_M_AXI_BUSER_WIDTH-1 downto 0);
-		M_AXI_BVALID	: in std_logic;
+		M_AXI_WREADY	: in  std_logic;
+		M_AXI_BID	: in  std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
+		M_AXI_BRESP	: in  std_logic_vector(1 downto 0);
+		M_AXI_BUSER	: in  std_logic_vector(C_M_AXI_BUSER_WIDTH-1 downto 0);
+		M_AXI_BVALID	: in  std_logic;
 		M_AXI_BREADY	: out std_logic;
 		M_AXI_ARID	: out std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
 		M_AXI_ARADDR	: out std_logic_vector(C_M_AXI_ADDR_WIDTH-1 downto 0);
@@ -170,6 +171,8 @@ end component;
 	signal rid 	: std_logic_vector(0 downto 0) 	:= (others => '0');
 	signal rlast 	: std_logic := '0';
 	signal ruser 	: std_logic_vector(-1 downto 0) := (others => '0');
+	
+	signal axi_txn_in_strb	: std_logic := '0';
 	 
 	signal awprot, arprot		: std_logic_vector(2 downto 0) := (others => '0');
 	signal bresp, rresp		: std_logic_vector(1 downto 0) := (others => '0');
@@ -196,6 +199,7 @@ begin
 			INIT_AXI_RXN => axi_init_rxn,
 			AXI_RXN_DONE => axi_done_rxn,
 			AXI_TXN_STRB => axi_txn_strb,
+			AXI_TXN_IN_STRB => axi_txn_in_strb,
 			AXI_RXN_STRB => axi_rxn_strb,
 			BURST	=> burst,
 			M_AXI_ACLK => aclk,
@@ -317,31 +321,38 @@ begin
 	wait for 20 ns;
 	m_target_addr <= std_logic_vector(to_unsigned(0, 32));
 	m_data_in <= std_logic_vector(to_unsigned(64, 32));
-	burst <= std_logic_vector(to_unsigned(1, 8));
+	burst <= std_logic_vector(to_unsigned(0, 8));
 	axi_init_txn <= '1';
 	wait for 10 ns;
 	burst <= (others => '0');
+	axi_txn_in_strb <= '1';
 	axi_init_txn <= '0';
 
 	while (axi_done_txn /= '1') loop
 		wait for 10 ns;
+		axi_txn_in_strb <= '0';
 		if (axi_txn_strb = '1') then
 			m_data_in <= std_logic_vector(unsigned(m_data_in) + 1);
+			axi_txn_in_strb <= '1';
 		end if;
 	end loop;
-
+	axi_txn_in_strb <= '0';
+	wait for 500 ns;
 	m_target_addr <= std_logic_vector(to_unsigned(32, 32));	
 	m_data_in <=std_logic_vector(to_unsigned(1, 32));
 	burst <= std_logic_vector(to_unsigned(7, 8));
 	axi_init_txn <= '1';
 	wait for 10 ns;
+	axi_txn_in_strb	<= '1';
 	burst <= (others => '0');
 	axi_init_txn <= '0';
 
 	while (axi_done_txn /= '1') loop
 		wait for 10 ns;
+		axi_txn_in_strb	<= '0';
 		if (axi_txn_strb = '1') then
 			m_data_in <= std_logic_vector(unsigned(m_data_in) + 1);
+			axi_txn_in_strb	<= '1';
 		end if;
 	end loop;
 
