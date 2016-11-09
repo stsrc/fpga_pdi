@@ -81,8 +81,8 @@ process(clk) begin
 	if (rising_edge(clk)) then
 		if (aresetn = '0') then
  			RX_BYTES_REG			<= (others => '0');
-			RX_DESC_ADDR_REG <= (others => '0');
-			RX_SIZE_REG	<= (others => '0');
+			RX_DESC_ADDR_REG 		<= (others => '0');
+			RX_SIZE_REG			<= (others => '0');
 			RX_PRCSSD_REG			<= (others => '0');
 			RX_DESC_ADDR_ACTUAL		<= (others => '0');
 			RX_BUFF_ADDR			<= (others => '0');
@@ -95,13 +95,14 @@ process(clk) begin
 			RX_PCKT_DATA_STRB		<= '0';
 			RX_PCKT_CNT_STRB		<= '0';
 			RX_PRCSSD_INT_S			<= '0';
+			RX_FAKE_READ			<= '0';
 			RX_STATE 			<= IDLE;
 		else
-			INIT_AXI_TXN 		<= '0';
-			INIT_AXI_RXN 		<= '0';
-			RX_PCKT_CNT_STRB 	<= '0';
-			RX_PCKT_DATA_STRB	<= '0';
-			RX_PRCSSD_INT_S		<= '0';
+			INIT_AXI_TXN 			<= '0';
+			INIT_AXI_RXN 			<= '0';
+			RX_PCKT_CNT_STRB 		<= '0';
+			RX_PCKT_DATA_STRB		<= '0';
+			RX_PRCSSD_INT_S			<= '0';
 
 			--TODO: Move it somewhere else	
 			if (RX_PRCSSD_STRB = '1') then
@@ -199,9 +200,16 @@ process(clk) begin
 				ADDR			<= std_logic_vector(RX_BUFF_ADDR);
 				RX_BUFF_ADDR 		<= RX_BUFF_ADDR + 32;
 				DATA_OUT		<= RX_PCKT_DATA;
-				RX_PCKT_DATA_STRB	<= '1';
+				RX_PCKT_DATA_STRB	<= '1';	
 				INIT_AXI_TXN 		<= '1';
 				RX_STATE 		<= WRITE_WORD_WAIT;
+
+				if(RX_BYTES_REG >= 4) then
+					RX_BYTES_REG <= RX_BYTES_REG - 4;
+				else
+					RX_BYTES_REG <= (others => '0');
+				end if;
+
 			when WRITE_WORD_WAIT =>
 				if (AXI_TXN_DONE = '1') then
 					if (RX_BYTES_REG = 0) then
@@ -220,11 +228,13 @@ process(clk) begin
 						RX_STATE <= WRITE_WORD;
 					end if;
 				elsif (AXI_TXN_STRB = '1' and RX_BYTES_REG /= 0) then
+
 					if(RX_BYTES_REG >= 4) then
 						RX_BYTES_REG <= RX_BYTES_REG - 4;
 					else
 						RX_BYTES_REG <= (others => '0');
 					end if;
+
 					DATA_OUT <= RX_PCKT_DATA;
 					RX_PCKT_DATA_STRB <= '1';
 				else
@@ -232,6 +242,7 @@ process(clk) begin
 				end if;
 			when FAKE_RX_STRB =>
 				RX_PCKT_DATA_STRB <= '1';
+				RX_FAKE_READ <= '0';
 				RX_STATE <= IDLE;
 			when others =>
 				RX_STATE <= IDLE;

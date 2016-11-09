@@ -137,7 +137,7 @@ begin
 	RX_DESC_ADDR_STRB <= '1';
 	wait for 10 ns;
 	RX_DESC_ADDR_STRB <= '0';
-	RX_SIZE <= std_logic_vector(to_unsigned(64, 32));
+	RX_SIZE <= std_logic_vector(to_unsigned(128, 32));
 	RX_SIZE_STRB <= '1';
 	wait for 10 ns;
 	RX_SIZE_STRB <= '0';
@@ -169,13 +169,12 @@ begin
 		end if;
 		for i in 0 to 1 + to_add loop
 			wait until INIT_AXI_TXN = '1';
+			wait for 10 ns;
+			AXI_TXN_STRB <= '1';
 			for j in 0 to 7 loop
 				wait for 10 ns;
-				AXI_TXN_STRB <= '1';
-				wait for 10 ns;
-				AXI_TXN_STRB <= '0';	
 			end loop;
-			wait for 10 ns;
+			AXI_TXN_STRB <= '0';
 			AXI_TXN_DONE <= '1';
 			wait for 10 ns;
 			AXI_TXN_DONE <= '0';
