@@ -269,31 +269,43 @@ static void pdi_deinit_irq(struct platform_device *pdev)
 static int pdi_rx(struct pdi *pdi)
 {
 	u32 packets_cnt = 0;
-	unsigned int data_in = 0;
+	u32 i = 0;
 	unsigned int data_len = 0;
-	unsigned char roundoff = 0;
 	struct sk_buff *skb = NULL;
 	unsigned char *buf = NULL;
+	struct dma_ring *rx_ring = &pdi->rx_ring;
 	int ret = 0;
  	
-	packets_cnt = ioread32(pdi->reg3);
+	/*
+	 * TODO: here I only flush the registers.
+	 * I should deactivate not_read_packets_counter
+	 * from xgbe when DMA RX is on.
+	 */
 	
-	if (!packets_cnt) {
+	ioread32(pdi->reg3);
+	packets_cnt = ioread32(pdi->reg4);
+	
+	if (!packets_cnt)
 		return 0;		
-	}
 
-	for (u32 i = 0; i < packets_cnt; i++) {
-		data_len = le32_to_cpu(ioread32(pdi->reg0));
-	
-		roundoff = data_len % 8;
+	packets_cnt /= 8;
 
+	pr_info("pdi_rx: packet_cnt = %d\n", packets_cnt);
+
+	for (i = rx_ring->desc_cons; i < (rx_ring->desc_cons + packets_cnt) %
+		rx_ring->desc_max; i = (i + 1) % rx_ring->desc_max) {
+		dma_sync_single_for_cpu(pdi->dev, rx_ring->buffer[i].map, 
+				   PCKT_SIZE, DMA_FROM_DEVICE);
+
+		data_len = rx_ring->desc[i].cnt;
+		pr_info("pdi_rx: data_len = %d\n", data_len);
 		skb = dev_alloc_skb(data_len + NET_IP_ALIGN);
 		if (!skb) {
-			/* TODO - do something with it */
 			debug_print("alloc_skb failed! Packet not received! "
 				"FPGA IN ERROR STATE\n");
 			pdi->netdev->stats.rx_errors++;
 			pdi->netdev->stats.rx_dropped++;
+			rx_ring->desc_cons = i; 
 			return 0;
 		}
 
@@ -302,36 +314,16 @@ static int pdi_rx(struct pdi *pdi)
 		buf = skb_put(skb, data_len);
 		skb->dev = pdi->netdev; 
 
-		while (data_len >= 4) {
-			data_in = le32_to_cpu(ioread32(pdi->reg1));	
-			data_len -= 4;
-			for (int j = 0; j < 4; j++) {
-				*buf = data_in & 0xff;
-				buf++;
-				data_in = data_in >> 8;
-			}
-		}
+		memcpy(buf, (char *)rx_ring->buffer[i].skb, data_len);
 
-		if (data_len) {
-			data_in = le32_to_cpu(ioread32(pdi->reg1));
-			for (int j = 0; j < data_len; j++) {
-				*buf = data_in & 0xff;
-				buf++;
-				data_in = data_in >> 8;
-			}
-		}
-
-		/* 
-		 * 4 bytes flushed from FPGA fifo, because fifo's data width is
-	 	 * 8 byte, and AXI data width is 4 byte.
-		 */
-		if (roundoff && roundoff <= 4)
-			ioread32(pdi->reg1);
-
-		skb->protocol = eth_type_trans(skb, pdi->netdev); 	
+		skb->protocol = eth_type_trans(skb, pdi->netdev); 
+		skb_checksum_none_assert(skb);	
 		ret = netif_receive_skb(skb);
 		pdi->netdev->stats.rx_bytes += (unsigned long)data_len;
+
+
 	}
+	rx_ring->desc_cons = i;
 	pdi->netdev->stats.rx_packets += (unsigned long)packets_cnt;
 	return packets_cnt;
 }
@@ -345,7 +337,7 @@ static int pdi_poll(struct napi_struct *napi, int budget)
 	napi_complete(&pdi->napi);
 
 	if (budget > packets_cnt) {
-		/* Enable interrupt data reception and dma. */
+		/* Enable interrupt, data reception and dma. */
 		iowrite32(cpu_to_le32((1 << 1) | (1 << 2) | (1 << 3)), pdi->reg2);
 	}
 	return packets_cnt;
@@ -391,15 +383,17 @@ static void pdi_set_dma(struct pdi *pdi)
 {
 	/* Write where is TX ring located in physical memory. */
 	iowrite32(pdi->tx_ring.desc_p, pdi->reg4);
-	/* Write byte size of TX ring. */
-	iowrite32(pdi->tx_ring.desc_max * sizeof(struct dma_desc), pdi->reg5);
+	/* Write where is RX ring located in physical memory. */
+	iowrite32(pdi->rx_ring.desc_p, pdi->reg6);
+	/* Write byte size of TX and RX ring. */
+	iowrite32(pdi->tx_ring.desc_max * sizeof(struct dma_desc), pdi->reg5); 
 	wmb();
 }
 
 static int pdi_alloc_rx_skb(struct pdi *pdi, int dest)
 {
 	struct dma_ring *ring = &pdi->rx_ring;
-	struct ring_info *ri = &ring[dest];
+	struct ring_info *ri = &ring->buffer[dest];
 
 	char *buf;
 	dma_addr_t mapping;
@@ -415,8 +409,8 @@ static int pdi_alloc_rx_skb(struct pdi *pdi, int dest)
 		return -ENOMEM;
 	} 
 	
-	ri->skb = buf;
-	ri->mapping = mapping;
+	ri->skb = (struct sk_buff *)buf;
+	ri->map = mapping;
 	ring->desc[dest].addr = mapping;	
 	return 0;	
 }
@@ -424,18 +418,16 @@ static int pdi_alloc_rx_skb(struct pdi *pdi, int dest)
 static void pdi_free_rx_skb(struct pdi *pdi, int dest)
 {
 	struct dma_ring *ring = &pdi->rx_ring;
-	struct ring_info *ri = &ring[dest];
+	struct ring_info *ri = &ring->buffer[dest];
 
-	dma_unmap_single(pdi->dev, ri->mapping, PCKT_SIZE, 
-			 DMA_FROM_DEVICE); 
-	kfree(ri->skb);
+	dma_unmap_single(pdi->dev, ri->map, PCKT_SIZE, DMA_FROM_DEVICE); 
+	kfree((char *)ri->skb);
 	ri->skb = NULL;
 }
 
 static int pdi_init_dma_rx_ring_info(struct pdi *pdi)
 {
 	struct dma_ring *ring = &pdi->rx_ring;
-	struct ring_info *ri;
 	int ret;
 	
 	for (int i = 0; i < ring->desc_max; i++) {
@@ -643,7 +635,7 @@ static void pdi_set_pdi(struct pdi *pdi, struct platform_device *pdev,
 			struct net_device *netdev)
 {
 	memset(pdi, 0, sizeof(struct pdi));
-	*(u32 *)&pdi->tx_ring.desc_max = 1024;
+	*(u32 *)&pdi->tx_ring.desc_max = 64;
 	*(u32 *)&pdi->rx_ring.desc_max = 64;
 	pdi->netdev = netdev;
 	pdev->dev.platform_data = pdi;
