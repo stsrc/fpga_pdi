@@ -20,7 +20,7 @@ component fsm_DMA_RX is
 		INIT_AXI_TXN		: out std_logic;
 		AXI_TXN_DONE		: in  std_logic;
 		AXI_TXN_STRB		: in  std_logic;
-		AXI_TXN_STRB_IN		: out std_logic;
+		AXI_TXN_IN_STRB		: out std_logic;
 		INIT_AXI_RXN		: out std_logic;
 		AXI_RXN_DONE 		: in  std_logic;
 		AXI_RXN_STRB		: in  std_logic;
@@ -83,7 +83,7 @@ begin
 		INIT_AXI_TXN	=> INIT_AXI_TXN,
 		AXI_TXN_DONE 	=> AXI_TXN_DONE,
 		AXI_TXN_STRB 	=> AXI_TXN_STRB,
-		AXI_TXN_STRB_IN => AXI_TXN_STRB_IN,
+		AXI_TXN_IN_STRB => AXI_TXN_STRB_IN,
 		INIT_AXI_RXN 	=> INIT_AXI_RXN,
 		AXI_RXN_DONE 	=> AXI_RXN_DONE,
 		AXI_RXN_STRB 	=> AXI_RXN_STRB,
@@ -135,7 +135,7 @@ process
 	variable to_add : integer := 0;	
 begin
 	wait for 10 ns;
-	RX_DESC_ADDR <= std_logic_vector(to_unsigned(64, 32));
+	RX_DESC_ADDR <= std_logic_vector(to_unsigned(0, 32));
 	RX_DESC_ADDR_STRB <= '1';
 	wait for 10 ns;
 	RX_DESC_ADDR_STRB <= '0';
@@ -157,6 +157,7 @@ begin
 		wait for 10 ns;
 		AXI_TXN_DONE <= '1';
 		wait until INIT_AXI_RXN = '1';
+		DATA_IN <= std_logic_vector(to_unsigned(1024 + 64 * i, 32));
 		wait for 10 ns;
 		AXI_TXN_DONE <= '0';
 		wait for 10 ns;

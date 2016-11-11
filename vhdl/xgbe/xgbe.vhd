@@ -696,7 +696,7 @@ begin
 		);
 
 	not_read_packet_counter : counter
-		generic map ( REG_WIDTH => 32, INT_GEN_DELAY => 100)
+		generic map ( REG_WIDTH => 32, INT_GEN_DELAY => 100000)
 		port map (
 			clk => s_axi_aclk,
 			resetn => con_100MHz_resetn,

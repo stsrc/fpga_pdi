@@ -291,6 +291,11 @@ static int pdi_rx(struct pdi *pdi)
 	packets_cnt /= 8;
 
 	pr_info("pdi_rx: packet_cnt = %d\n", packets_cnt);
+	for (int i = 0; i < packets_cnt; i++) {
+		pr_info("pdi_rx: cnt = %d\n", rx_ring->desc[rx_ring->desc_cons].cnt);
+		rx_ring->desc_cons = (rx_ring->desc_cons + 1) % rx_ring->desc_max;				
+	}
+	return 0;
 
 	for (i = rx_ring->desc_cons; i < (rx_ring->desc_cons + packets_cnt) %
 		rx_ring->desc_max; i = (i + 1) % rx_ring->desc_max) {
@@ -411,7 +416,7 @@ static int pdi_alloc_rx_skb(struct pdi *pdi, int dest)
 	
 	ri->skb = (struct sk_buff *)buf;
 	ri->map = mapping;
-	ring->desc[dest].addr = mapping;	
+	ring->desc[dest].addr = 0;	
 	return 0;	
 }
 
@@ -423,6 +428,7 @@ static void pdi_free_rx_skb(struct pdi *pdi, int dest)
 	dma_unmap_single(pdi->dev, ri->map, PCKT_SIZE, DMA_FROM_DEVICE); 
 	kfree((char *)ri->skb);
 	ri->skb = NULL;
+	ring->desc[dest].addr = 0;
 }
 
 static int pdi_init_dma_rx_ring_info(struct pdi *pdi)
@@ -496,7 +502,6 @@ static void pdi_deinit_dma_rings(struct platform_device *pdev)
 	pdi_deinit_dma_tx_ring_info(pdi);
 	pdi_deinit_dma_ring(pdi, &pdi->rx_ring);
 	pdi_deinit_dma_ring(pdi, &pdi->tx_ring);
-
 }
 
 /*

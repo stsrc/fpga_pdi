@@ -133,24 +133,23 @@ process(clk) begin
 		
 
 			if (XGBE_PCKT_RCV = '1' and RCV_EN = '1') then
-				if (RX_STATE = WRITE_WORD_WAIT 
-					and AXI_TXN_DONE = '1' 
-					and RX_BYTES_REG = 0)
+				if (RX_STATE = SET_CNT_WAIT 
+					and AXI_TXN_DONE = '1')
 				then
 					XGBE_PCKT_RCV_CNT <= XGBE_PCKT_RCV_CNT;
 				else
-					if (RX_PRCSSD_REG /= RX_SIZE_REG) then 
+					if (RX_PRCSSD_REG /= RX_SIZE_REG) then
 						XGBE_PCKT_RCV_CNT <= XGBE_PCKT_RCV_CNT + 1;
+
 					else
 						XGBE_PCKT_RCV_CNT <= XGBE_PCKT_RCV_CNT;
 					end if;
 				end if;
 			else
-				if (RX_STATE = WRITE_WORD_WAIT 
-					and AXI_TXN_DONE = '1' and
-					RX_BYTES_REG = 0)
+				if (RX_STATE = SET_CNT_WAIT
+					and AXI_TXN_DONE = '1')
 				then
-					XGBE_PCKT_RCV_CNT <= XGBE_PCKT_RCV_CNT - 1;
+					XGBE_PCKT_RCV_CNT 	<= XGBE_PCKT_RCV_CNT - 1;
 				end if;
 			end if;
 	
@@ -165,13 +164,13 @@ process(clk) begin
 				end if;
 			when SET_CNT =>
 				ADDR 			<= std_logic_vector(RX_DESC_ADDR_ACTUAL);
-				RX_DESC_ADDR_ACTUAL	<= RX_DESC_ADDR_ACTUAL + 4;
+				RX_DESC_ADDR_ACTUAL	<= RX_DESC_ADDR_ACTUAL + 8;
 				BURST			<= std_logic_vector(to_unsigned(0, 8));
 				DATA_OUT 		<= RX_PCKT_CNT;
 				RX_BYTES_REG		<= unsigned(RX_PCKT_CNT);
 				RX_PCKT_CNT_STRB 	<= '1';
 				INIT_AXI_TXN		<= '1';
-				RX_STATE <= SET_CNT_WAIT;
+				RX_STATE 		<= SET_CNT_WAIT;
 
 				if (unsigned(RX_PCKT_CNT) mod 8 /= 0 and
 				    unsigned(RX_PCKT_CNT) mod 8 <= 4) then
@@ -190,8 +189,12 @@ process(clk) begin
 						RX_DESC_ADDR_ACTUAL <= RX_DESC_ADDR_ACTUAL + 4;
 					end if;
 
-					INIT_AXI_RXN		<= '1';
-					RX_STATE		<= FETCH_DESC_WAIT;
+					RX_PRCSSD_REG		<= RX_PRCSSD_REG + 8;
+					RX_PRCSSD_INT_S		<= '1';
+					RX_STATE		<= IDLE;
+
+					--INIT_AXI_RXN		<= '1';
+					--RX_STATE		<= FETCH_DESC_WAIT;
 				else
 					RX_STATE		<= SET_CNT_WAIT;
 				end if;
