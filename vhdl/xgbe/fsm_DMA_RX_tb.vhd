@@ -154,7 +154,7 @@ begin
 		wait for 10 ns;
 		XGBE_PACKET_RCV <= '0';
 		wait until INIT_AXI_TXN = '1';
-		wait for 10 ns;
+		wait until INIT_AXI_TXN = '0';
 		AXI_TXN_DONE <= '1';
 		wait until INIT_AXI_RXN = '1';
 		DATA_IN <= std_logic_vector(to_unsigned(1024 + 64 * i, 32));

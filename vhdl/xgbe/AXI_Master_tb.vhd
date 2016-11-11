@@ -319,61 +319,42 @@ end process;
 process
 begin
 	wait for 20 ns;
-	m_target_addr <= std_logic_vector(to_unsigned(0, 32));
-	m_data_in <= std_logic_vector(to_unsigned(64, 32));
-	burst <= std_logic_vector(to_unsigned(0, 8));
-	axi_init_txn <= '1';
-	wait for 10 ns;
-	burst <= (others => '0');
-	axi_txn_in_strb <= '1';
-	axi_init_txn <= '0';
 
-	while (axi_done_txn /= '1') loop
+	for i in 0 to 7 loop
+		m_target_addr <= std_logic_vector(to_unsigned(64 * i, 32));
+		m_data_in <= std_logic_vector(to_unsigned(64, 32));
+		burst <= std_logic_vector(to_unsigned(i, 8));
+		axi_init_txn <= '1';
 		wait for 10 ns;
+		axi_init_txn <= '0';
+
+		while (axi_done_txn /= '1') loop
+			wait for 10 ns;
+			axi_txn_in_strb <= '0';
+			if (axi_txn_strb = '1') then
+				m_data_in <= std_logic_vector(unsigned(m_data_in) + 1);
+				axi_txn_in_strb <= '1';
+			end if;
+		end loop;
 		axi_txn_in_strb <= '0';
-		if (axi_txn_strb = '1') then
-			m_data_in <= std_logic_vector(unsigned(m_data_in) + 1);
-			axi_txn_in_strb <= '1';
-		end if;
 	end loop;
-	axi_txn_in_strb <= '0';
-	wait for 500 ns;
-	m_target_addr <= std_logic_vector(to_unsigned(32, 32));	
-	m_data_in <=std_logic_vector(to_unsigned(1, 32));
-	burst <= std_logic_vector(to_unsigned(7, 8));
-	axi_init_txn <= '1';
-	wait for 10 ns;
-	axi_txn_in_strb	<= '1';
-	burst <= (others => '0');
-	axi_init_txn <= '0';
 
-	while (axi_done_txn /= '1') loop
-		wait for 10 ns;
-		axi_txn_in_strb	<= '0';
-		if (axi_txn_strb = '1') then
-			m_data_in <= std_logic_vector(unsigned(m_data_in) + 1);
-			axi_txn_in_strb	<= '1';
-		end if;
-	end loop;
 
 	wait for 10 ns;
 
-	m_target_addr <= std_logic_vector(to_unsigned(0, 32));
-	burst <=  std_logic_vector(to_unsigned(1, 8));
-	axi_init_rxn <= '1';
-	wait for 11 ns;
-	burst <= (others => '0');
-	axi_init_rxn <= '0';	
-	wait for 200 ns;
+	for i in 0 to 7 loop
+		m_target_addr <= std_logic_vector(to_unsigned(64 * i, 32));
+		burst <=  std_logic_vector(to_unsigned(i, 8));
+		axi_init_rxn <= '1';
+		wait for 11 ns;
+		burst <= (others => '0');
+		axi_init_rxn <= '0';	
+		while (axi_done_rxn /= '1') loop
+			wait until axi_rxn_strb = '1';
+			wait until axi_rxn_strb = '0';
+		end loop;
 
-
-	m_target_addr <= std_logic_vector(to_unsigned(32, 32));
-	burst <= std_logic_vector(to_unsigned(7, 8));
-	axi_init_rxn <= '1';
-	wait for 11 ns;
-	burst <= (others => '0');
-	axi_init_rxn <= '0';	
-	wait;
+	end loop;
 
 end process;
 end tb_arch;
