@@ -8,7 +8,7 @@ entity AXI_Master is
 	generic (
 		C_M_AXI_ADDR_WIDTH	: integer	:= 32;
 		C_M_AXI_DATA_WIDTH	: integer	:= 32;
-		C_M_AXI_ID_WIDTH	: integer	:= 1;
+		C_M_AXI_ID_WIDTH	: integer	:= 0;
 		C_M_AXI_AWUSER_WIDTH	: integer	:= 0;
 		C_M_AXI_WUSER_WIDTH	: integer	:= 0;
 		C_M_AXI_BUSER_WIDTH	: integer	:= 0;
@@ -318,37 +318,38 @@ begin
 	--In this example, the read address increments in the same
 	--manner as the write address channel.
 
-	  process(M_AXI_ACLK)
-	  begin
-	    if (rising_edge (M_AXI_ACLK)) then
-	      if (M_AXI_ARESETN = '0') then
-	        axi_arvalid <= '0';
-	     -- If previously not valid , start next transaction
-	      else
-	        if (axi_arvalid = '0' and start_single_burst_read = '1') then
-	          axi_arvalid <= '1';
-	        elsif (M_AXI_ARREADY = '1' and axi_arvalid = '1') then
-	          axi_arvalid <= '0';
-	        end if;
-	      end if;
-	    end if;
-	  end process;
+	process(M_AXI_ACLK)
+	begin
+		if (rising_edge (M_AXI_ACLK)) then
+			if (M_AXI_ARESETN = '0') then
+				axi_arvalid <= '0';
+			-- If previously not valid , start next transaction
+			else
+				if (axi_arvalid = '0' and start_single_burst_read = '1') then
+					axi_arvalid <= '1';
+				elsif (M_AXI_ARREADY = '1' and axi_arvalid = '1') then
+					axi_arvalid <= '0';
+				end if;
+			end if;
+		end if;
+	end process;
 
 	-- Next address after ARREADY indicates previous address acceptance
-	  process(M_AXI_ACLK)
-	  begin
-	    if (rising_edge (M_AXI_ACLK)) then
-	      if (M_AXI_ARESETN = '0' or reads_done = '1') then
-	        axi_araddr <= (others => '0');
-	      elsif (start_single_burst_read = '1') then
-		axi_araddr <= M_TARGET_ADDR_S;
-	      else
-	        if (M_AXI_ARREADY = '1' and axi_arvalid = '1') then
-	          axi_araddr <= std_logic_vector(unsigned(axi_araddr) + unsigned(burst_size_bytes));
-	        end if;
-	      end if;
-	    end if;
-	  end process;
+	process(M_AXI_ACLK)
+	begin
+		if (rising_edge (M_AXI_ACLK)) then
+			if (M_AXI_ARESETN = '0' or reads_done = '1') then
+				axi_araddr <= (others => '0');
+			elsif (start_single_burst_read = '1') then
+				axi_araddr <= M_TARGET_ADDR_S;
+			else
+				if (M_AXI_ARREADY = '1' and axi_arvalid = '1') then
+					axi_araddr <= std_logic_vector(unsigned(axi_araddr) 
+							+ unsigned(burst_size_bytes));
+				end if;
+			end if;
+		end if;
+	end process;
 
 	----------------------------------
 	--Read Data (and Response) Channel
@@ -359,22 +360,22 @@ begin
 
 	-- Burst length counter. Uses extra counter register bit to indicate
 	-- terminal count to reduce decode logic
-	  process(M_AXI_ACLK)
-	  begin
-	    if (rising_edge (M_AXI_ACLK)) then
-	      if (M_AXI_ARESETN = '0' or start_single_burst_read = '1') then
-	        read_index <= (others => '0');
-	      else
-	        if
-			(rnext = '1' and
-			(read_index <= std_logic_vector(to_unsigned(to_integer(unsigned(axi_arwlen)),
-					C_TRANSACTIONS_NUM+1))))
-		then
-	          read_index <= std_logic_vector(unsigned(read_index) + 1);
-	        end if;
-	      end if;
-	    end if;
-	  end process;
+	process(M_AXI_ACLK)
+	begin
+	if (rising_edge (M_AXI_ACLK)) then
+	if (M_AXI_ARESETN = '0' or start_single_burst_read = '1') then
+	read_index <= (others => '0');
+	else
+	if
+	(rnext = '1' and
+	(read_index <= std_logic_vector(to_unsigned(to_integer(unsigned(axi_arwlen)),
+	C_TRANSACTIONS_NUM+1))))
+	then
+	read_index <= std_logic_vector(unsigned(read_index) + 1);
+	end if;
+	end if;
+	end if;
+	end process;
 
 	--/*
 	-- The Read Data channel returns the results of the read request
@@ -382,24 +383,24 @@ begin
 	-- In this example the data checker is always able to accept
 	-- more data, so no need to throttle the RREADY signal
 	-- */
-	  process(M_AXI_ACLK)
-	  begin
-	    if (rising_edge (M_AXI_ACLK)) then
-	      if (M_AXI_ARESETN = '0') then
-	        axi_rready <= '0';
-	     -- accept/acknowledge rdata/rresp with axi_rready by the master
-	      -- when M_AXI_RVALID is asserted by slave
-	      else
-	        if (M_AXI_RVALID = '1') then
-	          if (M_AXI_RLAST = '1' and axi_rready = '1') then
-	            axi_rready <= '0';
-	           else
-	             axi_rready <= '1';
-	          end if;
-	        end if;
-	      end if;
-	    end if;
-	  end process;
+	process(M_AXI_ACLK)
+	begin
+		if (rising_edge (M_AXI_ACLK)) then
+			if (M_AXI_ARESETN = '0') then
+				axi_rready <= '0';
+				-- accept/acknowledge rdata/rresp with axi_rready by the master
+				-- when M_AXI_RVALID is asserted by slave
+			else
+				if (M_AXI_RVALID = '1') then
+					if (M_AXI_RLAST = '1' and axi_rready = '1') then
+						axi_rready <= '0';
+					else
+						axi_rready <= '1';
+					end if;
+				end if;
+			end if;
+		end if;
+	end process;
 
 	 -- read_burst_counter counter keeps track with the number of burst transaction initiated
 	 -- against the number of burst transactions the master needs to initiate

@@ -8,7 +8,7 @@ entity xgbe is
 		C_S_AXI_ADDR_WIDTH	: integer	:= 5;
 		C_M_AXI_ADDR_WIDTH	: integer	:= 32;
 		C_M_AXI_DATA_WIDTH	: integer	:= 32;
-		C_M_AXI_ID_WIDTH	: integer	:= 1;
+		C_M_AXI_ID_WIDTH	: integer	:= 0;
 		C_M_AXI_AWUSER_WIDTH	: integer	:= 0;
 		C_M_AXI_WUSER_WIDTH	: integer	:= 0;
 		C_M_AXI_BUSER_WIDTH	: integer	:= 0;
@@ -319,7 +319,7 @@ component AXI_Master is
 	generic (
 		C_M_AXI_ADDR_WIDTH	: integer	:= 32;
 		C_M_AXI_DATA_WIDTH	: integer	:= 32;
-		C_M_AXI_ID_WIDTH	: integer	:= 1;
+		C_M_AXI_ID_WIDTH	: integer	:= 0;
 		C_M_AXI_AWUSER_WIDTH	: integer	:= 0;
 		C_M_AXI_WUSER_WIDTH	: integer	:= 0;
 		C_M_AXI_BUSER_WIDTH	: integer	:= 0;

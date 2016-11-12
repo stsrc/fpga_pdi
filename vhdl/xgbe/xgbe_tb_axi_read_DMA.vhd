@@ -16,7 +16,7 @@ architecture STRUCTURE of tb is
 		C_S_AXI_ADDR_WIDTH	: integer	:= 5;
 		C_M_AXI_ADDR_WIDTH	: integer	:= 32;
 		C_M_AXI_DATA_WIDTH	: integer	:= 32;
-		C_M_AXI_ID_WIDTH	: integer	:= 1;
+		C_M_AXI_ID_WIDTH	: integer	:= 0;
 		C_M_AXI_AWUSER_WIDTH	: integer	:= 0;
 		C_M_AXI_WUSER_WIDTH	: integer	:= 0;
 		C_M_AXI_BUSER_WIDTH	: integer	:= 0;
@@ -110,7 +110,7 @@ end component xgbe;
 
 component AXI_Slave_for_tb is
 	generic (	
-	C_S_AXI_ID_WIDTH	: integer	:= 1;
+	C_S_AXI_ID_WIDTH	: integer	:= 0;
 	C_S_AXI_DATA_WIDTH	: integer	:= 32;
 	C_S_AXI_ADDR_WIDTH	: integer	:= 32;
 	C_S_AXI_AWUSER_WIDTH	: integer	:= 0;
@@ -193,7 +193,7 @@ signal s_axi_bresp, s_axi_rresp : std_logic_vector(1 downto 0) := (others => '0'
 signal M_AXI_ACLK, M_AXI_ARESETN, M_AXI_AWLOCK, M_AXI_AWVALID, M_AXI_AWREADY, M_AXI_WLAST : std_logic := '0';
 signal M_AXI_WVALID, M_AXI_WREADY, M_AXI_BVALID, M_AXI_BREADY, M_AXI_ARLOCK, M_AXI_ARVALID : std_logic := '0';
 signal M_AXI_ARREADY, M_AXI_RLAST, M_AXI_RVALID, M_AXI_RREADY : std_logic := '0';
-signal M_AXI_AWID, M_AXI_ARID : std_logic_vector(0 downto 0) := (others => '0');
+signal M_AXI_AWID, M_AXI_ARID : std_logic_vector(-1 downto 0) := (others => '0');
 signal M_AXI_AWADDR, M_AXI_ARADDR : std_logic_vector(31 downto 0);
 signal M_AXI_WUSER	: std_logic_vector(-1 downto 0); 
 signal M_AXI_AWLEN	: std_logic_vector(7 downto 0)  := (others => '0');
@@ -204,7 +204,7 @@ signal M_AXI_AWPROT	: std_logic_vector(2 downto 0)  := (others => '0');
 signal M_AXI_AWQOS	: std_logic_vector(3 downto 0)  := (others => '0');
 signal M_AXI_AWUSER	: std_logic_vector(-1 downto 0) := (others => '0');
 signal M_AXI_WSTRB	: std_logic_vector(3 downto 0)  := (others => '0');
-signal M_AXI_BID	: std_logic_vector(0 downto 0)  := (others => '0');
+signal M_AXI_BID	: std_logic_vector(-1 downto 0)  := (others => '0');
 signal M_AXI_BRESP	: std_logic_vector(1 downto 0)  := (others => '0');
 signal M_AXI_BUSER	: std_logic_vector(-1 downto 0) := (others => '0');
 signal M_AXI_ARLEN	: std_logic_vector(7 downto 0)  := (others => '0');
@@ -214,7 +214,7 @@ signal M_AXI_ARCACHE	: std_logic_vector(3 downto 0)  := (others => '0');
 signal M_AXI_ARPROT	: std_logic_vector(2 downto 0)  := (others => '0');
 signal M_AXI_ARQOS	: std_logic_vector(3 downto 0)  := (others => '0');
 signal M_AXI_ARUSER	: std_logic_vector(-1 downto 0) := (others => '0');
-signal M_AXI_RID	: std_logic_vector(0 downto 0)  := (others => '0');
+signal M_AXI_RID	: std_logic_vector(-1 downto 0)  := (others => '0');
 signal M_AXI_WDATA	: std_logic_vector(31 downto 0) := (others => '0');
 signal M_AXI_RDATA	: std_logic_vector(31 downto 0) := (others => '0');
 signal M_AXI_RRESP	: std_logic_vector(1 downto 0)  := (others => '0');

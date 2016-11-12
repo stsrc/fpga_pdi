@@ -147,46 +147,20 @@ begin
 	RCV_EN <= '1';
 	wait for 10 ns;
 	while (true) loop
-	for i in 0 to 8 loop
 		XGBE_PACKET_RCV <= '1';
-		RX_PCKT_CNT <= std_logic_vector(to_unsigned(56 + i, 32));
-		DATA_IN <= std_logic_vector(to_unsigned(128 + i, 32));
-		wait for 10 ns;
-		XGBE_PACKET_RCV <= '0';
 		wait until INIT_AXI_TXN = '1';
+		XGBE_PACKET_RCV <= '0';
 		wait until INIT_AXI_TXN = '0';
+		for i in 0 to 7 loop
+			AXI_TXN_STRB <= '1';
+			wait until AXI_TXN_STRB_IN = '1';
+			AXI_TXN_STRB <= '0';
+			wait until AXI_TXN_STRB_IN = '0';
+		end loop;
+
 		AXI_TXN_DONE <= '1';
-		wait until INIT_AXI_RXN = '1';
-		DATA_IN <= std_logic_vector(to_unsigned(1024 + 64 * i, 32));
 		wait for 10 ns;
 		AXI_TXN_DONE <= '0';
-		wait for 10 ns;
-		AXI_RXN_DONE <= '1';
-		wait for 10 ns;
-		AXI_RXN_DONE <= '0';
-		if (i = 8) then
-			to_add := 1;
-		else
-			to_add := 0;
-		end if;
-		for i in 0 to 1 + to_add loop
-			wait until INIT_AXI_TXN = '1';
-			wait for 10 ns;
-			for j in 0 to 7 loop
-				AXI_TXN_STRB <= '1';
-				wait for 10 ns;
-				AXI_TXN_STRB <= '0';
-				wait for 30 ns;
-			end loop;
-			AXI_TXN_DONE <= '1';
-			wait for 10 ns;
-			AXI_TXN_DONE <= '0';
-		end loop;
-	end loop;
-	wait for 10 ns;
-	RX_PRCSSD_STRB <= '1';
-	wait for 10 ns;
-	RX_PRCSSD_STRB <= '0'; 	
 	end loop;
 end process;
 

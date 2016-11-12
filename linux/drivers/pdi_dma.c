@@ -152,7 +152,7 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	tx_ring->desc_cur = (tx_ring->desc_cur + 1) % tx_ring->desc_max;
 
 	wmb();
-	iowrite32(0xFFFFFFFF, pdi->reg7);	
+	//iowrite32(0xFFFFFFFF, pdi->reg7);	
 	wmb();
 
 	netdev_sent_queue(dev, skb->len);
