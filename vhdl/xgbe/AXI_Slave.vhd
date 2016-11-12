@@ -340,6 +340,12 @@ begin
 	      elsif (S_AXI_WLAST = '1' and axi_wready = '1') then 
 
 	        axi_wready <= '0';
+		elsif (axi_awv_awr_flag = '1') then
+			if (axi_wready = '1' and S_AXI_WVALID = '1') then
+				axi_wready <= '0';
+			else
+				axi_wready <= '1';
+			end if;
 	      end if;
 	    end if;
 	  end if;         

@@ -700,7 +700,7 @@ begin
 	wait until s_axi_bvalid = '0';  --axi write finished
 	s_axi_wstrb<=b"0000";
 
---	while (true) loop
+	while (true) loop
 		for i in 0 to 3 loop	
 			xgmii_rxd <= x"0707070707070707";
 			xgmii_rxc <= x"ff";
@@ -724,7 +724,8 @@ begin
 				wait until rising_edge(clk_156_25MHz);
 			end loop;
 		end loop;	
-
+		wait for 100 ns;
+	end loop;
 	while(true) loop
 		wait until interrupt = '1';
 		s_axi_araddr<="01100";  

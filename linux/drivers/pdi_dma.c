@@ -121,8 +121,12 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	uint32_t cnt = 0;
 	struct dma_ring *tx_ring = NULL;
 	struct pdi *pdi = (struct pdi *)netdev_priv(dev);
+	u32 data_len;
 
 	tx_ring = &pdi->tx_ring;
+
+	data_len = pdi->rx_ring.desc[0].cnt;
+	pr_info("pdi_start_xmit: data_len = %d\n", data_len);
 
 	if ((tx_ring->desc_cur + 1) % tx_ring->desc_max == 
 	    tx_ring->desc_cons) {
@@ -284,7 +288,8 @@ static int pdi_rx(struct pdi *pdi)
 	
 	ioread32(pdi->reg3);
 	packets_cnt = ioread32(pdi->reg4);
-	
+	data_len = rx_ring->desc[0].cnt;
+	pr_info("pdi_rx: data_len = %d\n", data_len);
 	if (!packets_cnt)
 		return 0;		
 

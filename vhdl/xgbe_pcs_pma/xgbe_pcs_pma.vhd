@@ -82,6 +82,12 @@ entity xgbe_pcs_pma is
     M_AXI_RVALID : IN STD_LOGIC;
     M_AXI_RREADY : OUT STD_LOGIC;
 
+		awvalid : out std_logic;
+		awready	: out std_logic;
+		wvalid	: out std_logic;
+		wready	: out std_logic;
+		wlast	: out std_logic;
+
 		rxp 			: in  std_logic;
 		rxn 			: in  std_logic;
 		txp 			: out std_logic;
@@ -95,6 +101,8 @@ entity xgbe_pcs_pma is
 end xgbe_pcs_pma;
 
 architecture xgbe_pcs_pma_arch of xgbe_pcs_pma is
+
+signal awvalid_s, awready_s, wvalid_s, wready_s, wlast_s : std_logic;
 
 component ten_gig_eth_pcs_pma_0 is
 	port (
@@ -269,24 +277,38 @@ signal status_vector : std_logic_vector(447 downto 0);
 
 
 begin
-	xgmii_tx_clk <= coreclk_out_s;
-	xgmii_rx_clk <= coreclk_out_s;
-	coreclk_out <= coreclk_out_s;
-	dclk <= clk_100MHz;
-	refclk_p <= clk_156_25MHz_p;
-	refclk_n <= clk_156_25MHz_n;
-	signal_detect <= '1';
-	tx_fault <= '0';
+	xgmii_tx_clk 	<= coreclk_out_s;
+	xgmii_rx_clk 	<= coreclk_out_s;
+	coreclk_out 	<= coreclk_out_s;
+	dclk 		<= clk_100MHz;
+	refclk_p 	<= clk_156_25MHz_p;
+	refclk_n 	<= clk_156_25MHz_n;
+	signal_detect 	<= '1';
+	tx_fault 	<= '0';
 	configuration_vector(399 downto 384) <= x"4C4B";
-	pma_pmd_type <= "111";
-	drp_gnt <= drp_req;
-	drp_den_i <= drp_den_o;
-	drp_dwe_i <= drp_dwe_o;
-	drp_daddr_i <= drp_daddr_o;
-	drp_di_i <= drp_di_o;
-	drp_drdy_i <= drp_drdy_o;
-	drp_drpdo_i <= drp_drpdo_o;
-	reset <= not(rstn_clk_156_25MHz);
+	pma_pmd_type 	<= "111";
+	drp_gnt 	<= drp_req;
+	drp_den_i 	<= drp_den_o;
+	drp_dwe_i 	<= drp_dwe_o;
+	drp_daddr_i 	<= drp_daddr_o;
+	drp_di_i 	<= drp_di_o;
+	drp_drdy_i 	<= drp_drdy_o;
+	drp_drpdo_i 	<= drp_drpdo_o;
+	reset 		<= not(rstn_clk_156_25MHz);
+
+	wlast 		<= wlast_s;
+	M_AXI_WLAST	<= wlast_s;
+	awvalid		<= awvalid_s;
+	M_AXI_AWVALID	<= awvalid_s;
+	wvalid		<= wvalid_s;
+	M_AXI_WVALID	<= wvalid_s;
+
+
+	wready		<= wready_s;
+	wready_s	<= M_AXI_WREADY;
+
+	awready		<= awready_s;
+	awready_s	<= M_AXI_AWREADY;
 
 	xgbe_0_0 : xgbe_0
 	port map (
@@ -321,12 +343,12 @@ begin
 		M_AXI_ARESETN => M_AXI_ARESETN,
 		M_AXI_AWADDR => M_AXI_AWADDR,
 		M_AXI_AWPROT => M_AXI_AWPROT,
-		M_AXI_AWVALID => M_AXI_AWVALID,
-		M_AXI_AWREADY => M_AXI_AWREADY,
+		M_AXI_AWVALID => awvalid_s,
+		M_AXI_AWREADY => awready_s,
 		M_AXI_WDATA => M_AXI_WDATA,
 		M_AXI_WSTRB => M_AXI_WSTRB,
-		M_AXI_WVALID => M_AXI_WVALID,
-		M_AXI_WREADY => M_AXI_WREADY,
+		M_AXI_WVALID => wvalid_s,
+		M_AXI_WREADY => wready_s,
 		M_AXI_BRESP => M_AXI_BRESP,
 		M_AXI_BVALID => M_AXI_BVALID,
 		M_AXI_BREADY => M_AXI_BREADY,
@@ -346,7 +368,7 @@ begin
 		M_AXI_AWCACHE => M_AXI_AWCACHE,
 		M_AXI_AWQOS => M_AXI_AWQOS,
 		M_AXI_AWUSER => M_AXI_AWUSER,
-		M_AXI_WLAST => M_AXI_WLAST,
+		M_AXI_WLAST => wlast_s,
 		M_AXI_WUSER => M_AXI_WUSER,
 		M_AXI_BID => M_AXI_BID,
 		M_AXI_BUSER => M_AXI_BUSER,

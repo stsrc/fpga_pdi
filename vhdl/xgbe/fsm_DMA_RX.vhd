@@ -115,19 +115,20 @@ process(clk) begin
 			case(RX_STATE) is
 
 			when IDLE =>
-				if (XGBE_PCKT_RCV = '1' and RCV_EN = '1') then
+				if (XGBE_PCKT_RCV = '1' and DMA_EN = '1') then
 					RX_STATE <= SEND_DATA;
 				end if;
 			when SEND_DATA =>
 				ADDR 			<= std_logic_vector(RX_DESC_ADDR_ACTUAL);
-				BURST			<= std_logic_vector(to_unsigned(7, 8));
+				BURST			<= std_logic_vector(to_unsigned(0, 8));
 				DATA_OUT 		<= RX_PCKT_CNT;
 				RX_BYTES_REG		<= unsigned(RX_PCKT_CNT);
 				INIT_AXI_TXN		<= '1';
 				RX_STATE 		<= SEND_DATA_WAIT;
 			when SEND_DATA_WAIT =>
 				if (AXI_TXN_DONE = '1') then
-					RX_STATE <= SEND_DATA;
+					RX_STATE <= IDLE;
+			--		RX_PRCSSD_INT_S	<= '1';
 				elsif (AXI_TXN_STRB = '1') then
 					AXI_TXN_IN_STRB <= '1';
 				end if;	

@@ -320,10 +320,10 @@ process
 begin
 	wait for 20 ns;
 
-	for i in 0 to 7 loop
+	for i in 0 to 9 loop
 		m_target_addr <= std_logic_vector(to_unsigned(64 * i, 32));
 		m_data_in <= std_logic_vector(to_unsigned(64, 32));
-		burst <= std_logic_vector(to_unsigned(i, 8));
+		burst <= std_logic_vector(to_unsigned(0, 8));
 		axi_init_txn <= '1';
 		wait for 10 ns;
 		axi_init_txn <= '0';

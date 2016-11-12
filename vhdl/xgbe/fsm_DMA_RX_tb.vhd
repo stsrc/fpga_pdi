@@ -151,13 +151,16 @@ begin
 		wait until INIT_AXI_TXN = '1';
 		XGBE_PACKET_RCV <= '0';
 		wait until INIT_AXI_TXN = '0';
-		for i in 0 to 7 loop
+		for i in 0 to to_integer(unsigned(BURST)) loop
 			AXI_TXN_STRB <= '1';
-			wait until AXI_TXN_STRB_IN = '1';
+			wait for 11 ns;
 			AXI_TXN_STRB <= '0';
+			if (AXI_TXN_STRB_IN /= '1') then
+				wait until AXI_TXN_STRB_IN = '1';	
+			end if;
 			wait until AXI_TXN_STRB_IN = '0';
 		end loop;
-
+		wait for 20 ns;
 		AXI_TXN_DONE <= '1';
 		wait for 10 ns;
 		AXI_TXN_DONE <= '0';

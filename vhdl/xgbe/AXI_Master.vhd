@@ -515,17 +515,17 @@ begin
 	case (mst_exec_state) is
 
 	when IDLE =>
-	axi_arwlen <= BURST;
+		axi_arwlen <= BURST;
 
-	if ( INIT_AXI_TXN = '1') then
-	mst_exec_state  <= INIT_WRITE;
-	M_TARGET_ADDR_S <= M_TARGET_BASE_ADDR;
-	elsif ( INIT_AXI_RXN = '1') then
-	mst_exec_state <= INIT_READ;
-	M_TARGET_ADDR_S <= M_TARGET_BASE_ADDR;
-	else
-	mst_exec_state  <= IDLE;
-	end if;
+		if ( INIT_AXI_TXN = '1') then
+			mst_exec_state  <= INIT_WRITE;
+			M_TARGET_ADDR_S <= M_TARGET_BASE_ADDR;
+		elsif ( INIT_AXI_RXN = '1') then
+			mst_exec_state 	<= INIT_READ;
+			M_TARGET_ADDR_S <= M_TARGET_BASE_ADDR;
+		else
+			mst_exec_state  <= IDLE;
+		end if;
 
 	when INIT_WRITE =>
 		mst_exec_state <= INIT_WRITE;
