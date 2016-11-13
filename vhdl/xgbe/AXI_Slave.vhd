@@ -221,7 +221,7 @@ architecture arch_imp of AXI_Slave is
 	signal mem_select : std_logic_vector(USER_NUM_MEM-1 downto 0);
 	type word_array is array (0 to USER_NUM_MEM-1) of std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
 	signal mem_data_out : word_array;
-
+	signal axi_bvalid_s	: std_logic;
 	signal i : integer;
 	signal j : integer;
 	signal mem_byte_index : integer;
@@ -359,17 +359,28 @@ begin
 
 	process (S_AXI_ACLK)
 	begin
+		if (rising_edge(S_AXI_ACLK)) then
+			if (S_AXI_ARESETN = '0') then
+				axi_bvalid <= '0';
+			else
+				axi_bvalid <= axi_bvalid_s;
+			end if;
+		end if;
+	end process;
+
+	process (S_AXI_ACLK)
+	begin
 	  if rising_edge(S_AXI_ACLK) then 
 	    if S_AXI_ARESETN = '0' then
-	      axi_bvalid  <= '0';
+	      axi_bvalid_s  <= '0';
 	      axi_bresp  <= "00"; --need to work more on the responses
 	    else
-	      if (axi_awv_awr_flag = '1' and axi_wready = '1' and S_AXI_WVALID = '1' and axi_bvalid = '0' and S_AXI_WLAST = '1' ) then
-	        axi_bvalid <= '1';
+	      if (axi_awv_awr_flag = '1' and axi_wready = '1' and S_AXI_WVALID = '1' and axi_bvalid_s = '0' and S_AXI_WLAST = '1' ) then
+	        axi_bvalid_s <= '1';
 	        axi_bresp  <= "00"; 
 	      elsif (S_AXI_BREADY = '1' and axi_bvalid = '1') then  
 	      --check if bready is asserted while bvalid is high)
-	        axi_bvalid <= '0';                      
+	        axi_bvalid_s <= '0';                      
 	      end if;
 	    end if;
 	  end if;         

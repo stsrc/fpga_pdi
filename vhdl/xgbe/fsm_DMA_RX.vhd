@@ -111,6 +111,10 @@ process(clk) begin
 				RX_DESC_ADDR_ACTUAL <= unsigned(RX_DESC_ADDR);
 				RX_PRCSSD_REG <= (others => '0');
 			end if;
+
+			if (RX_SIZE_STRB = '1') then
+				RX_SIZE_REG	<= unsigned(RX_SIZE);
+			end if;
 				
 			case(RX_STATE) is
 
@@ -120,7 +124,7 @@ process(clk) begin
 				end if;
 			when SEND_DATA =>
 				ADDR 			<= std_logic_vector(RX_DESC_ADDR_ACTUAL);
-				BURST			<= std_logic_vector(to_unsigned(0, 8));
+				BURST			<= std_logic_vector(RX_SIZE_REG(7 downto 0));
 				DATA_OUT 		<= RX_PCKT_CNT;
 				RX_BYTES_REG		<= unsigned(RX_PCKT_CNT);
 				INIT_AXI_TXN		<= '1';

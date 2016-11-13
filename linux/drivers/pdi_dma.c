@@ -396,7 +396,8 @@ static void pdi_set_dma(struct pdi *pdi)
 	/* Write where is RX ring located in physical memory. */
 	iowrite32(pdi->rx_ring.desc_p, pdi->reg6);
 	/* Write byte size of TX and RX ring. */
-	iowrite32(pdi->tx_ring.desc_max * sizeof(struct dma_desc), pdi->reg5); 
+//	iowrite32(pdi->tx_ring.desc_max * sizeof(struct dma_desc), pdi->reg5); 
+	iowrite32(7, pdi->reg5); 
 	wmb();
 }
 

@@ -139,7 +139,7 @@ begin
 	RX_DESC_ADDR_STRB <= '1';
 	wait for 10 ns;
 	RX_DESC_ADDR_STRB <= '0';
-	RX_SIZE <= std_logic_vector(to_unsigned(128, 32));
+	RX_SIZE <= std_logic_vector(to_unsigned(0, 32));
 	RX_SIZE_STRB <= '1';
 	wait for 10 ns;
 	RX_SIZE_STRB <= '0';

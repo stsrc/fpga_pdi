@@ -93,7 +93,8 @@ architecture implementation of AXI_Master is
 	constant C_MASTER_LENGTH	: integer := 5;
 	constant C_NO_BURSTS_REQ 	: integer := 0;
 	type state is ( IDLE,
-			INIT_WRITE,
+			WRITE,
+			END_WRITE,
 	 		INIT_READ);
 
 	 signal mst_exec_state  : state ;
@@ -232,12 +233,11 @@ begin
 		if (rising_edge (M_AXI_ACLK)) then
 			if (M_AXI_ARESETN = '0') then
 				axi_wvalid <= '0';
-
 			else
-				if (strb_axi_write = '1') then
-					axi_wvalid <= '1';
-				elsif (wnext = '1') then
+				if (wnext = '1') then
 					axi_wvalid <= '0';
+				elsif (strb_axi_write = '1') then
+					axi_wvalid <= '1';
 				else
 					axi_wvalid <= axi_wvalid;
 				end if;
@@ -248,14 +248,14 @@ begin
 	process(M_AXI_ACLK)
 	begin
 	if (rising_edge (M_AXI_ACLK)) then
-		if (M_AXI_ARESETN = '0' or start_single_burst_write = '1') then
+		if (M_AXI_ARESETN = '0') then
 			axi_wlast <= '0';
 		else
-			if (axi_wlast = '1') then
-				axi_wlast <= '0';
-			elsif (write_index = axi_arwlen(C_TRANSACTIONS_NUM downto 0) 
-			    and (strb_axi_write = '1' or axi_wvalid = '1')) then
+			if (write_index = axi_arwlen(C_TRANSACTIONS_NUM downto 0) 
+			    and (strb_axi_write = '1' or (axi_wvalid = '1' and wnext = '0'))) then
 				axi_wlast <= '1';
+			else
+				axi_wlast <= '0';
 			end if;
 		end if;
 	end if;
@@ -293,14 +293,14 @@ begin
 	process(M_AXI_ACLK)
 	begin
 		if (rising_edge (M_AXI_ACLK)) then
-			if (M_AXI_ARESETN = '0') then
+			if (M_AXI_ARESETN = '0' and start_single_burst_write = '1') then
 				axi_bready <= '0';
 			else
-				if (M_AXI_BVALID = '1' and axi_bready = '0') then
+				if (M_AXI_BVALID = '1') then
 					-- accept/acknowledge bresp with axi_bready by the master
 					-- when M_AXI_BVALID is asserted by slave
 					axi_bready <= '1';
-				elsif (axi_bready = '1') then
+				else
 					axi_bready <= '0';
 				end if;
 			end if;
@@ -485,9 +485,9 @@ begin
 	  end process;
 
 	  MASTER_EXECUTION_PROC:process(M_AXI_ACLK)
-	  begin
-	    if (rising_edge (M_AXI_ACLK)) then
-	      if (M_AXI_ARESETN = '0' ) then
+	begin
+	if (rising_edge (M_AXI_ACLK)) then
+	if (M_AXI_ARESETN = '0' ) then
 
 		AXI_TXN_DONE 	<= '0';
 		AXI_TXN_STRB 	<= '0';
@@ -501,25 +501,28 @@ begin
 
 		axi_arwlen 	<= (others => '0');
 
-	      else
+	else
 
-			start_single_burst_write 	<= '0';
-			start_single_burst_read 	<= '0';
+		start_single_burst_write 	<= '0';
+		start_single_burst_read 	<= '0';
 
-			AXI_TXN_DONE 	<= '0';
-			AXI_TXN_STRB 	<= '0';
-			AXI_RXN_DONE 	<= '0';
-			AXI_RXN_STRB 	<= '0';
-			strb_axi_write	<= '0';
+		AXI_TXN_DONE 	<= '0';
+		AXI_TXN_STRB 	<= '0';
+		AXI_RXN_DONE 	<= '0';
+		AXI_RXN_STRB 	<= '0';
+		strb_axi_write	<= '0';
 
-	case (mst_exec_state) is
+		case (mst_exec_state) is
 
-	when IDLE =>
-		axi_arwlen <= BURST;
+		when IDLE =>
 
 		if ( INIT_AXI_TXN = '1') then
-			mst_exec_state  <= INIT_WRITE;
+			axi_arwlen <= BURST;
+			mst_exec_state  <= WRITE;
 			M_TARGET_ADDR_S <= M_TARGET_BASE_ADDR;
+			M_DATA_IN_S	<= M_DATA_IN;
+			start_single_burst_write <= '1';
+			strb_axi_write 	<= '1';
 		elsif ( INIT_AXI_RXN = '1') then
 			mst_exec_state 	<= INIT_READ;
 			M_TARGET_ADDR_S <= M_TARGET_BASE_ADDR;
@@ -527,23 +530,27 @@ begin
 			mst_exec_state  <= IDLE;
 		end if;
 
-	when INIT_WRITE =>
-		mst_exec_state <= INIT_WRITE;
-		if (M_AXI_BVALID = '1') then
-			mst_exec_state <= IDLE;
-			AXI_TXN_DONE <= '1';
-		elsif  (wnext = '1') then
+		when WRITE =>
+
+		if  (wnext = '1') then
 			AXI_TXN_STRB <= '1';
-		elsif (burst_write_active = '0') then
-			M_DATA_IN_S <= M_DATA_IN;
-			start_single_burst_write <= '1';
-			strb_axi_write <= '1';
-		elsif (AXI_TXN_IN_STRB = '1') then
-			M_DATA_IN_S <= M_DATA_IN;
-			strb_axi_write <= '1';
+			if (axi_wlast = '1') then
+				mst_exec_state	<= END_WRITE;
+			end if;
+		elsif (AXI_TXN_IN_STRB = '1' and axi_wvalid = '0') then
+			M_DATA_IN_S 	<= M_DATA_IN;
+			strb_axi_write 	<= '1';
 		end if;
 
-	when INIT_READ =>
+	
+		when END_WRITE =>
+
+		if (M_AXI_BVALID = '1' and axi_bready = '1') then
+			mst_exec_state 	<= IDLE;
+			AXI_TXN_DONE 	<= '1';
+		end if;
+
+		when INIT_READ =>
 		mst_exec_state <= INIT_READ;
 		if (rnext = '1') then
 			M_DATA_OUT_S <= M_AXI_RDATA;

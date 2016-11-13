@@ -680,7 +680,7 @@ begin
 	
 	--Write TX and RX descriptor ring size in bytes. 128, (16 descriptors).
  	s_axi_awaddr<="10100";
-	s_axi_wdata<=x"00000050";
+	s_axi_wdata<=x"00000000";
 	s_axi_wstrb<=b"1111";
 	sendit<='1';                --start axi write to slave
 	wait for 1 ns; 
