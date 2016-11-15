@@ -517,7 +517,7 @@ begin
 		when IDLE =>
 
 		if ( INIT_AXI_TXN = '1') then
-			axi_arwlen <= BURST;
+			axi_arwlen 	<= BURST;
 			mst_exec_state  <= WRITE;
 			M_TARGET_ADDR_S <= M_TARGET_BASE_ADDR;
 			M_DATA_IN_S	<= M_DATA_IN;

@@ -57,7 +57,7 @@ end component;
 
 signal clk, aresetn 									: std_logic := '0';
 signal INIT_AXI_TXN, AXI_TXN_DONE, INIT_AXI_RXN, AXI_RXN_DONE 				: std_logic := '0';
-signal AXI_RXN_STRB, AXI_TXN_STRB, AXI_TXN_STRB_IN					: std_logic := '0';
+signal AXI_RXN_STRB, AXI_TXN_STRB, AXI_TXN_IN_STRB					: std_logic := '0';
 
 signal DMA_EN, RCV_EN	 								: std_logic := '0';
 signal RX_PCKT_DATA_STRB, RX_PCKT_CNT_STRB 						: std_logic := '0';
@@ -83,7 +83,7 @@ begin
 		INIT_AXI_TXN	=> INIT_AXI_TXN,
 		AXI_TXN_DONE 	=> AXI_TXN_DONE,
 		AXI_TXN_STRB 	=> AXI_TXN_STRB,
-		AXI_TXN_IN_STRB => AXI_TXN_STRB_IN,
+		AXI_TXN_IN_STRB => AXI_TXN_IN_STRB,
 		INIT_AXI_RXN 	=> INIT_AXI_RXN,
 		AXI_RXN_DONE 	=> AXI_RXN_DONE,
 		AXI_RXN_STRB 	=> AXI_RXN_STRB,
@@ -135,35 +135,61 @@ process
 	variable to_add : integer := 0;	
 begin
 	wait for 10 ns;
-	RX_DESC_ADDR <= std_logic_vector(to_unsigned(0, 32));
+	RX_DESC_ADDR <= std_logic_vector(to_unsigned(64, 32));
 	RX_DESC_ADDR_STRB <= '1';
 	wait for 10 ns;
 	RX_DESC_ADDR_STRB <= '0';
-	RX_SIZE <= std_logic_vector(to_unsigned(0, 32));
+	RX_SIZE <= std_logic_vector(to_unsigned(128, 32));
 	RX_SIZE_STRB <= '1';
 	wait for 10 ns;
 	RX_SIZE_STRB <= '0';
 	DMA_EN <= '1';
 	RCV_EN <= '1';
 	wait for 10 ns;
-	while (true) loop
+	while(true) loop
+	for i in 0 to 9 loop
 		XGBE_PACKET_RCV <= '1';
-		wait until INIT_AXI_TXN = '1';
+		RX_PCKT_CNT <= std_logic_vector(to_unsigned(56 + i, 32));
+		DATA_IN <= std_logic_vector(to_unsigned(128 + i, 32));
+		wait for 10 ns;
 		XGBE_PACKET_RCV <= '0';
-		wait until INIT_AXI_TXN = '0';
-		for i in 0 to to_integer(unsigned(BURST)) loop
-			AXI_TXN_STRB <= '1';
-			wait for 11 ns;
-			AXI_TXN_STRB <= '0';
-			if (AXI_TXN_STRB_IN /= '1') then
-				wait until AXI_TXN_STRB_IN = '1';	
-			end if;
-			wait until AXI_TXN_STRB_IN = '0';
-		end loop;
-		wait for 20 ns;
+		wait until INIT_AXI_TXN = '1';
+		wait for 10 ns;
 		AXI_TXN_DONE <= '1';
+		wait until INIT_AXI_RXN = '1';
 		wait for 10 ns;
 		AXI_TXN_DONE <= '0';
+		wait for 10 ns;
+		AXI_RXN_DONE <= '1';
+		wait for 10 ns;
+		AXI_RXN_DONE <= '0';
+		if (i = 9) then
+			to_add := 1;
+		else
+			to_add := 0;
+		end if;
+		for i in 0 to 1 + to_add loop
+			wait until INIT_AXI_TXN = '1';
+			wait for 10 ns;
+			for j in 0 to 7 loop
+				AXI_TXN_STRB <= '1';
+				wait for 10 ns;
+				AXI_TXN_STRB <= '0';
+				if (AXI_TXN_IN_STRB /= '1') then
+					wait until AXI_TXN_IN_STRB = '1';
+				end if;
+				wait until AXI_TXN_IN_STRB = '0';
+				wait for 10 ns;
+			end loop;
+			AXI_TXN_DONE <= '1';
+			wait for 10 ns;
+			AXI_TXN_DONE <= '0';
+		end loop;
+	end loop;
+	wait for 10 ns;
+	RX_PRCSSD_STRB <= '1';
+	wait for 10 ns;
+	RX_PRCSSD_STRB <= '0'; 	
 	end loop;
 end process;
 

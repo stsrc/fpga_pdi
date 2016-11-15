@@ -629,9 +629,6 @@ send : process
       
 process
 begin
-	xgmii_rxd <= x"0707070707070707";
-	xgmii_rxc <= x"ff";
-
 	wait until rst_clk_20MHz = '1';
 	wait for 30 ns;
  	s_axi_awaddr<="01000";
@@ -667,9 +664,9 @@ begin
 	wait until s_axi_bvalid = '0';  --axi write finished
 	s_axi_wstrb<=b"0000";
 
-	--Write RX descriptor ring start address. 64.
+	--Write RX descriptor ring start address. 128.
  	s_axi_awaddr<="11000";
-	s_axi_wdata<=x"00000040";
+	s_axi_wdata<=x"00000080";
 	s_axi_wstrb<=b"1111";
 	sendit<='1';                --start axi write to slave
 	wait for 1 ns; 
@@ -680,7 +677,7 @@ begin
 	
 	--Write TX and RX descriptor ring size in bytes. 128, (16 descriptors).
  	s_axi_awaddr<="10100";
-	s_axi_wdata<=x"00000000";
+	s_axi_wdata<=x"00000080";
 	s_axi_wstrb<=b"1111";
 	sendit<='1';                --start axi write to slave
 	wait for 1 ns; 
@@ -701,50 +698,56 @@ begin
 	s_axi_wstrb<=b"0000";
 
 	while (true) loop
-		for i in 0 to 3 loop	
-			xgmii_rxd <= x"0707070707070707";
-			xgmii_rxc <= x"ff";
-			wait until rising_edge(clk_156_25MHz);
-
-			for j in 0 to frame_data(i).length - 1 loop
-				xgmii_rxd <= frame_data(i).stim(j).d;
-				xgmii_rxc <= frame_data(i).stim(j).c;
-				wait until rising_edge(clk_156_25MHz);
-			end loop;
-		end loop;
-
-		for i in 3 downto 0 loop	
-			xgmii_rxd <= x"0707070707070707";
-			xgmii_rxc <= x"ff";
-			wait until rising_edge(clk_156_25MHz);
-
-			for j in 0 to frame_data(i).length - 1 loop
-				xgmii_rxd <= frame_data(i).stim(j).d;
-				xgmii_rxc <= frame_data(i).stim(j).c;
-				wait until rising_edge(clk_156_25MHz);
-			end loop;
-		end loop;	
-		wait for 100 ns;
-	end loop;
-	while(true) loop
+	wait for 10 us;
+	if (interrupt /= '1') then
 		wait until interrupt = '1';
-		s_axi_araddr<="01100";  
-		readit<='1';
-		wait for 1 ns; 
-		readit<='0'; 
-		wait until s_axi_rready = '1';
-		wait until s_axi_rready = '0';	
+	end if;
+	s_axi_araddr<="01100";  
+	readit<='1';
+	wait for 1 ns; 
+	readit<='0'; 
+	wait until s_axi_rready = '1';
+	wait until s_axi_rready = '0';	
 
-		s_axi_araddr<="10000";  
-		readit<='1';
-		wait for 1 ns; 
-		readit<='0'; 
-		wait until s_axi_rready = '1';
-		wait until s_axi_rready = '0';	
+	s_axi_araddr<="10000";  
+	readit<='1';
+	wait for 1 ns; 
+	readit<='0'; 
+	wait until s_axi_rready = '1';
+	wait until s_axi_rready = '0';	
 
 	end loop;
 
 	wait;
 end process;
-     
+
+
+process begin
+	for i in 0 to 3 loop	
+		xgmii_rxd <= x"0707070707070707";
+		xgmii_rxc <= x"ff";
+		wait until rising_edge(clk_156_25MHz);
+		for j in 0 to frame_data(i).length - 1 loop
+			xgmii_rxd <= frame_data(i).stim(j).d;
+			xgmii_rxc <= frame_data(i).stim(j).c;
+			wait until rising_edge(clk_156_25MHz);
+		end loop;
+	end loop;
+
+	for i in 3 downto 0 loop	
+		xgmii_rxd <= x"0707070707070707";
+		xgmii_rxc <= x"ff";
+		wait until rising_edge(clk_156_25MHz);
+
+		for j in 0 to frame_data(i).length - 1 loop
+			xgmii_rxd <= frame_data(i).stim(j).d;
+			xgmii_rxc <= frame_data(i).stim(j).c;
+			wait until rising_edge(clk_156_25MHz);
+		end loop;
+	end loop;
+	xgmii_rxd <= x"0707070707070707";
+	xgmii_rxc <= x"ff";
+	wait for 100 ns;
+end process;    
+ 
 end structure;

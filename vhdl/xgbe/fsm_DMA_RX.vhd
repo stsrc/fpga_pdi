@@ -66,8 +66,13 @@ signal delay_flag			: std_logic;
 type rx_states is 
 	(
 		IDLE,
-		SEND_DATA,
-		SEND_DATA_WAIT
+		SET_CNT,
+		SET_CNT_WAIT,
+		FETCH_DESC_WAIT,
+		WRITE_WORD,
+		WRITE_WORD_WAIT,
+		FIFO_WAIT,
+		FAKE_RX_STRB
 	);
 signal RX_STATE : rx_states;
 
@@ -106,36 +111,152 @@ process(clk) begin
 			RX_PRCSSD_INT_S			<= '0';
 			AXI_TXN_IN_STRB			<= '0';
 
+			--TODO: Move it somewhere else	
+			if (RX_PRCSSD_STRB = '1') then
+				RX_PRCSSD_REG <= (others => '0');
+				if (RX_PRCSSD_INT_S = '1') then
+					RX_PRCSSD_REG <= to_unsigned(8, 32);
+				end if;
+			end if;
+
 			if (RX_DESC_ADDR_STRB = '1') then
 				RX_DESC_ADDR_REG <= unsigned(RX_DESC_ADDR);
 				RX_DESC_ADDR_ACTUAL <= unsigned(RX_DESC_ADDR);
 				RX_PRCSSD_REG <= (others => '0');
+			
+			elsif (RX_SIZE_STRB = '1') then
+				RX_SIZE_REG <= unsigned(RX_SIZE);
+				RX_DESC_ADDR_ACTUAL <= RX_DESC_ADDR_REG;
+				RX_PRCSSD_REG <= (others => '0');
+			
 			end if;
+		
 
-			if (RX_SIZE_STRB = '1') then
-				RX_SIZE_REG	<= unsigned(RX_SIZE);
-			end if;
-				
-			case(RX_STATE) is
-
-			when IDLE =>
-				if (XGBE_PCKT_RCV = '1' and DMA_EN = '1') then
-					RX_STATE <= SEND_DATA;
+			if (XGBE_PCKT_RCV = '1' and RCV_EN = '1') then
+				if (RX_STATE = WRITE_WORD_WAIT 
+					and AXI_TXN_DONE = '1' 
+					and RX_BYTES_REG = 0)
+				then
+					XGBE_PCKT_RCV_CNT <= XGBE_PCKT_RCV_CNT;
+				else
+					if (RX_PRCSSD_REG /= RX_SIZE_REG) then 
+						XGBE_PCKT_RCV_CNT <= XGBE_PCKT_RCV_CNT + 1;
+					else
+						XGBE_PCKT_RCV_CNT <= XGBE_PCKT_RCV_CNT;
+					end if;
 				end if;
-			when SEND_DATA =>
+			else
+				if (RX_STATE = WRITE_WORD_WAIT 
+					and AXI_TXN_DONE = '1' and
+					RX_BYTES_REG = 0)
+				then
+					XGBE_PCKT_RCV_CNT <= XGBE_PCKT_RCV_CNT - 1;
+				end if;
+			end if;
+	
+			case(RX_STATE) is
+			when IDLE =>
+				if (XGBE_PCKT_RCV_CNT /= 0 and DMA_EN = '1') then
+					if (RX_PRCSSD_REG = RX_SIZE_REG) then
+						RX_STATE <= IDLE;
+					else
+						RX_STATE <= SET_CNT; 
+					end if;
+				end if;
+			when SET_CNT =>
 				ADDR 			<= std_logic_vector(RX_DESC_ADDR_ACTUAL);
-				BURST			<= std_logic_vector(RX_SIZE_REG(7 downto 0));
+				RX_DESC_ADDR_ACTUAL	<= RX_DESC_ADDR_ACTUAL + 4;
+				BURST			<= std_logic_vector(to_unsigned(0, 8));
 				DATA_OUT 		<= RX_PCKT_CNT;
 				RX_BYTES_REG		<= unsigned(RX_PCKT_CNT);
+				RX_PCKT_CNT_STRB 	<= '1';
 				INIT_AXI_TXN		<= '1';
-				RX_STATE 		<= SEND_DATA_WAIT;
-			when SEND_DATA_WAIT =>
+				RX_STATE <= SET_CNT_WAIT;
+
+				if (unsigned(RX_PCKT_CNT) mod 8 /= 0 and
+				    unsigned(RX_PCKT_CNT) mod 8 <= 4) then
+					RX_FAKE_READ <= '1';
+				else
+					RX_FAKE_READ <= '0';
+	            end if;
+	            
+			when SET_CNT_WAIT =>
 				if (AXI_TXN_DONE = '1') then
-					RX_STATE <= IDLE;
-			--		RX_PRCSSD_INT_S	<= '1';
+					ADDR 			<= std_logic_vector(RX_DESC_ADDR_ACTUAL);
+
+					if(RX_DESC_ADDR_ACTUAL + 4 = RX_DESC_ADDR_REG + RX_SIZE_REG) then
+						RX_DESC_ADDR_ACTUAL <= RX_DESC_ADDR_REG;
+					else
+						RX_DESC_ADDR_ACTUAL <= RX_DESC_ADDR_ACTUAL + 4;
+					end if;
+
+					INIT_AXI_RXN		<= '1';
+					RX_STATE		<= FETCH_DESC_WAIT;
+				else
+					RX_STATE		<= SET_CNT_WAIT;
+				end if;
+
+			when FETCH_DESC_WAIT =>
+				if (AXI_RXN_DONE = '1') then
+					RX_BUFF_ADDR 	<= unsigned(DATA_IN);
+					RX_STATE	<= WRITE_WORD;
+				else
+					RX_STATE	<= FETCH_DESC_WAIT;
+				end if;
+
+			when WRITE_WORD	=>
+				BURST 			<= std_logic_vector(to_unsigned(7, 8));
+				ADDR			<= std_logic_vector(RX_BUFF_ADDR);
+				RX_BUFF_ADDR 		<= RX_BUFF_ADDR + 32;
+				DATA_OUT		<= RX_PCKT_DATA;
+				INIT_AXI_TXN 		<= '1';
+				RX_STATE 		<= WRITE_WORD_WAIT;
+
+			when WRITE_WORD_WAIT =>
+				if (AXI_TXN_DONE = '1') then
+					if (RX_BYTES_REG = 0) then
+						if (RX_FAKE_READ = '1') then
+							RX_STATE 	<= FAKE_RX_STRB;
+						else
+							RX_STATE	<= IDLE;
+						end if;
+						RX_PRCSSD_INT_S <= '1';
+						if (RX_PRCSSD_STRB = '0') then
+							RX_PRCSSD_REG	<= RX_PRCSSD_REG + 8;
+						else
+							RX_PRCSSD_REG 	<= to_unsigned(8, 32);
+						end if;
+					else
+						RX_STATE <= WRITE_WORD;
+					end if;
+				elsif (AXI_TXN_STRB = '1' and RX_BYTES_REG /= 0) then
+
+					if(RX_BYTES_REG >= 4) then
+						RX_BYTES_REG 	<= RX_BYTES_REG - 4;
+					else
+						RX_BYTES_REG 	<= (others => '0');
+					end if;
+					RX_PCKT_DATA_STRB 	<= '1';
+					RX_STATE		<= FIFO_WAIT;
+					delay_flag		<= '1';
 				elsif (AXI_TXN_STRB = '1') then
 					AXI_TXN_IN_STRB <= '1';
+					RX_STATE <= WRITE_WORD_WAIT;
+				else
+					RX_STATE <= WRITE_WORD_WAIT;
+				end if;
+			when FIFO_WAIT =>
+				if (delay_flag = '0') then
+					DATA_OUT 		<= RX_PCKT_DATA;
+					AXI_TXN_IN_STRB 	<= '1';
+					RX_STATE <= WRITE_WORD_WAIT;
+				else
+					delay_flag <= '0';
 				end if;	
+			when FAKE_RX_STRB =>
+				RX_PCKT_DATA_STRB <= '1';
+				RX_FAKE_READ <= '0';
+				RX_STATE <= IDLE;
 			when others =>
 				RX_STATE <= IDLE;
 			end case;
