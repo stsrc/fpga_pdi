@@ -424,8 +424,8 @@ end component;
 
 component fsm_DMA_RX is
 	port (
-		clk			: in std_logic;
-		aresetn			: in std_logic;
+		clk			: in  std_logic;
+		aresetn			: in  std_logic;
 	
 		DATA_IN 		: in  std_logic_vector(31 downto 0);
 		DATA_OUT		: out std_logic_vector(31 downto 0);
@@ -438,19 +438,20 @@ component fsm_DMA_RX is
 		AXI_RXN_DONE 		: in  std_logic;
 		AXI_RXN_STRB		: in  std_logic;
 		BURST			: out std_logic_vector(7 downto 0);
-		RX_DESC_ADDR		: in std_logic_vector(31 downto 0);
-		RX_DESC_ADDR_STRB 	: in std_logic;
-		RX_SIZE			: in std_logic_vector(31 downto 0);
-		RX_SIZE_STRB		: in std_logic;
+		RX_DESC_ADDR		: in  std_logic_vector(31 downto 0);
+		RX_DESC_ADDR_STRB 	: in  std_logic;
+		RX_SIZE			: in  std_logic_vector(31 downto 0);
+		RX_SIZE_STRB		: in  std_logic;
 		RX_PRCSSD		: out std_logic_vector(31 downto 0);
-		RX_PRCSSD_STRB		: in std_logic;
+		RX_PRCSSD_STRB		: in  std_logic;
 		RX_PRCSSD_INT		: out std_logic;
-		XGBE_PCKT_RCV		: in std_logic;
-		DMA_EN			: in std_logic;
-		RCV_EN			: in std_logic;
-		RX_PCKT_DATA		: in std_logic_vector(31 downto 0);
+		RX_WSTRB		: out std_logic_vector(3 downto 0);
+		XGBE_PCKT_RCV		: in  std_logic;
+		DMA_EN			: in  std_logic;
+		RCV_EN			: in  std_logic;
+		RX_PCKT_DATA		: in  std_logic_vector(31 downto 0);
 		RX_PCKT_DATA_STRB	: out std_logic;
-		RX_PCKT_CNT		: in std_logic_vector(31 downto 0);
+		RX_PCKT_CNT		: in  std_logic_vector(31 downto 0);
 		RX_PCKT_CNT_STRB	: out std_logic	
 	);
 end component;
@@ -649,6 +650,7 @@ end component reset_con;
 	signal dma_rx_rxn_done  : std_logic;
 	signal dma_rx_txn_strb	: std_logic;
 	signal dma_rx_rxn_strb	: std_logic;
+	signal dma_rx_wstrb	: std_logic_vector(3 downto 0);
 
 	signal data_dma_mux_tx, data_mux_fsm_tx  : std_logic_vector(31 downto 0);
 	signal strb_data_dma_mux_tx, strb_data_mux_fsm_tx : std_logic;
@@ -1123,6 +1125,7 @@ begin
 			RX_PRCSSD 		=> slv_reg4_rd,
 			RX_PRCSSD_STRB 		=> slv_reg4_rd_strb,
 			RX_PRCSSD_INT 		=> interrupt_fsm_DMA_RX,
+			RX_WSTRB		=> dma_rx_wstrb,
 			XGBE_PCKT_RCV 		=> interrupt_fifo_counter,
 			DMA_EN			=> dma_en_100MHz,
 			RCV_EN			=> rcv_en_100MHz,
