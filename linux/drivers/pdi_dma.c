@@ -156,7 +156,7 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	tx_ring->desc_cur = (tx_ring->desc_cur + 1) % tx_ring->desc_max;
 
 	wmb();
-	//iowrite32(0xFFFFFFFF, pdi->reg7);	
+	iowrite32(0xFFFFFFFF, pdi->reg7);	
 	wmb();
 
 	netdev_sent_queue(dev, skb->len);
@@ -288,27 +288,20 @@ static int pdi_rx(struct pdi *pdi)
 	
 	ioread32(pdi->reg3);
 	packets_cnt = ioread32(pdi->reg4);
-	data_len = rx_ring->desc[0].cnt;
-	pr_info("pdi_rx: data_len = %d\n", data_len);
 	if (!packets_cnt)
 		return 0;		
 
 	packets_cnt /= 8;
-
 	pr_info("pdi_rx: packet_cnt = %d\n", packets_cnt);
-	for (int i = 0; i < packets_cnt; i++) {
-		pr_info("pdi_rx: cnt = %d\n", rx_ring->desc[rx_ring->desc_cons].cnt);
-		rx_ring->desc_cons = (rx_ring->desc_cons + 1) % rx_ring->desc_max;				
-	}
-	return 0;
 
-	for (i = rx_ring->desc_cons; i < (rx_ring->desc_cons + packets_cnt) %
+	for (i = rx_ring->desc_cons; i != (rx_ring->desc_cons + packets_cnt) %
 		rx_ring->desc_max; i = (i + 1) % rx_ring->desc_max) {
 		dma_sync_single_for_cpu(pdi->dev, rx_ring->buffer[i].map, 
 				   PCKT_SIZE, DMA_FROM_DEVICE);
 
 		data_len = rx_ring->desc[i].cnt;
 		pr_info("pdi_rx: data_len = %d\n", data_len);
+
 		skb = dev_alloc_skb(data_len + NET_IP_ALIGN);
 		if (!skb) {
 			debug_print("alloc_skb failed! Packet not received! "
@@ -330,9 +323,8 @@ static int pdi_rx(struct pdi *pdi)
 		skb_checksum_none_assert(skb);	
 		ret = netif_receive_skb(skb);
 		pdi->netdev->stats.rx_bytes += (unsigned long)data_len;
-
-
 	}
+
 	rx_ring->desc_cons = i;
 	pdi->netdev->stats.rx_packets += (unsigned long)packets_cnt;
 	return packets_cnt;
@@ -396,8 +388,7 @@ static void pdi_set_dma(struct pdi *pdi)
 	/* Write where is RX ring located in physical memory. */
 	iowrite32(pdi->rx_ring.desc_p, pdi->reg6);
 	/* Write byte size of TX and RX ring. */
-//	iowrite32(pdi->tx_ring.desc_max * sizeof(struct dma_desc), pdi->reg5); 
-	iowrite32(7, pdi->reg5); 
+	iowrite32(pdi->tx_ring.desc_max * sizeof(struct dma_desc), pdi->reg5); 
 	wmb();
 }
 
@@ -422,7 +413,7 @@ static int pdi_alloc_rx_skb(struct pdi *pdi, int dest)
 	
 	ri->skb = (struct sk_buff *)buf;
 	ri->map = mapping;
-	ring->desc[dest].addr = 0;	
+	ring->desc[dest].addr = mapping;	
 	return 0;	
 }
 
