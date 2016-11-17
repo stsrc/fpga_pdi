@@ -55,6 +55,11 @@ MODULE_LICENSE("GPL");
 
 #define PCKT_SIZE 2048
 
+struct pdi;
+static void pdi_free_rx_skb(struct pdi *pdi, int dest);
+static int pdi_unmap_alloc_rx_skb(struct pdi *pdi, int dest);
+static int pdi_alloc_rx_skb(struct pdi *pdi, int dest);
+static void pdi_free_rx_skb(struct pdi *pdi, int dest);
 
 /*
  * reg0 - packet's size in bytes. To push packet into MAC write
@@ -276,7 +281,6 @@ static int pdi_rx(struct pdi *pdi)
 	u32 i = 0;
 	unsigned int data_len = 0;
 	struct sk_buff *skb = NULL;
-	unsigned char *buf = NULL;
 	struct dma_ring *rx_ring = &pdi->rx_ring;
 	int ret = 0;
  	
@@ -298,31 +302,15 @@ static int pdi_rx(struct pdi *pdi)
 		rx_ring->desc_max; i = (i + 1) % rx_ring->desc_max) {
 		dma_sync_single_for_cpu(pdi->dev, rx_ring->buffer[i].map, 
 				   PCKT_SIZE, DMA_FROM_DEVICE);
-
 		data_len = rx_ring->desc[i].cnt;
 		pr_info("pdi_rx: data_len = %d\n", data_len);
-
-		skb = dev_alloc_skb(data_len + NET_IP_ALIGN);
-		if (!skb) {
-			debug_print("alloc_skb failed! Packet not received! "
-				"FPGA IN ERROR STATE\n");
-			pdi->netdev->stats.rx_errors++;
-			pdi->netdev->stats.rx_dropped++;
-			rx_ring->desc_cons = i; 
-			return 0;
-		}
-
-		skb_reserve(skb, NET_IP_ALIGN);
-
-		buf = skb_put(skb, data_len);
-		skb->dev = pdi->netdev; 
-
-		memcpy(buf, (char *)rx_ring->buffer[i].skb, data_len);
-
-		skb->protocol = eth_type_trans(skb, pdi->netdev); 
+		skb = rx_ring->buffer[i].skb;
+		skb_put(skb, data_len);
 		skb_checksum_none_assert(skb);	
 		ret = netif_receive_skb(skb);
 		pdi->netdev->stats.rx_bytes += (unsigned long)data_len;
+
+		pdi_unmap_alloc_rx_skb(pdi, i);
 	}
 
 	rx_ring->desc_cons = i;
@@ -397,21 +385,31 @@ static int pdi_alloc_rx_skb(struct pdi *pdi, int dest)
 	struct dma_ring *ring = &pdi->rx_ring;
 	struct ring_info *ri = &ring->buffer[dest];
 
-	char *buf;
+	struct sk_buff *skb;
 	dma_addr_t mapping;
 
-	buf = kzalloc(PCKT_SIZE, GFP_KERNEL | GFP_DMA);
-	if (!buf)
+	skb = netdev_alloc_skb(pdi->netdev, PCKT_SIZE);
+	if (!skb) {
+		debug_print("alloc_skb failed! Packet not received! "
+			"FPGA IN ERROR STATE\n");
 		return -ENOMEM;
+	}
 
-	mapping = dma_map_single(pdi->dev, buf, PCKT_SIZE, DMA_FROM_DEVICE);
+	skb_reserve(skb, NET_IP_ALIGN);
+	skb->dev = pdi->netdev; 
+	skb->protocol = eth_type_trans(skb, pdi->netdev); 
+
+	mapping = dma_map_single(pdi->dev, skb->data, PCKT_SIZE, 
+				 DMA_FROM_DEVICE);
 	if (dma_mapping_error(pdi->dev, mapping)) {
 		debug_print("pdi: mapping error!\n");
-		kfree(buf);
 		return -ENOMEM;
 	} 
 	
-	ri->skb = (struct sk_buff *)buf;
+	if (mapping % 4 != 0) 
+		pr_info("mapping mod 4 = %d\n", mapping % 4);
+	
+	ri->skb = skb;
 	ri->map = mapping;
 	ring->desc[dest].addr = mapping;	
 	return 0;	
@@ -423,9 +421,20 @@ static void pdi_free_rx_skb(struct pdi *pdi, int dest)
 	struct ring_info *ri = &ring->buffer[dest];
 
 	dma_unmap_single(pdi->dev, ri->map, PCKT_SIZE, DMA_FROM_DEVICE); 
-	kfree((char *)ri->skb);
+	dev_kfree_skb_any(ri->skb);
+
 	ri->skb = NULL;
 	ring->desc[dest].addr = 0;
+}
+
+static int pdi_unmap_alloc_rx_skb(struct pdi *pdi, int dest)
+{
+	struct dma_ring *ring = &pdi->rx_ring;
+	struct ring_info *ri = &ring->buffer[dest];
+	
+	dma_unmap_single(pdi->dev, ri->map, PCKT_SIZE, DMA_FROM_DEVICE);
+	
+	return pdi_alloc_rx_skb(pdi, dest);
 }
 
 static int pdi_init_dma_rx_ring_info(struct pdi *pdi)
