@@ -341,6 +341,7 @@ component AXI_Master is
 		AXI_RXN_DONE	: out std_logic;
 		AXI_RXN_STRB	: out std_logic;
 		BURST		: in  std_logic_vector(7 downto 0);
+		RX_WSTRB	: in  std_logic_vector(3 downto 0);
 
 		M_AXI_ACLK	: in  std_logic;
 		M_AXI_ARESETN	: in  std_logic;
@@ -990,6 +991,7 @@ begin
 			AXI_RXN_DONE	=> axi_m_done_rxn,
 			AXI_RXN_STRB	=> axi_m_strb_rxn,
 			BURST		=> axi_m_burst,
+			RX_WSTRB	=> dma_rx_wstrb, 
 
 			M_AXI_ACLK	=> M_AXI_ACLK,
 			M_AXI_ARESETN	=> M_AXI_ARESETN,

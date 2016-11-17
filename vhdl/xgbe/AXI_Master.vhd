@@ -30,6 +30,7 @@ entity AXI_Master is
 		AXI_RXN_DONE	: out std_logic;
 		AXI_RXN_STRB	: out std_logic;
 		BURST		: in  std_logic_vector(7 downto 0);
+		RX_WSTRB	: in  std_logic_vector(3 downto 0);
 
 		M_AXI_ACLK	: in  std_logic;
 		M_AXI_ARESETN	: in  std_logic;
@@ -126,6 +127,7 @@ architecture implementation of AXI_Master is
 	signal M_DATA_IN_S	: std_logic_vector(C_M_AXI_DATA_WIDTH - 1 downto 0);
 	signal M_TARGET_ADDR_S 	: std_logic_vector(C_M_AXI_ADDR_WIDTH - 1 downto 0);
 
+	signal axi_wstrb	: std_logic_vector(3 downto 0);
 	signal strb_axi_write	: std_logic;
 begin
 	-- I/O Connections assignments
@@ -146,7 +148,7 @@ begin
 	M_AXI_WVALID	<= axi_wvalid;
 	M_AXI_WLAST	<= axi_wlast;
 	M_AXI_WUSER	<= (others => '0');
-	M_AXI_WSTRB	<= "1111";
+	M_AXI_WSTRB	<= axi_wstrb;
 	M_AXI_BREADY	<= axi_bready;
 	M_AXI_ARID	<= (others => '0');
 	M_AXI_ARLEN	<= axi_arwlen;
@@ -500,7 +502,7 @@ begin
 		M_DATA_IN_S 	<= (others => '0');
 
 		axi_arwlen 	<= (others => '0');
-
+		axi_wstrb	<= (others => '0');
 	else
 
 		start_single_burst_write 	<= '0';
@@ -523,7 +525,9 @@ begin
 			M_DATA_IN_S	<= M_DATA_IN;
 			start_single_burst_write <= '1';
 			strb_axi_write 	<= '1';
+			axi_wstrb	<= RX_WSTRB;
 		elsif ( INIT_AXI_RXN = '1') then
+			axi_arwlen 	<= BURST;
 			mst_exec_state 	<= INIT_READ;
 			M_TARGET_ADDR_S <= M_TARGET_BASE_ADDR;
 		else
@@ -540,6 +544,7 @@ begin
 		elsif (AXI_TXN_IN_STRB = '1' and axi_wvalid = '0') then
 			M_DATA_IN_S 	<= M_DATA_IN;
 			strb_axi_write 	<= '1';
+			axi_wstrb	<= RX_WSTRB;
 		end if;
 
 	

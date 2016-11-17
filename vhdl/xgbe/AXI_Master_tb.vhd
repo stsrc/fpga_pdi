@@ -33,6 +33,7 @@ component AXI_Master is
 		AXI_RXN_DONE	: out std_logic;
 		AXI_RXN_STRB	: out std_logic;
 		BURST		: in  std_logic_vector(7 downto 0);
+		RX_WSTRB	: in  std_logic_vector(3 downto 0);
 
 		M_AXI_ACLK	: in  std_logic;
 		M_AXI_ARESETN	: in  std_logic;
@@ -186,6 +187,7 @@ end component;
 	signal axi_init_txn, axi_done_txn, axi_init_rxn, axi_done_rxn : std_logic := '0';
 	signal axi_rxn_strb, axi_txn_strb : std_logic := '0';
 	signal burst	: std_logic_vector(7 downto 0) := (others => '0');
+	signal rx_wstrb	: std_logic_vector(3 downto 0) := (others => '0');
 begin
 	
 
@@ -202,6 +204,7 @@ begin
 			AXI_TXN_IN_STRB => axi_txn_in_strb,
 			AXI_RXN_STRB => axi_rxn_strb,
 			BURST	=> burst,
+			RX_WSTRB => rx_wstrb,
 			M_AXI_ACLK => aclk,
 			M_AXI_ARESETN => aresetn,
 			M_AXI_AWADDR => awaddr,
@@ -325,9 +328,9 @@ begin
 		m_data_in <= std_logic_vector(to_unsigned(64, 32));
 		burst <= std_logic_vector(to_unsigned(i, 8));
 		axi_init_txn <= '1';
+		rx_wstrb <= "0011";
 		wait for 10 ns;
 		axi_init_txn <= '0';
-
 		while (axi_done_txn /= '1') loop
 			wait for 10 ns;
 			axi_txn_in_strb <= '0';

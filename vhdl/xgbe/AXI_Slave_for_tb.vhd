@@ -488,6 +488,9 @@ begin
 		M_TX_STRB <= '0';
 	       if ( axi_wready = '1' and S_AXI_WVALID = '1') then
 	        M_TX_DATA  <= S_AXI_WDATA;
+		if (S_AXI_WSTRB = "1100") then
+			M_TX_DATA <= S_AXI_WDATA(31 downto 16) & "0000000000000000";
+		end if;
 		    M_TX_STRB <= '1';
 	       end if;
 	     end if;
