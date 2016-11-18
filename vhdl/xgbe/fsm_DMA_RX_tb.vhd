@@ -112,7 +112,7 @@ begin
 	if RX_PCKT_DATA_STRB = '1' then
 		RX_PCKT_DATA <= std_logic_vector(unsigned(RX_PCKT_DATA) + 1);
 	elsif RX_PCKT_CNT_STRB = '1' then
-		RX_PCKT_DATA <= std_logic_vector(to_unsigned(0, 32));
+		RX_PCKT_DATA <= std_logic_vector(to_unsigned(65536, 32));
 	end if;
 	wait until clk = '0';
 	wait until clk = '1';
@@ -133,11 +133,11 @@ begin
 	DMA_EN <= '1';
 	RCV_EN <= '1';
 	wait for 10 ns;
-	while(true) loop
-	for i in 0 to 9 loop
+
+	for i in 9 to 9 loop
 		XGBE_PACKET_RCV <= '1';
 		RX_PCKT_CNT <= std_logic_vector(to_unsigned(56 + i, 32));
-		DATA_IN <= std_logic_vector(to_unsigned(128 + i + 2, 32));
+		DATA_IN <= std_logic_vector(to_unsigned(128 + 2, 32));
 		wait for 10 ns;
 		XGBE_PACKET_RCV <= '0';
 		wait until INIT_AXI_TXN = '1';
@@ -150,7 +150,7 @@ begin
 		AXI_RXN_DONE <= '1';
 		wait for 10 ns;
 		AXI_RXN_DONE <= '0';
-		if (i = 9) then
+		if (i >= 7) then
 			to_add := 1;
 		else
 			to_add := 0;
@@ -177,7 +177,7 @@ begin
 	RX_PRCSSD_STRB <= '1';
 	wait for 10 ns;
 	RX_PRCSSD_STRB <= '0'; 	
-	end loop;
+	wait;
 end process;
 
 end tb_arch;
