@@ -53,7 +53,7 @@
 
 MODULE_LICENSE("GPL");
 
-#define PCKT_SIZE 2048
+#define PCKT_SIZE 1400
 
 struct pdi;
 static void pdi_free_rx_skb(struct pdi *pdi, int dest);
@@ -131,7 +131,6 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	tx_ring = &pdi->tx_ring;
 
 	data_len = pdi->rx_ring.desc[0].cnt;
-	pr_info("pdi_start_xmit: data_len = %d\n", data_len);
 
 	if ((tx_ring->desc_cur + 1) % tx_ring->desc_max == 
 	    tx_ring->desc_cons) {
@@ -296,20 +295,19 @@ static int pdi_rx(struct pdi *pdi)
 		return 0;		
 
 	packets_cnt /= 8;
-	pr_info("pdi_rx: packet_cnt = %d\n", packets_cnt);
 
 	for (i = rx_ring->desc_cons; i != (rx_ring->desc_cons + packets_cnt) %
 		rx_ring->desc_max; i = (i + 1) % rx_ring->desc_max) {
 		dma_sync_single_for_cpu(pdi->dev, rx_ring->buffer[i].map, 
 				   PCKT_SIZE, DMA_FROM_DEVICE);
 		data_len = rx_ring->desc[i].cnt;
-		pr_info("pdi_rx: data_len = %d\n", data_len);
 		skb = rx_ring->buffer[i].skb;
 		skb_put(skb, data_len);
+		skb->dev = pdi->netdev; 
+		skb->protocol = eth_type_trans(skb, pdi->netdev); 
 		skb_checksum_none_assert(skb);	
 		ret = netif_receive_skb(skb);
-		pdi->netdev->stats.rx_bytes += (unsigned long)data_len;
-
+		pdi->netdev->stats.rx_bytes += (unsigned long)data_len;	
 		pdi_unmap_alloc_rx_skb(pdi, i);
 	}
 
@@ -396,19 +394,13 @@ static int pdi_alloc_rx_skb(struct pdi *pdi, int dest)
 	}
 
 	skb_reserve(skb, NET_IP_ALIGN);
-	skb->dev = pdi->netdev; 
-	skb->protocol = eth_type_trans(skb, pdi->netdev); 
-
 	mapping = dma_map_single(pdi->dev, skb->data, PCKT_SIZE, 
 				 DMA_FROM_DEVICE);
 	if (dma_mapping_error(pdi->dev, mapping)) {
 		debug_print("pdi: mapping error!\n");
 		return -ENOMEM;
 	} 
-	
-	if (mapping % 4 != 0) 
-		pr_info("mapping mod 4 = %d\n", mapping % 4);
-	
+		
 	ri->skb = skb;
 	ri->map = mapping;
 	ring->desc[dest].addr = mapping;	

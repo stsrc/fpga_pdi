@@ -120,6 +120,7 @@ end process;
 
 process 
 	variable to_add : integer := 0;	
+	variable loop_cnt: integer := 0;
 begin
 	wait for 10 ns;
 	RX_DESC_ADDR <= std_logic_vector(to_unsigned(64, 32));
@@ -133,8 +134,8 @@ begin
 	DMA_EN <= '1';
 	RCV_EN <= '1';
 	wait for 10 ns;
-
-	for i in 9 to 9 loop
+	while(true) loop
+	for i in 0 to 9 loop
 		XGBE_PACKET_RCV <= '1';
 		RX_PCKT_CNT <= std_logic_vector(to_unsigned(56 + i, 32));
 		DATA_IN <= std_logic_vector(to_unsigned(128 + 2, 32));
@@ -158,7 +159,8 @@ begin
 		for i in 0 to 1 + to_add loop
 			wait until INIT_AXI_TXN = '1';
 			wait for 10 ns;
-			for j in 0 to 7 loop
+			loop_cnt := to_integer(unsigned(BURST));
+			for j in 0 to loop_cnt loop
 				AXI_TXN_STRB <= '1';
 				wait for 10 ns;
 				AXI_TXN_STRB <= '0';
@@ -177,7 +179,7 @@ begin
 	RX_PRCSSD_STRB <= '1';
 	wait for 10 ns;
 	RX_PRCSSD_STRB <= '0'; 	
-	wait;
+	end loop;
 end process;
 
 end tb_arch;

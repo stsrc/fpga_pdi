@@ -91,6 +91,7 @@ process(clk) begin
 	if (rising_edge(clk)) then
 		if (aresetn = '0') then
  			RX_BYTES_REG			<= (others => '0');
+ 			RX_BYTES_REG_tmp		<= (others => '0');
 			RX_DESC_ADDR_REG 		<= (others => '0');
 			RX_SIZE_REG			<= (others => '0');
 			RX_PRCSSD_REG			<= (others => '0');
@@ -234,13 +235,15 @@ process(clk) begin
 					DATA_OUT		<= RX_PCKT_DATA;
 				when 2 =>
 					if (RX_WRITE_PHASE = '0') then
-						DATA_OUT <= RX_PCKT_DATA(15 downto 0) & RX_PCKT_DATA(31 downto 16);
+						DATA_OUT <= RX_PCKT_DATA(15 downto 0) & "0000000000000000";
 						RX_PCKT_SAVE <= unsigned(RX_PCKT_DATA(31 downto 16));
 						RX_WSTRB <= "1100";
 					else
---						DATA_OUT <= RX_PCKT_DATA(15 downto 0) &
---							    std_logic_vector(RX_PCKT_SAVE);
 						RX_WSTRB <= "1111";
+						if (RX_BYTES_REG = 0 and RX_BYTES_REG_tmp = 2) then
+							RX_WSTRB <= "0011";
+							BURST 	 <= (others => '0');
+						end if;
 					end if;
 				when others =>
 					RX_BUFF_ADDR_MOD <= (others => '0');
@@ -291,9 +294,8 @@ process(clk) begin
 					RX_STATE <= WRITE_WORD_WAIT;
 					if (RX_BYTES_REG_tmp /= 0 and RX_BYTES_REG = 0) then
 						RX_BYTES_REG_tmp <= (others => '0');
-						DATA_OUT <= RX_PCKT_DATA(15 downto 0) &
+						DATA_OUT <= "0000000000000000" &
 							    std_logic_vector(RX_PCKT_SAVE);
-						RX_WSTRB <= "1111";
 					end if;
 				end if;
 
@@ -303,8 +305,8 @@ process(clk) begin
 						DATA_OUT 	<= RX_PCKT_DATA;
 					else
 						RX_WSTRB 	<= "1111";
-						DATA_OUT 	<= RX_PCKT_DATA(15 downto 0) 
-								   & std_logic_vector(RX_PCKT_SAVE);
+						DATA_OUT 	<= RX_PCKT_DATA(15 downto 0) & 
+								   std_logic_vector(RX_PCKT_SAVE);
 						RX_PCKT_SAVE 	<= unsigned(RX_PCKT_DATA(31 downto 16));
 					end if;
 					AXI_TXN_IN_STRB 	<= '1';

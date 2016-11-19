@@ -631,7 +631,7 @@ process
 begin
 	wait until rst_clk_20MHz = '1';
 
-	M_RD_DATA <= std_logic_vector(to_unsigned(66, 32));
+	M_RD_DATA <= std_logic_vector(to_unsigned(64, 32));
 
 	wait for 30 ns;
  	s_axi_awaddr<="01000";

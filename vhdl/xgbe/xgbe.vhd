@@ -678,6 +678,8 @@ end component reset_con;
 	signal pkt_rx_data, pkt_tx_data: std_logic_vector(63 downto 0) := (others => '0');
 	signal pkt_rx_mod, pkt_tx_mod : std_logic_vector(2 downto 0) := (others => '0');
 
+	signal int_to_counter	: std_logic;
+
 begin
 	--process resets not used AXI register.
    	process (s_axi_aclk) begin
@@ -703,7 +705,7 @@ begin
 		port map (
 			clk => s_axi_aclk,
 			resetn => con_100MHz_resetn,
-			incr => interrupt_fsm_DMA_RX,
+			incr => int_to_counter,
 			get_val => slv_reg3_rd_strb,
 			int_en	=> int_en_100MHz,
 			cnt_out => slv_reg3_rd,
@@ -1203,6 +1205,17 @@ begin
 			DIN_1(0) => strb_cnt_dma_mux_rx,
 			DOUT(0) => strb_cnt_mux_fsm_rx,
 			ADDR => dma_en_100MHz
+		);
+
+	int_to_counter_rx : MUX
+		generic map (
+			DATA_WIDTH => 1
+		)
+		port map (
+			DIN_0(0) => interrupt_fifo_counter, 
+			DIN_1(0) => interrupt_fsm_DMA_RX,
+			DOUT(0) => int_to_counter,
+			ADDR	=> dma_en_100MHz
 		);
 
 	xge_mac_0 : xge_mac
