@@ -53,7 +53,7 @@
 
 MODULE_LICENSE("GPL");
 
-#define PCKT_SIZE 1400
+#define PCKT_SIZE 1514 + NET_IP_ALIGN
 
 struct pdi;
 static void pdi_free_rx_skb(struct pdi *pdi, int dest);
