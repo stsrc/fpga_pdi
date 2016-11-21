@@ -161,7 +161,6 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	wmb();
 	iowrite32(0xFFFFFFFF, pdi->reg7);	
-	wmb();
 
 	netdev_sent_queue(dev, skb->len);
 	return NETDEV_TX_OK;
@@ -325,9 +324,13 @@ static int pdi_poll(struct napi_struct *napi, int budget)
 	napi_complete(&pdi->napi);
 
 	if (budget > packets_cnt) {
-		/* Enable interrupt, data reception and dma. */
+		/* Enable interrupt, data reception and DMA. */
 		iowrite32(cpu_to_le32((1 << 1) | (1 << 2) | (1 << 3)), pdi->reg2);
 	}
+
+	if (packets_cnt > budget)
+		pr_info("packets_cnt = %d, budget = %d\n", packets_cnt, budget);
+
 	return packets_cnt;
 }
 
@@ -638,8 +641,8 @@ static void pdi_set_pdi(struct pdi *pdi, struct platform_device *pdev,
 			struct net_device *netdev)
 {
 	memset(pdi, 0, sizeof(struct pdi));
-	*(u32 *)&pdi->tx_ring.desc_max = 64;
-	*(u32 *)&pdi->rx_ring.desc_max = 64;
+	*(u32 *)&pdi->tx_ring.desc_max = 1024;
+	*(u32 *)&pdi->rx_ring.desc_max = 1024;
 	pdi->netdev = netdev;
 	pdev->dev.platform_data = pdi;
 	pdi->dev = &pdev->dev;
@@ -714,7 +717,6 @@ static int pdi_probe(struct platform_device *pdev)
 	wmb();
 	/* Enable data reception, interrupts and DMA. */
 	iowrite32(1 << 1 | 1 << 2 | 1 << 3, pdi->reg2); 
-	wmb();
 	debug_print("pdi: init 6\n");
 	return 0;
 err3:
