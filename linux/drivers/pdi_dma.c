@@ -1,9 +1,11 @@
+//TODO NETIF_F_SG
+//TODO MTU etc
+//TODO 
 //TODO dma syncro??
 //TODO netdev, dev, pdev - think/read about it.
 //TODO spinlocks, semaphores, race conditions etc.
 //TODO more then one card!!!
 //TODO DETECTION OF ALREADY USED DEVICE, ETC!
-
 
 #include <linux/errno.h>
 #include <linux/types.h>
@@ -60,21 +62,6 @@ static void pdi_free_rx_skb(struct pdi *pdi, int dest);
 static int pdi_unmap_alloc_rx_skb(struct pdi *pdi, int dest);
 static int pdi_alloc_rx_skb(struct pdi *pdi, int dest);
 static void pdi_free_rx_skb(struct pdi *pdi, int dest);
-
-/*
- * reg0 - packet's size in bytes. To push packet into MAC write
- * packet bytes count into it.
- * reg1 - packet's word. Write to this register data which you want to
- *        transmit.
- * reg2 - control register.
- *        1 LSB bit - reset bit.
- *                    Write '1' to reset xgbe part of design.
- *                    After write delay execution for 1 ms, to ensure that
- *		      reset ended.
- *        2 LSB bit - data reception enable bit. 
- *                    Write '1' to enable data reception.
- * reg3 - Counter of not read packets yet. Each read zeroes this reg.
- */
 
 struct ring_info {
 	struct sk_buff *skb;
@@ -160,6 +147,10 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	tx_ring->desc_cur = (tx_ring->desc_cur + 1) % tx_ring->desc_max;
 
 	wmb();
+	/* 
+	 * Inform fsm_DMA_TX that there is packet ready to be pushed into 
+	 * the world.
+	 */
 	iowrite32(0xFFFFFFFF, pdi->reg7);	
 
 	netdev_sent_queue(dev, skb->len);
@@ -188,7 +179,8 @@ static int pdi_complete_xmit(struct pdi *pdi)
 			debug_print("PDI_COMPLETE_XMIT FAILED REALLY HARD!\n");
 		}
 	} else {
-		if (processed > tx_ring->desc_cur + tx_ring->desc_max - tx_ring->desc_cons) {
+		if (processed > tx_ring->desc_cur + tx_ring->desc_max - 
+		    tx_ring->desc_cons) {
 			debug_print("PDI_COMPLETE_XMIT FAILED REALLY HARD!\n");
 		}
 	}
@@ -463,7 +455,7 @@ static void pdi_deinit_dma_rx_ring_info(struct pdi *pdi)
 
 static void pdi_deinit_dma_tx_ring_info(struct pdi *pdi)
 {
-	/* UNMAP MAPPED PACKETS! */
+	/* TODO: UNMAP MAPPED PACKETS! */
 }
 
 static int pdi_init_dma_rings(struct platform_device *pdev)
@@ -483,10 +475,6 @@ static int pdi_init_dma_rings(struct platform_device *pdev)
 
 	ret = pdi_init_dma_rx_ring_info(pdi);
 	if (ret) {
-		/* 
-		 * TODO: change pdi_(de)init_dma_ring functions parameters
-		 * 	 into something smarter.
-		 */
 		pdi_deinit_dma_ring(pdi, &pdi->tx_ring);
 		pdi_deinit_dma_ring(pdi, &pdi->rx_ring);
 		return ret;

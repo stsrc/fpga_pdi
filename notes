@@ -33,3 +33,9 @@ Call Trace:
 [<c000e2a4>] __do_softirq+0x140/0x2bc
 [<c000e68c>] irq_exit+0x44/0x5c
 
+Zone ranges:
+  DMA      [mem 0x0000000080000000-0x00000000afffffff]
+  Normal   empty
+  HighMem  [mem 0x00000000b0000000-0x00000000ffffefff]
+
+
