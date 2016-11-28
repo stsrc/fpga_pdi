@@ -1,9 +1,7 @@
 //TODO NETIF_F_SG
 //TODO MTU etc
-//TODO 
 //TODO dma syncro??
 //TODO netdev, dev, pdev - think/read about it.
-//TODO spinlocks, semaphores, race conditions etc.
 //TODO more then one card!!!
 //TODO DETECTION OF ALREADY USED DEVICE, ETC!
 
@@ -71,13 +69,34 @@ struct ring_info {
 struct dma_desc {
 	dma_addr_t cnt;
 	dma_addr_t addr; 
-} __attribute__((packed));
+}__attribute__((packed));
+
+struct dma_desc_tx {
+	dma_addr_t cnt;
+	dma_addr_t addr;
+	dma_addr_t next;
+}__attribute__((packed));
 
 struct dma_ring {
 	struct ring_info *buffer;
 
 	struct dma_desc *desc;
 	dma_addr_t desc_p;
+
+	u32 desc_cur;
+	u32 desc_cons;
+	const u32 desc_max;
+};
+
+struct dma_ring_tx {
+	struct ring_info *buffer;
+
+	struct dma_desc_tx *desc;
+	dma_addr_t desc_p;
+
+	u32 buf_cur;
+	u32 buf_cons;
+	const u32 buf_max;
 
 	u32 desc_cur;
 	u32 desc_cons;
@@ -101,7 +120,7 @@ struct pdi {
 	void __iomem *reg6;
 	void __iomem *reg7;
 
-	struct dma_ring tx_ring;
+	struct dma_ring_tx tx_ring;
 	struct dma_ring rx_ring;
 };
 
@@ -110,8 +129,8 @@ struct pdi {
  */
 static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	uint32_t cnt = 0;
-	struct dma_ring *tx_ring = NULL;
+	uint32_t cnt_buf, cnt_desc = 0;
+	struct dma_ring_tx *tx_ring = NULL;
 	struct pdi *pdi = (struct pdi *)netdev_priv(dev);
 	u32 data_len;
 
@@ -125,54 +144,84 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_BUSY;	
 	}
 
-	cnt = tx_ring->desc_cur;
+	cnt_buf = tx_ring->buf_cur;
+	cnt_desc = tx_ring->desc_cur;
 
-	tx_ring->buffer[cnt].skb = skb; 
+	tx_ring->buffer[cnt_buf].skb = skb;
+ 
+	if (skb_shinfo(skb)->nr_frags == 0)
+		tx_ring->buffer[cnt_buf].map = dma_map_single(pdi->dev, skb->data,
+						skb->len, DMA_TO_DEVICE);
+	else
+		tx_ring->buffer[cnt_buf].map = dma_map_single(pdi->dev, skb->data,
+						skb->data_len, DMA_TO_DEVICE);
 
-	tx_ring->buffer[cnt].map = dma_map_single(pdi->dev, skb->data, skb->len, 
-						  DMA_TO_DEVICE);
-
-	if (dma_mapping_error(pdi->dev, tx_ring->buffer[cnt].map)) {
+	if (dma_mapping_error(pdi->dev, tx_ring->buffer[cnt_buf].map)) {
 		debug_print("pdi: dma_map_single failed!\n");
 		return NETDEV_TX_BUSY;
 	}
 
-	tx_ring->desc[cnt].addr = tx_ring->buffer[cnt].map;
-	tx_ring->desc[cnt].cnt = skb->len;
+	tx_ring->desc[cnt_desc].addr = tx_ring->buffer[cnt_buf].map;
+	tx_ring->desc[cnt_desc].cnt = skb->len;
+	tx_ring->desc[cnt_desc].next = 0;
 
+	tx_ring->buf_cur = (tx_ring->buf_cur + 1) % tx_ring->buf_max;
 
-	dma_sync_single_for_device(pdi->dev, tx_ring->buffer[cnt].map, 
-				   skb->len, DMA_TO_DEVICE);
+	if (skb_shinfo(skb)->nr_frags == 0) {
+		dma_sync_single_for_device(pdi->dev, tx_ring->buffer[cnt_buf].map, 
+					   skb->len, DMA_TO_DEVICE);
 	
-	tx_ring->desc_cur = (tx_ring->desc_cur + 1) % tx_ring->desc_max;
+		tx_ring->desc_cur = (tx_ring->desc_cur + 1) % tx_ring->desc_max;
+		wmb();
+		/* 
+		 * Inform fsm_DMA_TX that there is packet ready to be pushed into 
+		 * the world.
+		 */
+		iowrite32(0xFFFFFFFF, pdi->reg7);	
 
-	wmb();
-	/* 
-	 * Inform fsm_DMA_TX that there is packet ready to be pushed into 
-	 * the world.
-	 */
-	iowrite32(0xFFFFFFFF, pdi->reg7);	
+		netdev_sent_queue(dev, skb->len);
+	} else {
+		tx_ring->desc[cnt_desc].cnt = skb->data_len;
+		for (int i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+			const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+			int len = skb_frag_size(frag);
+			tx_ring->desc[cnt_desc].next = skb_frag_dma_map(pdi->dev,
+							frag, 0, len, 
+							DMA_TO_DEVICE);
+			cnt_desc = (cnt_desc + 1) % tx_ring->desc_max;
+			tx_ring->desc[cnt_desc].cnt = len;
+			tx_ring->desc[cnt_desc].addr = tx_ring->desc[(cnt_desc - 1) 
+				% tx_ring->desc_max].addr;
+			tx_ring->desc[cnt_desc].next = 0;
+		}
 
-	netdev_sent_queue(dev, skb->len);
+		tx_ring->desc_cur = cnt_desc;
+
+		wmb();
+		iowrite32(0xFFFFFFFF, pdi->reg7);
+		netdev_sent_queue(dev, skb->len);
+	}
+
 	return NETDEV_TX_OK;
 }
 
 static int pdi_complete_xmit(struct pdi *pdi)
 {
 	struct sk_buff *skb = NULL;
-	struct dma_ring *tx_ring = &pdi->tx_ring;
+	struct dma_ring_tx *tx_ring = &pdi->tx_ring;
 	u32 packets = 0, bytes = 0;
-	u32 i = 0;
 	u32 processed = 0;
-	u32 cons = 0;
+	u32 cons_buf, cons_desc = 0;
+	int i = 0;
+	cons_buf = tx_ring->buf_cons;
+	cons_desc = tx_ring->desc_cons;
 
-	cons = tx_ring->desc_cons;
 	processed = ioread32(pdi->reg6);
 	rmb();	
 	if (processed == 0)
 		return 0;
 
-	processed /= sizeof(struct dma_desc);
+	processed /= sizeof(struct dma_desc_tx);
 	
 	if (tx_ring->desc_cons < tx_ring->desc_cur) {
 		if (processed > tx_ring->desc_cur - tx_ring->desc_cons) {
@@ -185,18 +234,32 @@ static int pdi_complete_xmit(struct pdi *pdi)
 		}
 	}
 
-	for (i = cons; i != (cons + processed) % tx_ring->desc_max; 
-	     i = (i + 1) % tx_ring->desc_max) {
+	for (i = cons_buf; i != (cons_buf + processed) % tx_ring->buf_max;
+	     i = (i + 1) % tx_ring->buf_max) {
 		skb = tx_ring->buffer[i].skb;
-		dma_unmap_single(pdi->dev, tx_ring->buffer[i].map, skb->len,
-			 	 DMA_TO_DEVICE);
+		if (skb_shinfo(skb)->nr_frags == 0)
+			dma_unmap_single(pdi->dev, tx_ring->buffer[i].map, skb->len,
+				 	 DMA_TO_DEVICE);
+		else {
+			dma_unmap_single(pdi->dev, tx_ring->buffer[i].map, 
+					 skb->data_len, DMA_TO_DEVICE);
+			for (int j = 0; j < skb_shinfo(skb)->nr_frags; j++) {
+				dma_unmap_single(pdi->dev, 
+					tx_ring->desc[cons_desc].addr,
+					tx_ring->desc[cons_desc].cnt,
+					DMA_TO_DEVICE);
+				cons_desc = (cons_desc + 1) % tx_ring->desc_max;
+			}
+			tx_ring->desc_cons = cons_desc;
+		}
+
 		bytes += skb->len;
 		packets++;
 		dev_kfree_skb(skb);
 	}
 
 	netdev_completed_queue(pdi->netdev, packets, bytes);
-	tx_ring->desc_cons = i;
+	tx_ring->buf_cons = i;
 	return 0;
 }
 
@@ -351,10 +414,42 @@ static int pdi_init_dma_ring(struct pdi *pdi, struct dma_ring *ring)
 	return 0;
 }
 
+static int pdi_init_dma_ring_tx(struct pdi *pdi, struct dma_ring_tx *ring)
+{
+	const size_t desc_size = sizeof(struct dma_desc_tx);
+	
+	ring->desc = dma_zalloc_coherent(pdi->dev, ring->desc_max * 
+				desc_size, &ring->desc_p, GFP_KERNEL | 
+				GFP_DMA);
+
+	if (!ring->desc) 
+		return -ENOMEM;
+	
+	ring->buffer = kzalloc(sizeof(struct ring_info) * ring->desc_max,
+				 GFP_KERNEL);
+
+	if (!ring->buffer) {
+		dma_free_coherent(pdi->dev, desc_size * ring->desc_max, 
+			  ring->desc, ring->desc_p);
+		return -ENOMEM;		
+	} 
+
+	return 0;
+}
 
 static void pdi_deinit_dma_ring(struct pdi *pdi, struct dma_ring *ring)
 {
 	const size_t desc_size = sizeof(struct dma_desc);
+
+	kfree(ring->buffer);	
+
+	dma_free_coherent(pdi->dev, desc_size * ring->desc_max, 
+			  ring->desc, ring->desc_p);
+}
+
+static void pdi_deinit_dma_ring_tx(struct pdi *pdi, struct dma_ring_tx *ring)
+{
+	const size_t desc_size = sizeof(struct dma_desc_tx);
 
 	kfree(ring->buffer);	
 
@@ -427,16 +522,18 @@ static int pdi_unmap_alloc_rx_skb(struct pdi *pdi, int dest)
 static int pdi_init_dma_rx_ring_info(struct pdi *pdi)
 {
 	struct dma_ring *ring = &pdi->rx_ring;
-	int ret;
+	int ret = 0;
 	
 	for (int i = 0; i < ring->desc_max; i++) {
 		ret = pdi_alloc_rx_skb(pdi, i);	 
 		if (ret) {
 			for (int j = 0; j < i; j++)
 				pdi_free_rx_skb(pdi, j);
+
 			return ret;
 		}	
 	}
+
 	return 0;
 }
 
@@ -463,19 +560,19 @@ static int pdi_init_dma_rings(struct platform_device *pdev)
 	struct pdi *pdi = pdev->dev.platform_data;
 	int ret;
 
-	ret = pdi_init_dma_ring(pdi, &pdi->tx_ring);
+	ret = pdi_init_dma_ring_tx(pdi, &pdi->tx_ring);
 	if (ret)
 		return ret;
 
 	ret = pdi_init_dma_ring(pdi, &pdi->rx_ring);
 	if (ret) {
-		pdi_deinit_dma_ring(pdi, &pdi->tx_ring);
+		pdi_deinit_dma_ring_tx(pdi, &pdi->tx_ring);
 		return ret;
 	}	
 
 	ret = pdi_init_dma_rx_ring_info(pdi);
 	if (ret) {
-		pdi_deinit_dma_ring(pdi, &pdi->tx_ring);
+		pdi_deinit_dma_ring_tx(pdi, &pdi->tx_ring);
 		pdi_deinit_dma_ring(pdi, &pdi->rx_ring);
 		return ret;
 	}
@@ -490,7 +587,7 @@ static void pdi_deinit_dma_rings(struct platform_device *pdev)
 	pdi_deinit_dma_rx_ring_info(pdi);
 	pdi_deinit_dma_tx_ring_info(pdi);
 	pdi_deinit_dma_ring(pdi, &pdi->rx_ring);
-	pdi_deinit_dma_ring(pdi, &pdi->tx_ring);
+	pdi_deinit_dma_ring_tx(pdi, &pdi->tx_ring);
 }
 
 /*
@@ -614,6 +711,8 @@ static int pdi_init_ethernet(struct platform_device *pdev)
 	memset(pdi->netdev->dev_addr, DEVICE_MAC_BYTE, ETH_ALEN);
 	pdi->netdev->netdev_ops = &pdi_netdev_ops;
 
+	pdi->netdev->hw_features = NETIF_F_SG;
+
 	netif_napi_add(pdi->netdev, &pdi->napi, pdi_poll, 64);
 
 	rt = register_netdev(pdi->netdev);
@@ -630,6 +729,7 @@ static void pdi_set_pdi(struct pdi *pdi, struct platform_device *pdev,
 {
 	memset(pdi, 0, sizeof(struct pdi));
 	*(u32 *)&pdi->tx_ring.desc_max = 1024;
+	*(u32 *)&pdi->tx_ring.buf_max = 1024;
 	*(u32 *)&pdi->rx_ring.desc_max = 1024;
 	pdi->netdev = netdev;
 	pdev->dev.platform_data = pdi;

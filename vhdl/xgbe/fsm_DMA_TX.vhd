@@ -87,6 +87,7 @@ signal TX_SIZE_REG		: unsigned(31 downto 0);
 signal TX_PRCSSD_REG		: unsigned(31 downto 0);
 --
 signal TX_BUFF_ADDR		: unsigned(31 downto 0);
+signal TX_NEXT_BUFF_ADDR	: unsigned(31 downto 0);
 --
 signal TX_BUFF_ADDR_MOD		: unsigned(1 downto 0);
 --
@@ -111,6 +112,7 @@ type tx_states is (
 		FETCH_DESC,
 		FETCH_DESC_WAIT_0,
 		FETCH_DESC_WAIT_1,
+		FETCH_DESC_WAIT_2,
 		SET_FLAGS, 
 		FETCH_WORDS,
 		FETCH_WORDS_WAIT,
@@ -206,10 +208,10 @@ process(clk) begin
 
 			when FETCH_DESC =>
 				ADDR <= std_logic_vector(TX_DESC_ADDR_ACTUAL);
-				BURST_S <= to_unsigned(1, 8);
+				BURST_S <= to_unsigned(2, 8);
 				INIT_AXI_RXN <= '1';
-				TX_DESC_ADDR_ACTUAL <= TX_DESC_ADDR_ACTUAL + 8;
-				if (TX_DESC_ADDR_ACTUAL + 8 = TX_DESC_ADDR_REG + TX_SIZE_REG) then
+				TX_DESC_ADDR_ACTUAL <= TX_DESC_ADDR_ACTUAL + 12;
+				if (TX_DESC_ADDR_ACTUAL + 12 = TX_DESC_ADDR_REG + TX_SIZE_REG) then
 					TX_DESC_ADDR_ACTUAL <= TX_DESC_ADDR_REG;
 				end if;
 				TX_STATE <= FETCH_DESC_WAIT_0;
@@ -218,19 +220,19 @@ process(clk) begin
 				if (AXI_RXN_STRB = '1') then
 					TX_BYTES_REG <= unsigned(DATA_IN);
 					TX_BYTES_ACTUAL <= unsigned(DATA_IN);
-
 					TX_STATE <= FETCH_DESC_WAIT_1; 
-				else
-					TX_STATE <= FETCH_DESC_WAIT_0;
 				end if;
 			when FETCH_DESC_WAIT_1 =>
 				if (AXI_RXN_STRB = '1') then
 					TX_BUFF_ADDR <= unsigned(DATA_IN(31 downto 2) & "00");
 					TX_BUFF_ADDR_MOD <= unsigned(DATA_IN(1 downto 0));
+					TX_STATE <= FETCH_DESC_WAIT_2;
+				end if;
+ 			when FETCH_DESC_WAIT_2 =>
+				if (AXI_RXN_STRB = '1') then
+					TX_NEXT_BUFF_ADDR <= unsigned(DATA_IN);
 					TX_STATE <= SET_FLAGS;
-				else
-					TX_STATE <= FETCH_DESC_WAIT_1;
-				end if; 
+				end if;
 			when SET_FLAGS =>
 				if (AXI_RXN_DONE = '1') then
 					TX_STATE <= FETCH_WORDS;	
@@ -291,6 +293,8 @@ process(clk) begin
 				elsif (AXI_RXN_DONE = '1') then
 					if (TX_BYTES_ACTUAL  > 0) then
 						TX_STATE <= FETCH_WORDS;
+					elsif (TX_NEXT_BUFF_ADDR /= 0) then
+						TX_STATE <= FETCH_DESC;
 					elsif (TX_FAKE_READ = '1') then
 						TX_STATE <= FAKE_TX_STRB;
 					else

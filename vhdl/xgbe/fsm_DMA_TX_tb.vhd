@@ -122,59 +122,65 @@ process
 	wait for 10 ns;
 	TX_SIZE_STRB <= '0';
 	DMA_EN <= '1';
-	for i in 0 to 9 loop
-		wait for 20 ns;
-		TX_INCR_STRB <= '1';
-		wait for 10 ns;
-		TX_INCR_STRB <= '0';
-		wait until INIT_AXI_RXN = '1';
-		wait until INIT_AXI_RXN = '0';
-		DATA_IN <= std_logic_vector(to_unsigned(64, 32));
-		wait for 1 ns;
-		for j in 0 to 7 loop
-			AXI_RXN_STRB <= '1';
-			wait for 10 ns;
-			AXI_RXN_STRB <= '0';
-			wait for 10 ns;
-		end loop;
-		AXI_RXN_DONE <= '1';
-		wait for 10 ns;
-		AXI_RXN_DONE <= '0';
 
-		wait until INIT_AXI_RXN = '1';
-		wait until INIT_AXI_RXN = '0';
+	wait for 10 ns;
+	TX_INCR_STRB <= '1';
+	wait for 10 ns;
+	TX_INCR_STRB <= '0';
+	DATA_IN <= std_logic_vector(to_unsigned(16, 32));
 
-		DATA_IN <= std_logic_vector(to_unsigned(64, 32));
-		wait for 1 ns;
-		for j in 0 to to_integer(BURST) loop
-			AXI_RXN_STRB <= '1';
-			wait for 10 ns;
-			AXI_RXN_STRB <= '0';
-			wait for 10 ns;
-		end loop;
-		AXI_RXN_DONE <= '1';
-		wait for 10 ns;
-		AXI_RXN_DONE <= '0';
-		for j in 0 to 15 loop
+	for i in 0 to 3 loop
+		if (INIT_AXI_RXN /= '1') then
 			wait until INIT_AXI_RXN = '1';
-			wait until INIT_AXI_RXN = '0';
-			DATA_IN <= std_logic_vector(to_unsigned(0, 32));
-			wait for 1 ns;
-			for k in 0 to to_integer(BURST) loop
-				AXI_RXN_STRB <= '1';
-				wait for 10 ns;
-				AXI_RXN_STRB <= '0';
-				wait for 10 ns;
-			end loop;
-			AXI_RXN_DONE <= '1';
+		end if;
+		wait until INIT_AXI_RXN = '0';
+		wait for 10 ns;
+		for k in 0 to to_integer(unsigned(BURST)) loop
+			AXI_RXN_STRB <= '1';
 			wait for 10 ns;
-			AXI_RXN_DONE <= '0';
+			AXI_RXN_STRB <= '0';
+			wait for 10 ns;
 		end loop;
+		AXI_RXN_DONE <= '1';
+		wait for 10 ns;
+		AXI_RXN_DONE <= '0';
 	end loop;
+	wait until INIT_AXI_RXN = '1';
+	wait until INIT_AXI_RXN = '0';
+	wait for 10 ns;
+
+	AXI_RXN_STRB <= '1';
+	wait for 10 ns;
+	AXI_RXN_STRB <= '0';
+	wait for 10 ns;
+	DATA_IN <= std_logic_vector(to_unsigned(0, 32));
+	AXI_RXN_STRB <= '1';
+	wait for 10 ns;
+	AXI_RXN_STRB <= '0';
+	wait for 10 ns;
+
+	AXI_RXN_STRB <= '1';
+	wait for 10 ns;
+	AXI_RXN_STRB <= '0';
+	wait for 10 ns;
+
+	AXI_RXN_DONE <= '1';
+	wait for 10 ns;
+	AXI_RXN_DONE <= '0';
+
+	wait until INIT_AXI_RXN = '0';
+	wait for 10 ns;
+	for k in 0 to to_integer(unsigned(BURST)) loop
+		AXI_RXN_STRB <= '1';
+		wait for 10 ns;
+		AXI_RXN_STRB <= '0';
+		wait for 10 ns;
+	end loop;
+	AXI_RXN_DONE <= '1';
+	wait for 10 ns;
+	AXI_RXN_DONE <= '0';
+
+
 	wait;
 end process;
-
-
-
-
 end tb_arch; 
