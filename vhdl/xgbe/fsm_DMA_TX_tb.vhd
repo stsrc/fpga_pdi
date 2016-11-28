@@ -146,7 +146,7 @@ process
 
 		DATA_IN <= std_logic_vector(to_unsigned(64, 32));
 		wait for 1 ns;
-		for j in 0 to 7 loop
+		for j in 0 to to_integer(BURST) loop
 			AXI_RXN_STRB <= '1';
 			wait for 10 ns;
 			AXI_RXN_STRB <= '0';
@@ -160,7 +160,7 @@ process
 			wait until INIT_AXI_RXN = '0';
 			DATA_IN <= std_logic_vector(to_unsigned(0, 32));
 			wait for 1 ns;
-			for k in 0 to 7 loop
+			for k in 0 to to_integer(BURST) loop
 				AXI_RXN_STRB <= '1';
 				wait for 10 ns;
 				AXI_RXN_STRB <= '0';

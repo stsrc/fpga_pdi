@@ -54,6 +54,32 @@ end fsm_DMA_RX;
 
 architecture fsm_DMA_RX_arch of fsm_DMA_RX is
 
+procedure BURST_SIZE (
+		signal BURST 		: out unsigned(7 downto 0);
+		signal ADDR_MOD		: in unsigned(1 downto 0);
+		signal TX_BYTES_REG 	: in unsigned(31 downto 0))
+is
+begin
+	if (TX_BYTES_REG <= 4) then
+		BURST <= (others => '0');
+	elsif (TX_BYTES_REG <= 8) then
+		BURST <= to_unsigned(1, 8);
+	elsif (TX_BYTES_REG <= 12) then
+		BURST <= to_unsigned(2, 8);
+	elsif (TX_BYTES_REG <= 16) then
+		BURST <= to_unsigned(3, 8);
+	elsif (TX_BYTES_REG <= 20) then
+		BURST <= to_unsigned(4, 8);
+	elsif (TX_BYTES_REG <= 24) then
+		BURST <= to_unsigned(5, 8);
+	elsif (TX_BYTES_REG <= 28) then
+		BURST <= to_unsigned(6, 8);
+	else
+		BURST <= to_unsigned(7, 8);
+	end if;		
+end BURST_SIZE; 
+
+
 signal RX_BYTES_REG			: unsigned(31 downto 0);
 signal RX_DESC_ADDR_REG 		: unsigned(31 downto 0);
 signal RX_SIZE_REG			: unsigned(31 downto 0);
@@ -66,10 +92,14 @@ signal XGBE_PCKT_RCV_CNT		: unsigned(31 downto 0);
 signal RX_BUFF_ADDR_MOD			: unsigned(1 downto 0);
 signal RX_PCKT_SAVE			: unsigned(15 downto 0);
 signal RX_BYTES_REG_tmp			: unsigned(31 downto 0);
+signal BURST_S				: unsigned(7 downto 0);
 
 signal RX_WRITE_PHASE			: std_logic;
+--fsm_fifo_to_axi is synchronized with clk. It is impossible to get new value 
+--from fifo, one clock after strobing fsm_fifo_to_axi. That's why 1 clock delay
+--is used.
 signal delay_flag			: std_logic;
-signal align				: std_logic;
+
 type rx_states is 
 	(
 		IDLE,
@@ -84,7 +114,8 @@ type rx_states is
 signal RX_STATE : rx_states;
 
 begin
-	RX_PRCSSD <= std_logic_vector(RX_PRCSSD_REG);
+	BURST		<= std_logic_vector(BURST_S);
+	RX_PRCSSD 	<= std_logic_vector(RX_PRCSSD_REG);
 	RX_PRCSSD_INT	<= RX_PRCSSD_INT_S;
 
 process(clk) begin
@@ -97,7 +128,7 @@ process(clk) begin
 			RX_PRCSSD_REG			<= (others => '0');
 			RX_DESC_ADDR_ACTUAL		<= (others => '0');
 			RX_BUFF_ADDR			<= (others => '0');
-			BURST 				<= (others => '0');
+			BURST_S				<= (others => '0');
 			DATA_OUT			<= (others => '0');
 			ADDR 				<= (others => '0');
 			XGBE_PCKT_RCV_CNT		<= (others => '0');
@@ -112,7 +143,7 @@ process(clk) begin
 			RX_STATE 			<= IDLE;
 
 			delay_flag			<= '0';
-			align				<= '0';
+
 
 			RX_WRITE_PHASE			<= '0';
 			RX_WSTRB			<= (others => '0');
@@ -183,13 +214,13 @@ process(clk) begin
 			when SET_CNT =>
 				ADDR 			<= std_logic_vector(RX_DESC_ADDR_ACTUAL);
 				RX_DESC_ADDR_ACTUAL	<= RX_DESC_ADDR_ACTUAL + 4;
-				BURST			<= std_logic_vector(to_unsigned(0, 8));
+				BURST_S			<= to_unsigned(0, 8);
 				DATA_OUT 		<= RX_PCKT_CNT;
 				RX_BYTES_REG		<= unsigned(RX_PCKT_CNT);
 				RX_BYTES_REG_tmp	<= unsigned(RX_PCKT_CNT);
 				RX_PCKT_CNT_STRB 	<= '1';
 				INIT_AXI_TXN		<= '1';
-				RX_STATE <= SET_CNT_WAIT;
+				RX_STATE 		<= SET_CNT_WAIT;
 
 				if (unsigned(RX_PCKT_CNT) mod 8 /= 0 and
 				    unsigned(RX_PCKT_CNT) mod 8 <= 4) then
@@ -224,16 +255,17 @@ process(clk) begin
 				end if;
 
 			when WRITE_WORD	=>
-				BURST 			<= std_logic_vector(to_unsigned(7, 8));
 				ADDR			<= std_logic_vector(RX_BUFF_ADDR);
 				RX_BUFF_ADDR 		<= RX_BUFF_ADDR + 32;
 				INIT_AXI_TXN 		<= '1';
 				RX_STATE 		<= WRITE_WORD_WAIT;
 				case (to_integer(RX_BUFF_ADDR_MOD)) is
 				when 0 =>
+					BURST_SIZE(BURST_S, RX_BUFF_ADDR_MOD, RX_BYTES_REG);
 					RX_WSTRB		<= "1111";
 					DATA_OUT		<= RX_PCKT_DATA;
 				when 2 =>
+					BURST_SIZE(BURST_S, RX_BUFF_ADDR_MOD, RX_BYTES_REG_tmp);
 					if (RX_WRITE_PHASE = '0') then
 						DATA_OUT <= RX_PCKT_DATA(15 downto 0) & "0000000000000000";
 						RX_PCKT_SAVE <= unsigned(RX_PCKT_DATA(31 downto 16));
@@ -242,7 +274,6 @@ process(clk) begin
 						RX_WSTRB <= "1111";
 						if (RX_BYTES_REG = 0 and RX_BYTES_REG_tmp = 2) then
 							RX_WSTRB <= "0011";
-							BURST 	 <= (others => '0');
 						end if;
 					end if;
 				when others =>
@@ -296,6 +327,7 @@ process(clk) begin
 						RX_BYTES_REG_tmp <= (others => '0');
 						DATA_OUT <= "0000000000000000" &
 							    std_logic_vector(RX_PCKT_SAVE);
+						RX_WSTRB <= "0011";
 					end if;
 				end if;
 

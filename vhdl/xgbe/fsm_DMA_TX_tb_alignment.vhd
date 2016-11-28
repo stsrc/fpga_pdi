@@ -135,7 +135,7 @@ process begin
 		AXI_RXN_DONE <= '0';
 
 	
-		for j in 0 to 16 loop
+		for j in 0 to 2 loop
 			wait until INIT_AXI_RXN = '1';
 			wait until INIT_AXI_RXN = '0';
 			for k in 0 to to_integer(unsigned(BURST)) loop

@@ -51,22 +51,60 @@ end fsm_DMA_TX;
 
 architecture fsm_DMA_arch of fsm_DMA_TX is
 
-signal TX_DESC_ADDR_REG, TX_SIZE_REG	: unsigned(31 downto 0);
-signal TX_PRCSSD_REG			: unsigned(31 downto 0);
-signal TX_DESC_ADDR_ACTUAL		: unsigned(31 downto 0);
-signal TX_BUFF_ADDR			: unsigned(31 downto 0);
-signal TX_BUFF_ADDR_MOD			: unsigned(1 downto 0);
-signal TX_PCKT_SAVE			: unsigned(15 downto 0);
+procedure BURST_SIZE (
+		signal BURST 		: out unsigned(7 downto 0);
+		signal ADDR_MOD		: in unsigned(1 downto 0);
+		signal TX_BYTES_REG 	: in unsigned(31 downto 0))
+is
+begin
+	if (TX_BYTES_REG <= 4) then
+		BURST <= (others => '0');
+	elsif (TX_BYTES_REG <= 8) then
+		BURST <= to_unsigned(1, 8);
+	elsif (TX_BYTES_REG <= 12) then
+		BURST <= to_unsigned(2, 8);
+	elsif (TX_BYTES_REG <= 16) then
+		BURST <= to_unsigned(3, 8);
+	elsif (TX_BYTES_REG <= 20) then
+		BURST <= to_unsigned(4, 8);
+	elsif (TX_BYTES_REG <= 24) then
+		BURST <= to_unsigned(5, 8);
+	elsif (TX_BYTES_REG <= 28) then
+		BURST <= to_unsigned(6, 8);
+	else
+		BURST <= to_unsigned(7, 8);
+	end if;		
+end BURST_SIZE; 
+	
 
-signal TX_WRITE_PHASE			: std_logic;
-
-signal TX_INCR_STRB_CNT			: unsigned(31 downto 0);
-
+--Descriptor base address
+signal TX_DESC_ADDR_REG		: unsigned(31 downto 0);
+--Actual descriptor address
+signal TX_DESC_ADDR_ACTUAL	: unsigned(31 downto 0);
+--Size of descriptor ring
+signal TX_SIZE_REG		: unsigned(31 downto 0);
+--
+signal TX_PRCSSD_REG		: unsigned(31 downto 0);
+--
+signal TX_BUFF_ADDR		: unsigned(31 downto 0);
+--
+signal TX_BUFF_ADDR_MOD		: unsigned(1 downto 0);
+--
+signal TX_PCKT_SAVE		: unsigned(15 downto 0);
+--
+signal TX_WRITE_PHASE		: std_logic;
+--
+signal TX_INCR_STRB_CNT		: unsigned(31 downto 0);
+--Packet size in bytes
 signal TX_BYTES_REG		: unsigned(31 downto 0);
+--Pending packets bytes to send
 signal TX_BYTES_ACTUAL		: unsigned(31 downto 0);
-
+--fsm_axi_to_fifo conversion does not allow something
 signal TX_FAKE_READ		: std_logic;
 signal TX_PRCSSD_INT_S 		: std_logic;
+--Size of AXI Burst
+signal BURST_S			: unsigned(7 downto 0);
+
 
 type tx_states is (
 		IDLE,
@@ -83,8 +121,9 @@ signal TX_STATE	: tx_states;
 
 begin
 
-TX_PRCSSD <= std_logic_vector(TX_PRCSSD_REG);
-TX_PRCSSD_INT <= TX_PRCSSD_INT_S;
+TX_PRCSSD 	<= std_logic_vector(TX_PRCSSD_REG);
+BURST		<= std_logic_vector(BURST_S);
+TX_PRCSSD_INT 	<= TX_PRCSSD_INT_S;
 
 process(clk) begin
 	if (rising_edge(clk)) then
@@ -109,7 +148,7 @@ process(clk) begin
 			TX_PCKT_DATA <= (others => '0');
 			TX_PCKT_DATA_STRB <= '0';
 			TX_PCKT_CNT_STRB <= '0';
-			BURST <= (others => '0');
+			BURST_S <= (others => '0');
 			TX_STATE <= IDLE;
 		else			
 
@@ -167,7 +206,7 @@ process(clk) begin
 
 			when FETCH_DESC =>
 				ADDR <= std_logic_vector(TX_DESC_ADDR_ACTUAL);
-				BURST <= std_logic_vector(to_unsigned(1, 8));
+				BURST_S <= to_unsigned(1, 8);
 				INIT_AXI_RXN <= '1';
 				TX_DESC_ADDR_ACTUAL <= TX_DESC_ADDR_ACTUAL + 8;
 				if (TX_DESC_ADDR_ACTUAL + 8 = TX_DESC_ADDR_REG + TX_SIZE_REG) then
@@ -210,7 +249,8 @@ process(clk) begin
 			when FETCH_WORDS =>
 				ADDR <= std_logic_vector(TX_BUFF_ADDR);
 				TX_BUFF_ADDR <= TX_BUFF_ADDR + 32;
-				BURST <= std_logic_vector(to_unsigned(7, 8));
+				BURST_SIZE(BURST_S, TX_BUFF_ADDR_MOD, 
+					   TX_BYTES_ACTUAL);
 				INIT_AXI_RXN <= '1';
 				TX_STATE <= FETCH_WORDS_WAIT;
 

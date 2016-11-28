@@ -29,10 +29,10 @@ end fsm_fifo_to_mac;
 architecture Behavioral of fsm_fifo_to_mac is
 
 procedure MOD_VAL (
-		  signal fifo_cnt : in unsigned(13 downto 0);
-		  signal fifo_data : in std_logic_vector(63 downto 0);
-		  signal pkt_tx_mod : out std_logic_vector(2 downto 0);
-		  signal pkt_tx_data : out std_logic_vector(63 downto 0))
+		  signal fifo_cnt 	: in unsigned(13 downto 0);
+		  signal fifo_data 	: in std_logic_vector(63 downto 0);
+		  signal pkt_tx_mod 	: out std_logic_vector(2 downto 0);
+		  signal pkt_tx_data 	: out std_logic_vector(63 downto 0))
 is
 begin
 		case to_integer(fifo_cnt) is
