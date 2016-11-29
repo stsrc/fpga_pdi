@@ -135,16 +135,19 @@ process
 		end if;
 		wait until INIT_AXI_RXN = '0';
 		wait for 10 ns;
+
 		for k in 0 to to_integer(unsigned(BURST)) loop
 			AXI_RXN_STRB <= '1';
 			wait for 10 ns;
 			AXI_RXN_STRB <= '0';
 			wait for 10 ns;
 		end loop;
+
 		AXI_RXN_DONE <= '1';
 		wait for 10 ns;
 		AXI_RXN_DONE <= '0';
 	end loop;
+
 	wait until INIT_AXI_RXN = '1';
 	wait until INIT_AXI_RXN = '0';
 	wait for 10 ns;

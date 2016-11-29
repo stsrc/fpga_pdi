@@ -105,6 +105,7 @@ signal TX_FAKE_READ		: std_logic;
 signal TX_PRCSSD_INT_S 		: std_logic;
 --Size of AXI Burst
 signal BURST_S			: unsigned(7 downto 0);
+signal TX_BYTES_REG_CNT		: unsigned(31 downto 0);
 
 
 type tx_states is (
@@ -154,16 +155,16 @@ process(clk) begin
 			TX_STATE <= IDLE;
 		else			
 
-			INIT_AXI_RXN <= '0';
-			TX_PCKT_DATA_STRB <= '0';
-			TX_PCKT_CNT_STRB <= '0';
-			TX_PRCSSD_INT_S <= '0';	
+			INIT_AXI_RXN 		<= '0';
+			TX_PCKT_DATA_STRB 	<= '0';
+			TX_PCKT_CNT_STRB 	<= '0';
+			TX_PRCSSD_INT_S 	<= '0';	
 	
 			--TODO: Move it somewhere else	
 			if (TX_PRCSSD_STRB = '1') then
 				TX_PRCSSD_REG <= (others => '0');
 				if (TX_PRCSSD_INT_S = '1') then
-					TX_PRCSSD_REG <= to_unsigned(8, 32);
+					TX_PRCSSD_REG <= to_unsigned(12, 32);
 				end if;
 			end if;
 			
@@ -186,6 +187,7 @@ process(clk) begin
 
 			case(TX_STATE) is
 			when IDLE =>
+				TX_BYTES_REG_CNT <= (others => '0');
 				if (TX_DESC_ADDR_STRB = '1') then
 					TX_DESC_ADDR_REG <= unsigned(TX_DESC_ADDR);
 					TX_DESC_ADDR_ACTUAL <= unsigned(TX_DESC_ADDR);
@@ -220,6 +222,7 @@ process(clk) begin
 				if (AXI_RXN_STRB = '1') then
 					TX_BYTES_REG <= unsigned(DATA_IN);
 					TX_BYTES_ACTUAL <= unsigned(DATA_IN);
+					TX_BYTES_REG_CNT <= TX_BYTES_REG_CNT + unsigned(DATA_IN);
 					TX_STATE <= FETCH_DESC_WAIT_1; 
 				end if;
 			when FETCH_DESC_WAIT_1 =>
@@ -241,8 +244,8 @@ process(clk) begin
 				end if;
 
 				TX_WRITE_PHASE <= '0';
-				if (TX_BYTES_REG mod 8 /= 0 and
-				    TX_BYTES_REG mod 8 <= 4) then
+				if (TX_BYTES_REG_CNT mod 8 /= 0 and
+				    TX_BYTES_REG_CNT mod 8 <= 4) then
 					TX_FAKE_READ <= '1';
 				else
 					TX_FAKE_READ <= '0';
@@ -309,12 +312,12 @@ process(clk) begin
 				TX_PCKT_DATA_STRB <= '1';
 				TX_STATE <= PUSH_PCKT_CNT;
 			when PUSH_PCKT_CNT =>
-				TX_PCKT_CNT <= std_logic_vector(TX_BYTES_REG);
+				TX_PCKT_CNT <= std_logic_vector(TX_BYTES_REG_CNT);
 				TX_PCKT_CNT_STRB <= '1';
 				TX_PRCSSD_INT_S <= '1';
-				TX_PRCSSD_REG <= TX_PRCSSD_REG + 8;
+				TX_PRCSSD_REG <= TX_PRCSSD_REG + 12;
 				if (TX_PRCSSD_STRB = '1') then
-					TX_PRCSSD_REG <= to_unsigned(8, 32);
+					TX_PRCSSD_REG <= to_unsigned(12, 32);
 				end if;
 				TX_STATE <= IDLE;
 			when others =>
