@@ -129,6 +129,8 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	uint32_t cnt_desc, nr_frags;
 	struct dma_ring_tx *tx_ring = NULL;
 	struct pdi *pdi = (struct pdi *)netdev_priv(dev);
+	u32 is_nonlinear = skb_is_nonlinear(skb);
+	u32 bytes = 0;
 	u32 data_len;
 
 	tx_ring = &pdi->tx_ring;
@@ -142,7 +144,7 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	    tx_ring->desc_cons) {
 		debug_print("pdi: tx_ring full! Packet will be droped.\n");
 		return NETDEV_TX_BUSY;	
-	} else if (nr_frags) {
+	} else if (is_nonlinear) {
 		uint32_t space;
 		if (cnt_desc < tx_ring->desc_cons) {
 			space = tx_ring->desc_cons - cnt_desc;
@@ -155,7 +157,7 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
-	if (!nr_frags) {
+	if (!is_nonlinear) {
 		tx_ring->buffer[cnt_desc].map = dma_map_single(pdi->dev, 
 					skb->data, skb->len, DMA_TO_DEVICE);
 		if (dma_mapping_error(pdi->dev, tx_ring->buffer[cnt_desc].map)) {
@@ -166,6 +168,8 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		tx_ring->desc[cnt_desc].addr = tx_ring->buffer[cnt_desc].map;
 		tx_ring->desc[cnt_desc].cnt = skb->len;
 		tx_ring->desc[cnt_desc].next = 0;
+
+		bytes = skb->len;
 
 		single++;
 		dma_sync_single_for_device(pdi->dev, tx_ring->buffer[cnt_desc].map, 
@@ -187,11 +191,27 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (len) {
 			tx_ring->buffer[cnt_desc].map = dma_map_single(pdi->dev,
 						skb->data, len, DMA_TO_DEVICE);	
+			if (dma_mapping_error(pdi->dev, 
+			    tx_ring->buffer[cnt_desc].map)) {
+				pr_err("dma_mapping_error 1.\n");
+				return NETDEV_TX_BUSY;
+			}
 
 			tx_ring->desc[cnt_desc].addr = tx_ring->buffer[cnt_desc].map;
 			tx_ring->desc[cnt_desc].cnt = len;
-			tx_ring->desc[cnt_desc].next = 1;
+
+			bytes = len;
+
+			if (nr_frags)
+				tx_ring->desc[cnt_desc].next = 1;
+			else
+				tx_ring->desc[cnt_desc].next = 0;
+
 			cnt_desc = (cnt_desc + 1) % tx_ring->desc_max;
+
+			if (len > PCKT_SIZE) {
+				pr_info("len > PCKT_SIZE\n");
+			}
 		}	
 
 		for (int i = 0; i < nr_frags; i++) {
@@ -201,7 +221,14 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			tx_ring->desc[cnt_desc].addr = skb_frag_dma_map(pdi->dev,
 							frag, 0, len, 
 							DMA_TO_DEVICE);
-			/* TODO - dma_mapping_error */
+			if (dma_mapping_error(pdi->dev, 
+			    tx_ring->desc[cnt_desc].addr)) {
+				pr_err("dma_mapping_error 2.\n");
+				return NETDEV_TX_BUSY;
+			}
+
+			bytes += len;
+
 			dma_sync_single_for_device(pdi->dev, 
 				tx_ring->desc[cnt_desc].addr, len, 
 				DMA_TO_DEVICE);
@@ -212,17 +239,17 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				tx_ring->desc[cnt_desc].next = 1;
 
 			cnt_desc = (cnt_desc + 1) % tx_ring->desc_max;
+
 		}
 
 		tx_ring->desc_cur = cnt_desc;
 
 		wmb();
 		iowrite32(0xFFFFFFFF, pdi->reg7);
-		netdev_sent_queue(dev, skb->len);
+		netdev_sent_queue(dev, bytes);
 		wmb();
 		multiple++;
 	}
-
 	return NETDEV_TX_OK;
 }
 

@@ -14,7 +14,7 @@
 
 void generate_msg(char *buf, int msg_size) {
 	for (int i = 0; i < msg_size; i++)
-		buf[i] = (char)i + (char)rand();
+		buf[i] = (char)i;
 }
 
 int arg_parse(int argc, char *argv[], char *Int, char *server_ip, 

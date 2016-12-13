@@ -1,0 +1,6 @@
+
+://en.wikipedia.org/wiki/Transmission_Control_Protocol#TCP_checksum_for_IPv4
+
+
+
+In other words, after appropriate padding, all 16-bit words are added using one's complement arithmetic. The sum is then bitwise complemented and inserted as the checksum field. A pseudo-header that mimics the IPv4 packet header used in the checksum computation is shown in the table below.
