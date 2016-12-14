@@ -28,6 +28,8 @@ end fsm_axi_to_fifo;
 architecture Behavioral of fsm_axi_to_fifo is
 signal state, state_tmp : std_logic := '0';
 signal data_reg, data_reg_tmp : std_logic_vector(31 downto 0);
+signal cnt, cnt_tmp : unsigned(31 downto 0);
+signal prot, prot_tmp : unsigned(7 downto 0);
 begin
 
 cnt_to_fifo <= cnt_from_axi(13 downto 0);
@@ -39,18 +41,29 @@ process (clk) begin
 		if (resetn = '0') then
 			state <= '0';
 			data_reg <= (others => '0');
+			cnt <= (others => '0');
+			prot <= (others => '0');
 		else
 			state <= state_tmp;
 			data_reg <= data_reg_tmp;
+			cnt <= cnt_tmp;
+			prot <= prot_tmp;
 		end if;
 	end if;
 end process;
 
-process(state, data_reg, data_from_axi_strb, data_from_axi) begin
+process(state, data_reg, data_from_axi_strb, data_from_axi, cnt) begin
 	state_tmp <= state;
 	data_reg_tmp <= data_reg;
 	data_to_fifo_strb <= '0';
 	data_to_fifo <= (others => '0');
+	cnt_tmp <= cnt_tmp;
+	prot_tmp <= prot_tmp;
+
+	if (data_from_axi_strb = '1') then
+		cnt_tmp <= cnt + 4;
+	end if;
+
 	case state is
 	when '0' =>
 		if (data_from_axi_strb = '1') then
