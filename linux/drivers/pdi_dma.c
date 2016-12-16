@@ -68,14 +68,14 @@ struct ring_info {
 };
 
 struct dma_desc {
-	dma_addr_t cnt;
+	u32 cnt;
 	dma_addr_t addr; 
 }__attribute__((packed));
 
 struct dma_desc_tx {
-	dma_addr_t cnt;
+	u32 cnt;
 	dma_addr_t addr;
-	dma_addr_t next;
+	u32 next;
 }__attribute__((packed));
 
 struct dma_ring {
