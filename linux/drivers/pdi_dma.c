@@ -176,12 +176,12 @@ static int pdi_complete_xmit(struct pdi *pdi)
 	
 	if (tx_ring->desc_cons < tx_ring->desc_cur) {
 		if (processed > tx_ring->desc_cur - tx_ring->desc_cons) {
-			debug_print("PDI_COMPLETE_XMIT FAILED REALLY HARD!\n");
+			debug_print("PDI_COMPLETE_XMIT FAILED!\n");
 		}
 	} else {
 		if (processed > tx_ring->desc_cur + tx_ring->desc_max - 
 		    tx_ring->desc_cons) {
-			debug_print("PDI_COMPLETE_XMIT FAILED REALLY HARD!\n");
+			debug_print("PDI_COMPLETE_XMIT FAILED!\n");
 		}
 	}
 
