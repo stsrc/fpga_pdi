@@ -197,7 +197,7 @@ static int pdi_complete_xmit(struct pdi *pdi)
 
 	netdev_completed_queue(pdi->netdev, packets, bytes);
 	tx_ring->desc_cons = i;
-	return 0;
+	return packets;
 }
 
 
@@ -312,11 +312,11 @@ static int pdi_poll(struct napi_struct *napi, int budget)
 	int packets_cnt;
 	struct pdi *pdi = container_of(napi, struct pdi, napi);
 	packets_cnt = pdi_rx(pdi);
-	pdi_complete_xmit(pdi);
-	napi_complete(&pdi->napi);
+	packets_cnt += pdi_complete_xmit(pdi);
 
 	if (budget > packets_cnt) {
 		/* Enable interrupt, data reception and DMA. */
+		napi_complete(&pdi->napi);
 		iowrite32(cpu_to_le32((1 << 1) | (1 << 2) | (1 << 3)), pdi->reg2);
 	}
 
