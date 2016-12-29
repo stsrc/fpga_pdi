@@ -1,8 +1,10 @@
-//TODO MTU etc
-//TODO dma syncro??
-//TODO netdev, dev, pdev - think/read about it.
-//TODO more then one card!!!
-//TODO DETECTION OF ALREADY USED DEVICE, ETC!
+/* TODO
+ * MTU etc
+ * dma syncro??
+ * netdev, dev, pdev - think/read about it.
+ * more then one card!!!
+ * DETECTION OF ALREADY USED DEVICE, ETC!
+*/
 
 #include <linux/errno.h>
 #include <linux/types.h>
