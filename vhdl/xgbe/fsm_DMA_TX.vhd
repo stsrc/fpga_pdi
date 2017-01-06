@@ -71,8 +71,24 @@ begin
 		BURST <= to_unsigned(5, 8);
 	elsif (TX_BYTES_REG <= 28) then
 		BURST <= to_unsigned(6, 8);
-	else
+	elsif (TX_BYTES_REG <= 32) then
 		BURST <= to_unsigned(7, 8);
+	elsif (TX_BYTES_REG <= 36) then
+		BURST <= to_unsigned(8, 8);
+	elsif (TX_BYTES_REG <= 40) then
+		BURST <= to_unsigned(9, 8);
+	elsif (TX_BYTES_REG <= 44) then
+		BURST <= to_unsigned(10, 8);
+	elsif (TX_BYTES_REG <= 48) then
+		BURST <= to_unsigned(11, 8);
+	elsif (TX_BYTES_REG <= 52) then
+		BURST <= to_unsigned(12, 8);
+	elsif (TX_BYTES_REG <= 56) then
+		BURST <= to_unsigned(13, 8);
+	elsif (TX_BYTES_REG <= 60) then
+		BURST <= to_unsigned(14, 8);
+	else
+		BURST <= to_unsigned(15, 8);
 	end if;		
 end BURST_SIZE; 
 	
@@ -227,24 +243,17 @@ process(clk) begin
 				if (AXI_RXN_STRB = '1') then
 					TX_BUFF_ADDR <= unsigned(DATA_IN(31 downto 2) & "00");
 					TX_BUFF_ADDR_MOD <= unsigned(DATA_IN(1 downto 0));
-					TX_STATE <= SET_FLAGS;
+					TX_STATE <= FETCH_WORDS;
+					TX_WRITE_PHASE <= '0';
+					if (TX_BYTES_REG mod 8 /= 0 and
+					    TX_BYTES_REG mod 8 <= 4) then
+						TX_FAKE_READ <= '1';
+					else
+						TX_FAKE_READ <= '0';
+					end if;
 				else
 					TX_STATE <= FETCH_DESC_WAIT_1;
 				end if; 
-			when SET_FLAGS =>
-				if (AXI_RXN_DONE = '1') then
-					TX_STATE <= FETCH_WORDS;	
-				else
-					TX_STATE <= SET_FLAGS;
-				end if;
-
-				TX_WRITE_PHASE <= '0';
-				if (TX_BYTES_REG mod 8 /= 0 and
-				    TX_BYTES_REG mod 8 <= 4) then
-					TX_FAKE_READ <= '1';
-				else
-					TX_FAKE_READ <= '0';
-				end if;
 
 			when FETCH_WORDS =>
 				ADDR <= std_logic_vector(TX_BUFF_ADDR);
@@ -258,7 +267,8 @@ process(clk) begin
 				if (AXI_RXN_STRB = '1' and TX_BYTES_ACTUAL /= 0) then
 					case (to_integer(TX_BUFF_ADDR_MOD)) is
 					when 0 =>
-						if (TX_BYTES_ACTUAL >= 4) then
+		
+						if (TX_BYTES_ACTUAL > 4) then
 							TX_BYTES_ACTUAL <= TX_BYTES_ACTUAL - 4;
 						else
 							TX_BYTES_ACTUAL <= (others => '0');
@@ -266,7 +276,7 @@ process(clk) begin
 
 						TX_PCKT_DATA <= DATA_IN;
 						TX_PCKT_DATA_STRB <= '1';
-						TX_STATE <= FETCH_WORDS_WAIT;
+			
 					when 2 =>
 						case (TX_WRITE_PHASE) is
 						when '0' =>
@@ -278,18 +288,22 @@ process(clk) begin
 									std_logic_vector(TX_PCKT_SAVE);
 							TX_PCKT_DATA_STRB <= '1';
 							TX_PCKT_SAVE <= unsigned(DATA_IN(31 downto 16));
-							if (TX_BYTES_ACTUAL >= 4) then
+							if (TX_BYTES_ACTUAL > 4) then
 								TX_BYTES_ACTUAL <= TX_BYTES_ACTUAL - 4;
 							else
 								TX_BYTES_ACTUAL <= (others => '0');
 							end if;
+						when others =>
+							TX_WRITE_PHASE <= '0';
+						end case;
 					when others =>
-						TX_WRITE_PHASE <= '0';
 					end case;
-				when others =>
-				end case;
-				elsif (AXI_RXN_DONE = '1') then
-					if (TX_BYTES_ACTUAL  > 0) then
+				else
+					TX_STATE <= FETCH_WORDS_WAIT;
+				end if;
+
+				if (AXI_RXN_DONE = '1') then
+					if (TX_BYTES_ACTUAL  > 4) then
 						TX_STATE <= FETCH_WORDS;
 					elsif (TX_FAKE_READ = '1') then
 						TX_STATE <= FAKE_TX_STRB;

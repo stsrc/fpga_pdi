@@ -10,7 +10,7 @@ entity AXI_Slave is
 		-- Do not modify the parameters beyond this line
 
 		-- Width of ID for for write address, write data, read address and read data
-		C_S_AXI_ID_WIDTH	: integer	:= 1;
+		C_S_AXI_ID_WIDTH	: integer	:= 0;
 		-- Width of S_AXI data bus
 		C_S_AXI_DATA_WIDTH	: integer	:= 32;
 		-- Width of S_AXI address bus
