@@ -10,6 +10,7 @@ entity tb is
 end tb;
 
 architecture STRUCTURE of tb is
+
 	component xgbe is 
 	generic (
 		C_AXI_DATA_WIDTH	: integer	:= 32;
@@ -54,50 +55,95 @@ architecture STRUCTURE of tb is
 		s_axi_rvalid	: out std_logic;
 		s_axi_rready	: in std_logic;
 
-		M_AXI_ACLK	: in std_logic;
-		M_AXI_ARESETN	: in std_logic;
-		M_AXI_AWID	: out std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
-		M_AXI_AWADDR	: out std_logic_vector(C_M_AXI_ADDR_WIDTH-1 downto 0);
-		M_AXI_AWLEN	: out std_logic_vector(7 downto 0);
-		M_AXI_AWSIZE	: out std_logic_vector(2 downto 0);
-		M_AXI_AWBURST	: out std_logic_vector(1 downto 0);
-		M_AXI_AWLOCK	: out std_logic;
-		M_AXI_AWCACHE	: out std_logic_vector(3 downto 0);
-		M_AXI_AWPROT	: out std_logic_vector(2 downto 0);
-		M_AXI_AWQOS	: out std_logic_vector(3 downto 0);
-		M_AXI_AWUSER	: out std_logic_vector(C_M_AXI_AWUSER_WIDTH-1 downto 0);
-		M_AXI_AWVALID	: out std_logic;
-		M_AXI_AWREADY	: in std_logic;
-		M_AXI_WDATA	: out std_logic_vector(C_M_AXI_DATA_WIDTH-1 downto 0);
-		M_AXI_WSTRB	: out std_logic_vector(C_M_AXI_DATA_WIDTH/8-1 downto 0);
-		M_AXI_WLAST	: out std_logic;
-		M_AXI_WUSER	: out std_logic_vector(C_M_AXI_WUSER_WIDTH-1 downto 0);
-		M_AXI_WVALID	: out std_logic;
-		M_AXI_WREADY	: in std_logic;
-		M_AXI_BID	: in std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
-		M_AXI_BRESP	: in std_logic_vector(1 downto 0);
-		M_AXI_BUSER	: in std_logic_vector(C_M_AXI_BUSER_WIDTH-1 downto 0);
-		M_AXI_BVALID	: in std_logic;
-		M_AXI_BREADY	: out std_logic;
-		M_AXI_ARID	: out std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
-		M_AXI_ARADDR	: out std_logic_vector(C_M_AXI_ADDR_WIDTH-1 downto 0);
-		M_AXI_ARLEN	: out std_logic_vector(7 downto 0);
-		M_AXI_ARSIZE	: out std_logic_vector(2 downto 0);
-		M_AXI_ARBURST	: out std_logic_vector(1 downto 0);
-		M_AXI_ARLOCK	: out std_logic;
-		M_AXI_ARCACHE	: out std_logic_vector(3 downto 0);
-		M_AXI_ARPROT	: out std_logic_vector(2 downto 0);
-		M_AXI_ARQOS	: out std_logic_vector(3 downto 0);
-		M_AXI_ARUSER	: out std_logic_vector(C_M_AXI_ARUSER_WIDTH-1 downto 0);
-		M_AXI_ARVALID	: out std_logic;
-		M_AXI_ARREADY	: in std_logic;
-		M_AXI_RID	: in std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
-		M_AXI_RDATA	: in std_logic_vector(C_M_AXI_DATA_WIDTH-1 downto 0);
-		M_AXI_RRESP	: in std_logic_vector(1 downto 0);
-		M_AXI_RLAST	: in std_logic;
-		M_AXI_RUSER	: in std_logic_vector(C_M_AXI_RUSER_WIDTH-1 downto 0);
-		M_AXI_RVALID	: in std_logic;
-		M_AXI_RREADY	: out std_logic;
+		M_AXI_TX_ACLK		: in std_logic;
+		M_AXI_TX_ARESETN	: in std_logic;
+		M_AXI_TX_AWID		: out std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
+		M_AXI_TX_AWADDR		: out std_logic_vector(C_M_AXI_ADDR_WIDTH-1 downto 0);
+		M_AXI_TX_AWLEN		: out std_logic_vector(7 downto 0);
+		M_AXI_TX_AWSIZE		: out std_logic_vector(2 downto 0);
+		M_AXI_TX_AWBURST	: out std_logic_vector(1 downto 0);
+		M_AXI_TX_AWLOCK		: out std_logic;
+		M_AXI_TX_AWCACHE	: out std_logic_vector(3 downto 0);
+		M_AXI_TX_AWPROT		: out std_logic_vector(2 downto 0);
+		M_AXI_TX_AWQOS		: out std_logic_vector(3 downto 0);
+		M_AXI_TX_AWUSER		: out std_logic_vector(C_M_AXI_AWUSER_WIDTH-1 downto 0);
+		M_AXI_TX_AWVALID	: out std_logic;
+		M_AXI_TX_AWREADY	: in std_logic;
+		M_AXI_TX_WDATA	: out std_logic_vector(C_M_AXI_DATA_WIDTH-1 downto 0);
+		M_AXI_TX_WSTRB	: out std_logic_vector(C_M_AXI_DATA_WIDTH/8-1 downto 0);
+		M_AXI_TX_WLAST	: out std_logic;
+		M_AXI_TX_WUSER	: out std_logic_vector(C_M_AXI_WUSER_WIDTH-1 downto 0);
+		M_AXI_TX_WVALID	: out std_logic;
+		M_AXI_TX_WREADY	: in std_logic;
+		M_AXI_TX_BID	: in std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
+		M_AXI_TX_BRESP	: in std_logic_vector(1 downto 0);
+		M_AXI_TX_BUSER	: in std_logic_vector(C_M_AXI_BUSER_WIDTH-1 downto 0);
+		M_AXI_TX_BVALID	: in std_logic;
+		M_AXI_TX_BREADY	: out std_logic;
+		M_AXI_TX_ARID	: out std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
+		M_AXI_TX_ARADDR	: out std_logic_vector(C_M_AXI_ADDR_WIDTH-1 downto 0);
+		M_AXI_TX_ARLEN	: out std_logic_vector(7 downto 0);
+		M_AXI_TX_ARSIZE	: out std_logic_vector(2 downto 0);
+		M_AXI_TX_ARBURST	: out std_logic_vector(1 downto 0);
+		M_AXI_TX_ARLOCK	: out std_logic;
+		M_AXI_TX_ARCACHE	: out std_logic_vector(3 downto 0);
+		M_AXI_TX_ARPROT	: out std_logic_vector(2 downto 0);
+		M_AXI_TX_ARQOS	: out std_logic_vector(3 downto 0);
+		M_AXI_TX_ARUSER	: out std_logic_vector(C_M_AXI_ARUSER_WIDTH-1 downto 0);
+		M_AXI_TX_ARVALID	: out std_logic;
+		M_AXI_TX_ARREADY	: in std_logic;
+		M_AXI_TX_RID	: in std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
+		M_AXI_TX_RDATA	: in std_logic_vector(C_M_AXI_DATA_WIDTH-1 downto 0);
+		M_AXI_TX_RRESP	: in std_logic_vector(1 downto 0);
+		M_AXI_TX_RLAST	: in std_logic;
+		M_AXI_TX_RUSER	: in std_logic_vector(C_M_AXI_RUSER_WIDTH-1 downto 0);
+		M_AXI_TX_RVALID	: in std_logic;
+		M_AXI_TX_RREADY	: out std_logic;
+
+		M_AXI_RX_ACLK	: in std_logic;
+		M_AXI_RX_ARESETN	: in std_logic;
+		M_AXI_RX_AWID	: out std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
+		M_AXI_RX_AWADDR	: out std_logic_vector(C_M_AXI_ADDR_WIDTH-1 downto 0);
+		M_AXI_RX_AWLEN	: out std_logic_vector(7 downto 0);
+		M_AXI_RX_AWSIZE	: out std_logic_vector(2 downto 0);
+		M_AXI_RX_AWBURST	: out std_logic_vector(1 downto 0);
+		M_AXI_RX_AWLOCK	: out std_logic;
+		M_AXI_RX_AWCACHE	: out std_logic_vector(3 downto 0);
+		M_AXI_RX_AWPROT	: out std_logic_vector(2 downto 0);
+		M_AXI_RX_AWQOS	: out std_logic_vector(3 downto 0);
+		M_AXI_RX_AWUSER	: out std_logic_vector(C_M_AXI_AWUSER_WIDTH-1 downto 0);
+		M_AXI_RX_AWVALID	: out std_logic;
+		M_AXI_RX_AWREADY	: in std_logic;
+		M_AXI_RX_WDATA	: out std_logic_vector(C_M_AXI_DATA_WIDTH-1 downto 0);
+		M_AXI_RX_WSTRB	: out std_logic_vector(C_M_AXI_DATA_WIDTH/8-1 downto 0);
+		M_AXI_RX_WLAST	: out std_logic;
+		M_AXI_RX_WUSER	: out std_logic_vector(C_M_AXI_WUSER_WIDTH-1 downto 0);
+		M_AXI_RX_WVALID	: out std_logic;
+		M_AXI_RX_WREADY	: in std_logic;
+		M_AXI_RX_BID	: in std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
+		M_AXI_RX_BRESP	: in std_logic_vector(1 downto 0);
+		M_AXI_RX_BUSER	: in std_logic_vector(C_M_AXI_BUSER_WIDTH-1 downto 0);
+		M_AXI_RX_BVALID	: in std_logic;
+		M_AXI_RX_BREADY	: out std_logic;
+		M_AXI_RX_ARID	: out std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
+		M_AXI_RX_ARADDR	: out std_logic_vector(C_M_AXI_ADDR_WIDTH-1 downto 0);
+		M_AXI_RX_ARLEN	: out std_logic_vector(7 downto 0);
+		M_AXI_RX_ARSIZE	: out std_logic_vector(2 downto 0);
+		M_AXI_RX_ARBURST	: out std_logic_vector(1 downto 0);
+		M_AXI_RX_ARLOCK	: out std_logic;
+		M_AXI_RX_ARCACHE	: out std_logic_vector(3 downto 0);
+		M_AXI_RX_ARPROT	: out std_logic_vector(2 downto 0);
+		M_AXI_RX_ARQOS	: out std_logic_vector(3 downto 0);
+		M_AXI_RX_ARUSER	: out std_logic_vector(C_M_AXI_ARUSER_WIDTH-1 downto 0);
+		M_AXI_RX_ARVALID	: out std_logic;
+		M_AXI_RX_ARREADY	: in std_logic;
+		M_AXI_RX_RID	: in std_logic_vector(C_M_AXI_ID_WIDTH-1 downto 0);
+		M_AXI_RX_RDATA	: in std_logic_vector(C_M_AXI_DATA_WIDTH-1 downto 0);
+		M_AXI_RX_RRESP	: in std_logic_vector(1 downto 0);
+		M_AXI_RX_RLAST	: in std_logic;
+		M_AXI_RX_RUSER	: in std_logic_vector(C_M_AXI_RUSER_WIDTH-1 downto 0);
+		M_AXI_RX_RVALID	: in std_logic;
+		M_AXI_RX_RREADY	: out std_logic;
 
 		xgmii_rxc : in STD_LOGIC_VECTOR (7 downto 0);
 		xgmii_rxd : in STD_LOGIC_VECTOR (63 downto 0);
@@ -175,8 +221,11 @@ port (
 	);
 end component;
 
-signal M_RD_STRB, M_TX_STRB	: std_logic := '0';
-signal M_RD_DATA, M_TX_DATA	: std_logic_vector(31 downto 0) := (others => '0');
+signal M_RX_RD_STRB, M_RX_TX_STRB	: std_logic := '0';
+signal M_RX_RD_DATA, M_RX_TX_DATA	: std_logic_vector(31 downto 0) := (others => '0');
+
+signal M_TX_RD_STRB, M_TX_TX_STRB	: std_logic := '0';
+signal M_TX_RD_DATA, M_TX_TX_DATA	: std_logic_vector(31 downto 0) := (others => '0');
 
 signal xgmii_tx_clk, xgmii_rx_clk : std_logic := '0';
 signal clk_156_25MHz, clk_20MHz, rst_clk_156_25MHz, rst_clk_20MHz : std_logic := '0';
@@ -190,35 +239,65 @@ signal s_axi_araddr, s_axi_awaddr : std_logic_vector(4 downto 0) := (others => '
 signal s_axi_arprot, s_axi_awprot : std_logic_vector(2 downto 0) := (others => '0');
 signal s_axi_bresp, s_axi_rresp : std_logic_vector(1 downto 0) := (others => '0');
 
-signal M_AXI_ACLK, M_AXI_ARESETN, M_AXI_AWLOCK, M_AXI_AWVALID, M_AXI_AWREADY, M_AXI_WLAST : std_logic := '0';
-signal M_AXI_WVALID, M_AXI_WREADY, M_AXI_BVALID, M_AXI_BREADY, M_AXI_ARLOCK, M_AXI_ARVALID : std_logic := '0';
-signal M_AXI_ARREADY, M_AXI_RLAST, M_AXI_RVALID, M_AXI_RREADY : std_logic := '0';
-signal M_AXI_AWID, M_AXI_ARID : std_logic_vector(-1 downto 0) := (others => '0');
-signal M_AXI_AWADDR, M_AXI_ARADDR : std_logic_vector(31 downto 0);
-signal M_AXI_WUSER	: std_logic_vector(-1 downto 0); 
-signal M_AXI_AWLEN	: std_logic_vector(7 downto 0)  := (others => '0');
-signal M_AXI_AWSIZE	: std_logic_vector(2 downto 0)  := (others => '0');
-signal M_AXI_AWBURST	: std_logic_vector(1 downto 0)  := (others => '0');
-signal M_AXI_AWCACHE	: std_logic_vector(3 downto 0)  := (others => '0');
-signal M_AXI_AWPROT	: std_logic_vector(2 downto 0)  := (others => '0');
-signal M_AXI_AWQOS	: std_logic_vector(3 downto 0)  := (others => '0');
-signal M_AXI_AWUSER	: std_logic_vector(-1 downto 0) := (others => '0');
-signal M_AXI_WSTRB	: std_logic_vector(3 downto 0)  := (others => '0');
-signal M_AXI_BID	: std_logic_vector(-1 downto 0)  := (others => '0');
-signal M_AXI_BRESP	: std_logic_vector(1 downto 0)  := (others => '0');
-signal M_AXI_BUSER	: std_logic_vector(-1 downto 0) := (others => '0');
-signal M_AXI_ARLEN	: std_logic_vector(7 downto 0)  := (others => '0');
-signal M_AXI_ARSIZE	: std_logic_vector(2 downto 0)  := (others => '0');
-signal M_AXI_ARBURST	: std_logic_vector(1 downto 0)  := (others => '0');
-signal M_AXI_ARCACHE	: std_logic_vector(3 downto 0)  := (others => '0');
-signal M_AXI_ARPROT	: std_logic_vector(2 downto 0)  := (others => '0');
-signal M_AXI_ARQOS	: std_logic_vector(3 downto 0)  := (others => '0');
-signal M_AXI_ARUSER	: std_logic_vector(-1 downto 0) := (others => '0');
-signal M_AXI_RID	: std_logic_vector(-1 downto 0)  := (others => '0');
-signal M_AXI_WDATA	: std_logic_vector(31 downto 0) := (others => '0');
-signal M_AXI_RDATA	: std_logic_vector(31 downto 0) := (others => '0');
-signal M_AXI_RRESP	: std_logic_vector(1 downto 0)  := (others => '0');
-signal M_AXI_RUSER	: std_logic_vector(-1 downto 0) := (others => '0');
+signal M_AXI_RX_ACLK, M_AXI_RX_ARESETN, M_AXI_RX_AWLOCK, M_AXI_RX_AWVALID, M_AXI_RX_AWREADY, M_AXI_RX_WLAST : std_logic := '0';
+signal M_AXI_RX_WVALID, M_AXI_RX_WREADY, M_AXI_RX_BVALID, M_AXI_RX_BREADY, M_AXI_RX_ARLOCK, M_AXI_RX_ARVALID : std_logic := '0';
+signal M_AXI_RX_ARREADY, M_AXI_RX_RLAST, M_AXI_RX_RVALID, M_AXI_RX_RREADY : std_logic := '0';
+signal M_AXI_RX_AWID, M_AXI_RX_ARID : std_logic_vector(-1 downto 0) := (others => '0');
+signal M_AXI_RX_AWADDR, M_AXI_RX_ARADDR : std_logic_vector(31 downto 0);
+signal M_AXI_RX_WUSER	: std_logic_vector(-1 downto 0); 
+signal M_AXI_RX_AWLEN	: std_logic_vector(7 downto 0)  := (others => '0');
+signal M_AXI_RX_AWSIZE	: std_logic_vector(2 downto 0)  := (others => '0');
+signal M_AXI_RX_AWBURST	: std_logic_vector(1 downto 0)  := (others => '0');
+signal M_AXI_RX_AWCACHE	: std_logic_vector(3 downto 0)  := (others => '0');
+signal M_AXI_RX_AWPROT	: std_logic_vector(2 downto 0)  := (others => '0');
+signal M_AXI_RX_AWQOS	: std_logic_vector(3 downto 0)  := (others => '0');
+signal M_AXI_RX_AWUSER	: std_logic_vector(-1 downto 0) := (others => '0');
+signal M_AXI_RX_WSTRB	: std_logic_vector(3 downto 0)  := (others => '0');
+signal M_AXI_RX_BID	: std_logic_vector(-1 downto 0)  := (others => '0');
+signal M_AXI_RX_BRESP	: std_logic_vector(1 downto 0)  := (others => '0');
+signal M_AXI_RX_BUSER	: std_logic_vector(-1 downto 0) := (others => '0');
+signal M_AXI_RX_ARLEN	: std_logic_vector(7 downto 0)  := (others => '0');
+signal M_AXI_RX_ARSIZE	: std_logic_vector(2 downto 0)  := (others => '0');
+signal M_AXI_RX_ARBURST	: std_logic_vector(1 downto 0)  := (others => '0');
+signal M_AXI_RX_ARCACHE	: std_logic_vector(3 downto 0)  := (others => '0');
+signal M_AXI_RX_ARPROT	: std_logic_vector(2 downto 0)  := (others => '0');
+signal M_AXI_RX_ARQOS	: std_logic_vector(3 downto 0)  := (others => '0');
+signal M_AXI_RX_ARUSER	: std_logic_vector(-1 downto 0) := (others => '0');
+signal M_AXI_RX_RID	: std_logic_vector(-1 downto 0)  := (others => '0');
+signal M_AXI_RX_WDATA	: std_logic_vector(31 downto 0) := (others => '0');
+signal M_AXI_RX_RDATA	: std_logic_vector(31 downto 0) := (others => '0');
+signal M_AXI_RX_RRESP	: std_logic_vector(1 downto 0)  := (others => '0');
+signal M_AXI_RX_RUSER	: std_logic_vector(-1 downto 0) := (others => '0');
+
+signal M_AXI_TX_ACLK, M_AXI_TX_ARESETN, M_AXI_TX_AWLOCK, M_AXI_TX_AWVALID, M_AXI_TX_AWREADY, M_AXI_TX_WLAST : std_logic := '0';
+signal M_AXI_TX_WVALID, M_AXI_TX_WREADY, M_AXI_TX_BVALID, M_AXI_TX_BREADY, M_AXI_TX_ARLOCK, M_AXI_TX_ARVALID : std_logic := '0';
+signal M_AXI_TX_ARREADY, M_AXI_TX_RLAST, M_AXI_TX_RVALID, M_AXI_TX_RREADY : std_logic := '0';
+signal M_AXI_TX_AWID, M_AXI_TX_ARID : std_logic_vector(-1 downto 0) := (others => '0');
+signal M_AXI_TX_AWADDR, M_AXI_TX_ARADDR : std_logic_vector(31 downto 0);
+signal M_AXI_TX_WUSER	: std_logic_vector(-1 downto 0); 
+signal M_AXI_TX_AWLEN	: std_logic_vector(7 downto 0)  := (others => '0');
+signal M_AXI_TX_AWSIZE	: std_logic_vector(2 downto 0)  := (others => '0');
+signal M_AXI_TX_AWBURST	: std_logic_vector(1 downto 0)  := (others => '0');
+signal M_AXI_TX_AWCACHE	: std_logic_vector(3 downto 0)  := (others => '0');
+signal M_AXI_TX_AWPROT	: std_logic_vector(2 downto 0)  := (others => '0');
+signal M_AXI_TX_AWQOS	: std_logic_vector(3 downto 0)  := (others => '0');
+signal M_AXI_TX_AWUSER	: std_logic_vector(-1 downto 0) := (others => '0');
+signal M_AXI_TX_WSTRB	: std_logic_vector(3 downto 0)  := (others => '0');
+signal M_AXI_TX_BID	: std_logic_vector(-1 downto 0)  := (others => '0');
+signal M_AXI_TX_BRESP	: std_logic_vector(1 downto 0)  := (others => '0');
+signal M_AXI_TX_BUSER	: std_logic_vector(-1 downto 0) := (others => '0');
+signal M_AXI_TX_ARLEN	: std_logic_vector(7 downto 0)  := (others => '0');
+signal M_AXI_TX_ARSIZE	: std_logic_vector(2 downto 0)  := (others => '0');
+signal M_AXI_TX_ARBURST	: std_logic_vector(1 downto 0)  := (others => '0');
+signal M_AXI_TX_ARCACHE	: std_logic_vector(3 downto 0)  := (others => '0');
+signal M_AXI_TX_ARPROT	: std_logic_vector(2 downto 0)  := (others => '0');
+signal M_AXI_TX_ARQOS	: std_logic_vector(3 downto 0)  := (others => '0');
+signal M_AXI_TX_ARUSER	: std_logic_vector(-1 downto 0) := (others => '0');
+signal M_AXI_TX_RID	: std_logic_vector(-1 downto 0)  := (others => '0');
+signal M_AXI_TX_WDATA	: std_logic_vector(31 downto 0) := (others => '0');
+signal M_AXI_TX_RDATA	: std_logic_vector(31 downto 0) := (others => '0');
+signal M_AXI_TX_RRESP	: std_logic_vector(1 downto 0)  := (others => '0');
+signal M_AXI_TX_RUSER	: std_logic_vector(-1 downto 0) := (others => '0');
 
   
   signal xgmii_rxd, xgmii_txd : std_logic_vector(63 downto 0) := (others => '0');
@@ -226,6 +305,7 @@ signal M_AXI_RUSER	: std_logic_vector(-1 downto 0) := (others => '0');
 
   signal ReadIt, SendIt : std_logic := '0';
   shared variable cnt : integer := 0;
+
 
 
 shared variable packet_cnt : integer := 0;
@@ -423,50 +503,95 @@ block_design_i: xgbe
       s_axi_wstrb(3 downto 0) => s_axi_wstrb(3 downto 0),
       s_axi_wvalid => s_axi_wvalid,
 
-	M_AXI_ACLK => M_AXI_ACLK,
-	M_AXI_ARESETN => M_AXI_ARESETN,
-	M_AXI_AWADDR => M_AXI_AWADDR,
-	M_AXI_AWPROT => M_AXI_AWPROT,
-	M_AXI_AWVALID => M_AXI_AWVALID,
-	M_AXI_AWREADY => M_AXI_AWREADY,
-	M_AXI_WDATA => M_AXI_WDATA,
-	M_AXI_WSTRB => M_AXI_WSTRB,
-	M_AXI_WVALID => M_AXI_WVALID,
-	M_AXI_WREADY => M_AXI_WREADY,
-	M_AXI_BRESP => M_AXI_BRESP,
-	M_AXI_BVALID => M_AXI_BVALID,
-	M_AXI_BREADY => M_AXI_BREADY,
-	M_AXI_ARADDR => M_AXI_ARADDR,
-	M_AXI_ARPROT => M_AXI_ARPROT,
-	M_AXI_ARVALID => M_AXI_ARVALID,
-	M_AXI_ARREADY => M_AXI_ARREADY,
-	M_AXI_RDATA => M_AXI_RDATA,
-	M_AXI_RRESP => M_AXI_RRESP,
-	M_AXI_RVALID => M_AXI_RVALID,
-	M_AXI_RREADY => M_AXI_RREADY,
-	M_AXI_AWID => M_AXI_AWID,
-	M_AXI_AWLEN => M_AXI_AWLEN,
-	M_AXI_AWSIZE => M_AXI_AWSIZE,
-	M_AXI_AWBURST => M_AXI_AWBURST,
-	M_AXI_AWLOCK => M_AXI_AWLOCK,
-	M_AXI_AWCACHE => M_AXI_AWCACHE,
-	M_AXI_AWQOS => M_AXI_AWQOS,
-	M_AXI_AWUSER => M_AXI_AWUSER,
-	M_AXI_WLAST => M_AXI_WLAST,
-	M_AXI_WUSER => M_AXI_WUSER,
-	M_AXI_BID => M_AXI_BID,
-	M_AXI_BUSER => M_AXI_BUSER,
-	M_AXI_ARID => M_AXI_ARID,
-	M_AXI_ARLEN => M_AXI_ARLEN,
-	M_AXI_ARSIZE => M_AXI_ARSIZE,
-	M_AXI_ARBURST => M_AXI_ARBURST,
-	M_AXI_ARLOCK => M_AXI_ARLOCK,
-	M_AXI_ARCACHE => M_AXI_ARCACHE,
-	M_AXI_ARQOS => M_AXI_ARQOS,
-	M_AXI_ARUSER => M_AXI_ARUSER,
-	M_AXI_RID => M_AXI_RID,
-	M_AXI_RLAST => M_AXI_RLAST,
-	M_AXI_RUSER => M_AXI_RUSER,
+	M_AXI_RX_ACLK => M_AXI_RX_ACLK,
+	M_AXI_RX_ARESETN => M_AXI_RX_ARESETN,
+	M_AXI_RX_AWADDR => M_AXI_RX_AWADDR,
+	M_AXI_RX_AWPROT => M_AXI_RX_AWPROT,
+	M_AXI_RX_AWVALID => M_AXI_RX_AWVALID,
+	M_AXI_RX_AWREADY => M_AXI_RX_AWREADY,
+	M_AXI_RX_WDATA => M_AXI_RX_WDATA,
+	M_AXI_RX_WSTRB => M_AXI_RX_WSTRB,
+	M_AXI_RX_WVALID => M_AXI_RX_WVALID,
+	M_AXI_RX_WREADY => M_AXI_RX_WREADY,
+	M_AXI_RX_BRESP => M_AXI_RX_BRESP,
+	M_AXI_RX_BVALID => M_AXI_RX_BVALID,
+	M_AXI_RX_BREADY => M_AXI_RX_BREADY,
+	M_AXI_RX_ARADDR => M_AXI_RX_ARADDR,
+	M_AXI_RX_ARPROT => M_AXI_RX_ARPROT,
+	M_AXI_RX_ARVALID => M_AXI_RX_ARVALID,
+	M_AXI_RX_ARREADY => M_AXI_RX_ARREADY,
+	M_AXI_RX_RDATA => M_AXI_RX_RDATA,
+	M_AXI_RX_RRESP => M_AXI_RX_RRESP,
+	M_AXI_RX_RVALID => M_AXI_RX_RVALID,
+	M_AXI_RX_RREADY => M_AXI_RX_RREADY,
+	M_AXI_RX_AWID => M_AXI_RX_AWID,
+	M_AXI_RX_AWLEN => M_AXI_RX_AWLEN,
+	M_AXI_RX_AWSIZE => M_AXI_RX_AWSIZE,
+	M_AXI_RX_AWBURST => M_AXI_RX_AWBURST,
+	M_AXI_RX_AWLOCK => M_AXI_RX_AWLOCK,
+	M_AXI_RX_AWCACHE => M_AXI_RX_AWCACHE,
+	M_AXI_RX_AWQOS => M_AXI_RX_AWQOS,
+	M_AXI_RX_AWUSER => M_AXI_RX_AWUSER,
+	M_AXI_RX_WLAST => M_AXI_RX_WLAST,
+	M_AXI_RX_WUSER => M_AXI_RX_WUSER,
+	M_AXI_RX_BID => M_AXI_RX_BID,
+	M_AXI_RX_BUSER => M_AXI_RX_BUSER,
+	M_AXI_RX_ARID => M_AXI_RX_ARID,
+	M_AXI_RX_ARLEN => M_AXI_RX_ARLEN,
+	M_AXI_RX_ARSIZE => M_AXI_RX_ARSIZE,
+	M_AXI_RX_ARBURST => M_AXI_RX_ARBURST,
+	M_AXI_RX_ARLOCK => M_AXI_RX_ARLOCK,
+	M_AXI_RX_ARCACHE => M_AXI_RX_ARCACHE,
+	M_AXI_RX_ARQOS => M_AXI_RX_ARQOS,
+	M_AXI_RX_ARUSER => M_AXI_RX_ARUSER,
+	M_AXI_RX_RID => M_AXI_RX_RID,
+	M_AXI_RX_RLAST => M_AXI_RX_RLAST,
+	M_AXI_RX_RUSER => M_AXI_RX_RUSER,
+
+	M_AXI_TX_ACLK => M_AXI_TX_ACLK,
+	M_AXI_TX_ARESETN => M_AXI_TX_ARESETN,
+	M_AXI_TX_AWADDR => M_AXI_TX_AWADDR,
+	M_AXI_TX_AWPROT => M_AXI_TX_AWPROT,
+	M_AXI_TX_AWVALID => M_AXI_TX_AWVALID,
+	M_AXI_TX_AWREADY => M_AXI_TX_AWREADY,
+	M_AXI_TX_WDATA => M_AXI_TX_WDATA,
+	M_AXI_TX_WSTRB => M_AXI_TX_WSTRB,
+	M_AXI_TX_WVALID => M_AXI_TX_WVALID,
+	M_AXI_TX_WREADY => M_AXI_TX_WREADY,
+	M_AXI_TX_BRESP => M_AXI_TX_BRESP,
+	M_AXI_TX_BVALID => M_AXI_TX_BVALID,
+	M_AXI_TX_BREADY => M_AXI_TX_BREADY,
+	M_AXI_TX_ARADDR => M_AXI_TX_ARADDR,
+	M_AXI_TX_ARPROT => M_AXI_TX_ARPROT,
+	M_AXI_TX_ARVALID => M_AXI_TX_ARVALID,
+	M_AXI_TX_ARREADY => M_AXI_TX_ARREADY,
+	M_AXI_TX_RDATA => M_AXI_TX_RDATA,
+	M_AXI_TX_RRESP => M_AXI_TX_RRESP,
+	M_AXI_TX_RVALID => M_AXI_TX_RVALID,
+	M_AXI_TX_RREADY => M_AXI_TX_RREADY,
+	M_AXI_TX_AWID => M_AXI_TX_AWID,
+	M_AXI_TX_AWLEN => M_AXI_TX_AWLEN,
+	M_AXI_TX_AWSIZE => M_AXI_TX_AWSIZE,
+	M_AXI_TX_AWBURST => M_AXI_TX_AWBURST,
+	M_AXI_TX_AWLOCK => M_AXI_TX_AWLOCK,
+	M_AXI_TX_AWCACHE => M_AXI_TX_AWCACHE,
+	M_AXI_TX_AWQOS => M_AXI_TX_AWQOS,
+	M_AXI_TX_AWUSER => M_AXI_TX_AWUSER,
+	M_AXI_TX_WLAST => M_AXI_TX_WLAST,
+	M_AXI_TX_WUSER => M_AXI_TX_WUSER,
+	M_AXI_TX_BID => M_AXI_TX_BID,
+	M_AXI_TX_BUSER => M_AXI_TX_BUSER,
+	M_AXI_TX_ARID => M_AXI_TX_ARID,
+	M_AXI_TX_ARLEN => M_AXI_TX_ARLEN,
+	M_AXI_TX_ARSIZE => M_AXI_TX_ARSIZE,
+	M_AXI_TX_ARBURST => M_AXI_TX_ARBURST,
+	M_AXI_TX_ARLOCK => M_AXI_TX_ARLOCK,
+	M_AXI_TX_ARCACHE => M_AXI_TX_ARCACHE,
+	M_AXI_TX_ARQOS => M_AXI_TX_ARQOS,
+	M_AXI_TX_ARUSER => M_AXI_TX_ARUSER,
+	M_AXI_TX_RID => M_AXI_TX_RID,
+	M_AXI_TX_RLAST => M_AXI_TX_RLAST,
+	M_AXI_TX_RUSER => M_AXI_TX_RUSER,
 
       xgmii_rxd => xgmii_rxd,
       xgmii_txd => xgmii_txd,
@@ -476,59 +601,114 @@ block_design_i: xgbe
       xgmii_rx_clk => xgmii_rx_clk
 );
 
-AXI_Slave_for_tb_0 : AXI_Slave_for_tb
+AXI_Slave_for_tb_0_RX : AXI_Slave_for_tb
 port map (
-	M_RD_STRB => M_RD_STRB,
-	M_RD_DATA => M_RD_DATA,
-	M_TX_STRB => M_TX_STRB,
-	M_TX_DATA => M_TX_DATA,
-	S_AXI_ACLK => M_AXI_ACLK,
-	S_AXI_ARESETN => M_AXI_ARESETN,
-	S_AXI_AWADDR => M_AXI_AWADDR,
-	S_AXI_AWPROT => M_AXI_AWPROT,
-	S_AXI_AWVALID => M_AXI_AWVALID,
-	S_AXI_AWREADY => M_AXI_AWREADY,
-	S_AXI_WDATA => M_AXI_WDATA,
-	S_AXI_WSTRB => M_AXI_WSTRB,
-	S_AXI_WVALID => M_AXI_WVALID,
-	S_AXI_WREADY => M_AXI_WREADY,
-	S_AXI_BRESP => M_AXI_BRESP,
-	S_AXI_BVALID => M_AXI_BVALID,
-	S_AXI_BREADY => M_AXI_BREADY,
-	S_AXI_ARADDR => M_AXI_ARADDR,
-	S_AXI_ARPROT => M_AXI_ARPROT,
-	S_AXI_ARVALID => M_AXI_ARVALID,
-	S_AXI_ARREADY => M_AXI_ARREADY,
-	S_AXI_RDATA => M_AXI_RDATA,
-	S_AXI_RRESP => M_AXI_RRESP,
-	S_AXI_RVALID => M_AXI_RVALID,
-	S_AXI_RREADY => M_AXI_RREADY,
-	S_AXI_AWID => M_AXI_AWID,
-	S_AXI_AWLEN => M_AXI_AWLEN,
-	S_AXI_AWSIZE => M_AXI_AWSIZE,
-	S_AXI_AWBURST => M_AXI_AWBURST,
-	S_AXI_AWLOCK => M_AXI_AWLOCK,
-	S_AXI_AWCACHE => M_AXI_AWCACHE,
-	S_AXI_AWQOS => M_AXI_AWQOS,
-	S_AXI_AWUSER => M_AXI_AWUSER,
-	S_AXI_WLAST => M_AXI_WLAST,
-	S_AXI_WUSER => M_AXI_WUSER,
-	S_AXI_BID => M_AXI_BID,
-	S_AXI_BUSER => M_AXI_BUSER,
-	S_AXI_ARID => M_AXI_ARID,
-	S_AXI_ARLEN => M_AXI_ARLEN,
-	S_AXI_ARSIZE => M_AXI_ARSIZE,
-	S_AXI_ARBURST => M_AXI_ARBURST,
-	S_AXI_ARLOCK => M_AXI_ARLOCK,
-	S_AXI_ARCACHE => M_AXI_ARCACHE,
-	S_AXI_ARQOS => M_AXI_ARQOS,
-	S_AXI_ARUSER => M_AXI_ARUSER,
-	S_AXI_RID => M_AXI_RID,
-	S_AXI_RLAST => M_AXI_RLAST,
-	S_AXI_RUSER => M_AXI_RUSER,
+	M_RD_STRB => M_RX_RD_STRB,
+	M_RD_DATA => M_RX_RD_DATA,
+	M_TX_STRB => M_RX_TX_STRB,
+	M_TX_DATA => M_RX_TX_DATA,
+	S_AXI_ACLK => M_AXI_RX_ACLK,
+	S_AXI_ARESETN => M_AXI_RX_ARESETN,
+	S_AXI_AWADDR => M_AXI_RX_AWADDR,
+	S_AXI_AWPROT => M_AXI_RX_AWPROT,
+	S_AXI_AWVALID => M_AXI_RX_AWVALID,
+	S_AXI_AWREADY => M_AXI_RX_AWREADY,
+	S_AXI_WDATA => M_AXI_RX_WDATA,
+	S_AXI_WSTRB => M_AXI_RX_WSTRB,
+	S_AXI_WVALID => M_AXI_RX_WVALID,
+	S_AXI_WREADY => M_AXI_RX_WREADY,
+	S_AXI_BRESP => M_AXI_RX_BRESP,
+	S_AXI_BVALID => M_AXI_RX_BVALID,
+	S_AXI_BREADY => M_AXI_RX_BREADY,
+	S_AXI_ARADDR => M_AXI_RX_ARADDR,
+	S_AXI_ARPROT => M_AXI_RX_ARPROT,
+	S_AXI_ARVALID => M_AXI_RX_ARVALID,
+	S_AXI_ARREADY => M_AXI_RX_ARREADY,
+	S_AXI_RDATA => M_AXI_RX_RDATA,
+	S_AXI_RRESP => M_AXI_RX_RRESP,
+	S_AXI_RVALID => M_AXI_RX_RVALID,
+	S_AXI_RREADY => M_AXI_RX_RREADY,
+	S_AXI_AWID => M_AXI_RX_AWID,
+	S_AXI_AWLEN => M_AXI_RX_AWLEN,
+	S_AXI_AWSIZE => M_AXI_RX_AWSIZE,
+	S_AXI_AWBURST => M_AXI_RX_AWBURST,
+	S_AXI_AWLOCK => M_AXI_RX_AWLOCK,
+	S_AXI_AWCACHE => M_AXI_RX_AWCACHE,
+	S_AXI_AWQOS => M_AXI_RX_AWQOS,
+	S_AXI_AWUSER => M_AXI_RX_AWUSER,
+	S_AXI_WLAST => M_AXI_RX_WLAST,
+	S_AXI_WUSER => M_AXI_RX_WUSER,
+	S_AXI_BID => M_AXI_RX_BID,
+	S_AXI_BUSER => M_AXI_RX_BUSER,
+	S_AXI_ARID => M_AXI_RX_ARID,
+	S_AXI_ARLEN => M_AXI_RX_ARLEN,
+	S_AXI_ARSIZE => M_AXI_RX_ARSIZE,
+	S_AXI_ARBURST => M_AXI_RX_ARBURST,
+	S_AXI_ARLOCK => M_AXI_RX_ARLOCK,
+	S_AXI_ARCACHE => M_AXI_RX_ARCACHE,
+	S_AXI_ARQOS => M_AXI_RX_ARQOS,
+	S_AXI_ARUSER => M_AXI_RX_ARUSER,
+	S_AXI_RID => M_AXI_RX_RID,
+	S_AXI_RLAST => M_AXI_RX_RLAST,
+	S_AXI_RUSER => M_AXI_RX_RUSER,
 	S_AXI_ARREGION => (others => '0'),
 	S_AXI_AWREGION => (others => '0')
 );
+
+AXI_Slave_for_tb_0_TX : AXI_Slave_for_tb
+port map (
+	M_RD_STRB => M_TX_RD_STRB,
+	M_RD_DATA => M_TX_RD_DATA,
+	M_TX_STRB => M_TX_TX_STRB,
+	M_TX_DATA => M_TX_TX_DATA,
+	S_AXI_ACLK => M_AXI_TX_ACLK,
+	S_AXI_ARESETN => M_AXI_TX_ARESETN,
+	S_AXI_AWADDR => M_AXI_TX_AWADDR,
+	S_AXI_AWPROT => M_AXI_TX_AWPROT,
+	S_AXI_AWVALID => M_AXI_TX_AWVALID,
+	S_AXI_AWREADY => M_AXI_TX_AWREADY,
+	S_AXI_WDATA => M_AXI_TX_WDATA,
+	S_AXI_WSTRB => M_AXI_TX_WSTRB,
+	S_AXI_WVALID => M_AXI_TX_WVALID,
+	S_AXI_WREADY => M_AXI_TX_WREADY,
+	S_AXI_BRESP => M_AXI_TX_BRESP,
+	S_AXI_BVALID => M_AXI_TX_BVALID,
+	S_AXI_BREADY => M_AXI_TX_BREADY,
+	S_AXI_ARADDR => M_AXI_TX_ARADDR,
+	S_AXI_ARPROT => M_AXI_TX_ARPROT,
+	S_AXI_ARVALID => M_AXI_TX_ARVALID,
+	S_AXI_ARREADY => M_AXI_TX_ARREADY,
+	S_AXI_RDATA => M_AXI_TX_RDATA,
+	S_AXI_RRESP => M_AXI_TX_RRESP,
+	S_AXI_RVALID => M_AXI_TX_RVALID,
+	S_AXI_RREADY => M_AXI_TX_RREADY,
+	S_AXI_AWID => M_AXI_TX_AWID,
+	S_AXI_AWLEN => M_AXI_TX_AWLEN,
+	S_AXI_AWSIZE => M_AXI_TX_AWSIZE,
+	S_AXI_AWBURST => M_AXI_TX_AWBURST,
+	S_AXI_AWLOCK => M_AXI_TX_AWLOCK,
+	S_AXI_AWCACHE => M_AXI_TX_AWCACHE,
+	S_AXI_AWQOS => M_AXI_TX_AWQOS,
+	S_AXI_AWUSER => M_AXI_TX_AWUSER,
+	S_AXI_WLAST => M_AXI_TX_WLAST,
+	S_AXI_WUSER => M_AXI_TX_WUSER,
+	S_AXI_BID => M_AXI_TX_BID,
+	S_AXI_BUSER => M_AXI_TX_BUSER,
+	S_AXI_ARID => M_AXI_TX_ARID,
+	S_AXI_ARLEN => M_AXI_TX_ARLEN,
+	S_AXI_ARSIZE => M_AXI_TX_ARSIZE,
+	S_AXI_ARBURST => M_AXI_TX_ARBURST,
+	S_AXI_ARLOCK => M_AXI_TX_ARLOCK,
+	S_AXI_ARCACHE => M_AXI_TX_ARCACHE,
+	S_AXI_ARQOS => M_AXI_TX_ARQOS,
+	S_AXI_ARUSER => M_AXI_TX_ARUSER,
+	S_AXI_RID => M_AXI_TX_RID,
+	S_AXI_RLAST => M_AXI_TX_RLAST,
+	S_AXI_RUSER => M_AXI_TX_RUSER,
+	S_AXI_ARREGION => (others => '0'),
+	S_AXI_AWREGION => (others => '0')
+);
+
 
 process begin
 	wait for 1 ns;
@@ -552,10 +732,14 @@ end process;
 
 process begin
 	s_axi_aclk <= '0';
-	m_axi_aclk <= '0';
+	m_axi_rx_aclk <= '0';
+	m_axi_tx_aclk <= '0';
+
 	wait for 5 ns;
 	s_axi_aclk <= '1';
-	m_axi_aclk <= '1';
+	m_axi_rx_aclk <= '1';
+	m_axi_tx_aclk <= '1';
+
 	wait for 5 ns;
 end process;
  
@@ -575,14 +759,17 @@ end process;
 
 process begin
 	s_axi_aresetn <= '0';
-	m_axi_aresetn <= '0';
+	m_axi_tx_aresetn <= '0';
+	m_axi_rx_aresetn <= '0';
 	rst_clk_156_25MHz <= '0';
 	rst_clk_20MHz <= '0';
 	wait for 6.4 ns;
 	rst_clk_156_25MHz <= '1';
 	wait for 3.6 ns;
 	s_axi_aresetn <= '1';
-	m_axi_aresetn <= '1';
+	m_axi_tx_aresetn <= '0';
+	m_axi_rx_aresetn <= '0';
+
 	wait for 40 ns;
 	rst_clk_20MHz <= '1';
 	wait;
@@ -631,7 +818,7 @@ process
 begin
 	wait until rst_clk_20MHz = '1';
 
-	M_RD_DATA <= std_logic_vector(to_unsigned(64, 32));
+	M_RX_RD_DATA <= std_logic_vector(to_unsigned(64, 32));
 
 	wait for 30 ns;
  	s_axi_awaddr<="01000";
