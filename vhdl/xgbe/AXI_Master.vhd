@@ -90,8 +90,8 @@ architecture implementation of AXI_Master is
 -- C_TRANSACTIONS_NUM is the width of the index counter for
 -- number of beats in a burst write or burst read transaction.
 
-	constant C_TRANSACTIONS_NUM	: integer := 4;
-	constant C_MASTER_LENGTH	: integer := 6;
+	constant C_TRANSACTIONS_NUM	: integer := 3;
+	constant C_MASTER_LENGTH	: integer := 5;
 	constant C_NO_BURSTS_REQ 	: integer := 0;
 	type state is ( IDLE,
 			WRITE,
@@ -530,10 +530,6 @@ begin
 			axi_arwlen 	<= BURST;
 			mst_exec_state 	<= INIT_READ;
 			M_TARGET_ADDR_S <= M_TARGET_BASE_ADDR;
-			if (axi_arvalid = '0' and burst_read_active = '0' and
-			start_single_burst_read = '0') then
-				start_single_burst_read <= '1';
-			end if;
 		else
 			mst_exec_state  <= IDLE;
 		end if;
@@ -561,13 +557,15 @@ begin
 
 		when INIT_READ =>
 		mst_exec_state <= INIT_READ;
-		if (M_AXI_RVALID = '1' and axi_rready = '1' and M_AXI_RLAST = '1') then
-			mst_exec_state <= IDLE;
-			AXI_RXN_DONE <= '1';
-			AXI_RXN_STRB <= '1';
-		elsif (rnext = '1') then
+		if (rnext = '1') then
 			M_DATA_OUT_S <= M_AXI_RDATA;
 			AXI_RXN_STRB <= '1';
+		elsif (reads_done = '1') then
+			mst_exec_state <= IDLE;
+			AXI_RXN_DONE <= '1';
+		elsif (axi_arvalid = '0' and burst_read_active = '0' and
+		start_single_burst_read = '0') then
+			start_single_burst_read <= '1';
 		end if;
 	when others  =>
 		mst_exec_state <= IDLE;
