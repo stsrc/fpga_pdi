@@ -273,19 +273,13 @@ static int pdi_rx(struct pdi *pdi)
 	struct sk_buff *skb = NULL;
 	struct dma_ring *rx_ring = &pdi->rx_ring;
 	int ret = 0;
- 	
-	/*
-	 * TODO: here I only flush the registers.
-	 * I should deactivate not_read_packets_counter
-	 * from xgbe when DMA RX is on.
-	 */
-	
+ 		
 	ioread32(pdi->reg3);
 	packets_cnt = ioread32(pdi->reg4);
 	if (!packets_cnt)
 		return 0;		
 
-	packets_cnt /= 8;
+	packets_cnt /= sizeof(struct dma_desc);
 
 	for (i = rx_ring->desc_cons; i != (rx_ring->desc_cons + packets_cnt) %
 		rx_ring->desc_max; i = (i + 1) % rx_ring->desc_max) {
@@ -311,17 +305,14 @@ static int pdi_poll(struct napi_struct *napi, int budget)
 {
 	int packets_cnt;
 	struct pdi *pdi = container_of(napi, struct pdi, napi);
-	packets_cnt = pdi_rx(pdi);
-	packets_cnt += pdi_complete_xmit(pdi);
+	packets_cnt = pdi_complete_xmit(pdi);
+	packets_cnt += pdi_rx(pdi);
 
 	if (budget > packets_cnt) {
 		/* Enable interrupt, data reception and DMA. */
 		napi_complete(&pdi->napi);
 		iowrite32(cpu_to_le32((1 << 1) | (1 << 2) | (1 << 3)), pdi->reg2);
 	}
-
-	if (packets_cnt > budget)
-		pr_info("packets_cnt = %d, budget = %d\n", packets_cnt, budget);
 
 	return packets_cnt;
 }
@@ -614,7 +605,7 @@ static int pdi_init_ethernet(struct platform_device *pdev)
 	memset(pdi->netdev->dev_addr, DEVICE_MAC_BYTE, ETH_ALEN);
 	pdi->netdev->netdev_ops = &pdi_netdev_ops;
 
-	netif_napi_add(pdi->netdev, &pdi->napi, pdi_poll, 64);
+	netif_napi_add(pdi->netdev, &pdi->napi, pdi_poll, 4);
 
 	rt = register_netdev(pdi->netdev);
 	
