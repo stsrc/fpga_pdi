@@ -1,2 +1,5 @@
 A. Tanguay (antanguay@opencores.org) is the author of files in the xge_mac directory.
 Original sources of xge_mac are on www.opencores.org/project,xge_mac
+
+Testbenches may need updates. Not every change was tested due to the lack of time.  
+Especially xgbe and xgbe_pcs_pma tb may need update!
