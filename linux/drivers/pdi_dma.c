@@ -311,7 +311,8 @@ static int pdi_poll(struct napi_struct *napi, int budget)
 	if (budget > packets_cnt) {
 		/* Enable interrupt, data reception and DMA. */
 		napi_complete(&pdi->napi);
-		iowrite32(cpu_to_le32((1 << 1) | (1 << 2) | (1 << 3)), pdi->reg2);
+		iowrite32(cpu_to_le32((1 << 1) | (1 << 2) | (1 << 3)), 
+			  pdi->reg2);
 	}
 
 	return packets_cnt;
@@ -356,11 +357,12 @@ static void pdi_deinit_dma_ring(struct pdi *pdi, struct dma_ring *ring)
 static void pdi_set_dma(struct pdi *pdi)
 {
 	/* Write where is TX ring located in physical memory. */
-	iowrite32(pdi->tx_ring.desc_p, pdi->reg4);
+	iowrite32(cpu_to_le32(pdi->tx_ring.desc_p), pdi->reg4);
 	/* Write where is RX ring located in physical memory. */
-	iowrite32(pdi->rx_ring.desc_p, pdi->reg6);
+	iowrite32(cpu_to_le32(pdi->rx_ring.desc_p), pdi->reg6);
 	/* Write byte size of TX and RX ring. */
-	iowrite32(pdi->tx_ring.desc_max * sizeof(struct dma_desc), pdi->reg5); 
+	iowrite32(cpu_to_le32(pdi->tx_ring.desc_max * sizeof(struct dma_desc))
+		  , pdi->reg5); 
 	wmb();
 }
 
@@ -695,7 +697,7 @@ static int pdi_probe(struct platform_device *pdev)
 	}
 	wmb();
 	/* Enable data reception, interrupts and DMA. */
-	iowrite32(1 << 1 | 1 << 2 | 1 << 3, pdi->reg2); 
+	iowrite32(cpu_to_le32(1 << 1 | 1 << 2 | 1 << 3), pdi->reg2); 
 	debug_print("pdi: init 6\n");
 	return 0;
 err3:
