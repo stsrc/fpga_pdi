@@ -78,9 +78,6 @@ begin
 						head <= head + 1;
 					end if;
 				when '0' =>
-					--TODO:
-					--fsm_axi_to_fifo fails here, because it makes strb_in as pulse. 
-					--When fifo will become full, it will come back to the wrong head ptr.
 					head_save <= head;
 				when others =>
 					head <= head_save;

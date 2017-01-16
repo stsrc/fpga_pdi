@@ -24,7 +24,7 @@ use IEEE.STD_LOGIC_1164.ALL;
 
 -- Uncomment the following library declaration if using
 -- arithmetic functions with Signed or Unsigned values
---use IEEE.NUMERIC_STD.ALL;
+use IEEE.NUMERIC_STD.ALL;
 
 -- Uncomment the following library declaration if instantiating
 -- any Xilinx leaf cells in this code.
@@ -44,6 +44,7 @@ port (
 	data_from_axi_strb 	: in std_logic;
 	data_to_fifo 		: out std_logic_vector(63 downto 0);
 	data_to_fifo_strb 	: out std_logic;
+	fifo_is_full		: in std_logic;
 	cnt_from_axi 		: in std_logic_vector(31 downto 0);
 	cnt_from_axi_strb 	: in std_logic;
 	cnt_to_fifo : out std_logic_vector(13 downto 0);
@@ -57,6 +58,7 @@ signal cnt_from_axi_strb, cnt_to_fifo_strb, packet_strb : std_logic := '0';
 signal data_from_axi, cnt_from_axi : std_logic_vector(31 downto 0) := (others => '0');
 signal data_to_fifo : std_logic_vector(63 downto 0) := (others => '0');
 signal cnt_to_fifo : std_logic_vector(13 downto 0) := (others => '0');
+signal fifo_is_full : std_logic := '0';
 begin
 fsm_1 : fsm_axi_to_fifo 
 	port map (
@@ -70,7 +72,8 @@ fsm_1 : fsm_axi_to_fifo
 		cnt_from_axi_strb => cnt_from_axi_strb,
 		cnt_to_fifo => cnt_to_fifo,
 		cnt_to_fifo_strb => cnt_to_fifo_strb,
-		packet_strb => packet_strb
+		packet_strb => packet_strb,
+		fifo_is_full => fifo_is_full
 	);
 
 process begin
@@ -95,6 +98,21 @@ cnt_from_axi <= x"000000ff";
 cnt_from_axi_strb <= '1';
 wait for 10 ns;
 cnt_from_axi_strb <= '0';
+
+while(true) loop
+	data_from_axi <= std_logic_vector(to_unsigned(255, 32));
+	data_from_axi_strb <= '1';
+	wait for 20 ns;
+	fifo_is_full <= '1';
+	wait for 10 ns;
+	fifo_is_full <= '0';
+	wait for 40 ns;
+	data_from_axi_strb <= '0';
+	cnt_from_axi_strb <= '1';
+	wait for 10 ns;
+	cnt_from_axi_strb <= '0';
+end loop;
+
 wait;
 end process;
 
