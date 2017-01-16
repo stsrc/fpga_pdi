@@ -162,10 +162,9 @@ component xge_mac is
 	);
 end component xge_mac;
 
-component counter_2 is
+component counter_pdi is
 	generic (
-		REG_WIDTH : integer := 32;
-		INT_GEN_DELAY : integer := 100
+		REG_WIDTH : integer := 32
 	);
 	port (
 		clk		: in std_logic;
@@ -176,7 +175,7 @@ component counter_2 is
 		cnt_out		: out std_logic_vector(REG_WIDTH - 1 downto 0);
 		interrupt   	: out std_logic
 	);
-end component counter_2;
+end component counter_pdi;
 
 component bit_over_clocks is
 	port (
@@ -443,8 +442,8 @@ component fsm_DMA_RX is
 		RX_DESC_ADDR_STRB 	: in  std_logic;
 		RX_SIZE			: in  std_logic_vector(31 downto 0);
 		RX_SIZE_STRB		: in  std_logic;
-		RX_PRCSSD		: out std_logic_vector(31 downto 0);
-		RX_PRCSSD_STRB		: in  std_logic;
+		RX_READ			: in  std_logic_vector(31 downto 0);
+		RX_READ_STRB		: in  std_logic;
 		RX_PRCSSD_INT		: out std_logic;
 		RX_WSTRB		: out std_logic_vector(3 downto 0);
 		XGBE_PCKT_RCV		: in  std_logic;
@@ -686,6 +685,7 @@ begin
 		if (rising_edge(s_axi_aclk)) then
 			if (s_axi_aresetn = '0') then
 				slv_reg2_rd 	<= (others => '0');
+				slv_reg4_rd 	<= (others => '0');
 				slv_reg5_rd 	<= (others => '0');
 				slv_reg7_rd 	<= (others => '0');
 				dma_tx_data_out <= (others => '0');
@@ -703,8 +703,8 @@ begin
 			int_out => interrupt_to_axi
 		);
 
-	not_read_packet_counter : counter_2
-		generic map ( REG_WIDTH => 32, INT_GEN_DELAY => 200000)
+	not_read_packet_counter : counter_pdi
+		generic map ( REG_WIDTH => 32)
 		port map (
 			clk => s_axi_aclk,
 			resetn => con_100MHz_resetn,
@@ -1129,8 +1129,8 @@ begin
 			RX_DESC_ADDR_STRB 	=> slv_reg6_wr_strb,
 			RX_SIZE 		=> slv_reg5_wr,
 			RX_SIZE_STRB 		=> slv_reg5_wr_strb,
-			RX_PRCSSD 		=> slv_reg4_rd,
-			RX_PRCSSD_STRB 		=> slv_reg4_rd_strb,
+			RX_READ 		=> slv_reg3_wr,
+			RX_READ_STRB 		=> slv_reg3_wr_strb,
 			RX_PRCSSD_INT 		=> interrupt_fsm_DMA_RX,
 			RX_WSTRB		=> dma_rx_wstrb,
 			XGBE_PCKT_RCV 		=> interrupt_fifo_counter,

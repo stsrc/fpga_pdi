@@ -7,10 +7,9 @@ end tb;
 
 architecture arch_tb of tb is
 
-component counter is
+component counter_pdi is
 	generic (
-		REG_WIDTH : integer := 32;
-		INT_GEN_DELAY : integer := 100
+		REG_WIDTH : integer := 32
 	);
 	port (
 		clk		: in std_logic;
@@ -28,7 +27,7 @@ signal clk, resetn, incr, get_val, interrupt : std_logic := '0';
 signal int_en  : std_logic := '1';
 signal cnt_out : std_logic_vector(31 downto 0);
 begin
-counter_0 : counter
+counter_0 : counter_pdi
 	generic map (REG_WIDTH => 32)
 	port map (
 		clk => clk,

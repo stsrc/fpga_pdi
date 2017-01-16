@@ -2,10 +2,9 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity counter_2 is
+entity counter_pdi is
 	generic (
-		REG_WIDTH : integer := 32;
-		INT_GEN_DELAY : integer := 100
+		REG_WIDTH : integer := 32
 	);
 	port (
 		clk		: in std_logic;
@@ -16,9 +15,9 @@ entity counter_2 is
 		cnt_out		: out std_logic_vector(REG_WIDTH - 1 downto 0);
 		interrupt   : out std_logic
 	);
-end counter_2;
+end counter_pdi;
 
-architecture counter_arch of counter_2 is
+architecture counter_arch of counter_pdi is
 	signal cnt : unsigned(REG_WIDTH - 1 downto 0);
 	signal incr_state : std_logic := '0';
 	signal int_en_last : std_logic;

@@ -274,12 +274,10 @@ static int pdi_rx(struct pdi *pdi)
 	struct dma_ring *rx_ring = &pdi->rx_ring;
 	int ret = 0;
  		
-	ioread32(pdi->reg3);
-	packets_cnt = ioread32(pdi->reg4);
+	packets_cnt = ioread32(pdi->reg3);
+	
 	if (!packets_cnt)
 		return 0;		
-
-	packets_cnt /= sizeof(struct dma_desc);
 
 	for (i = rx_ring->desc_cons; i != (rx_ring->desc_cons + packets_cnt) %
 		rx_ring->desc_max; i = (i + 1) % rx_ring->desc_max) {
@@ -298,6 +296,9 @@ static int pdi_rx(struct pdi *pdi)
 
 	rx_ring->desc_cons = i;
 	pdi->netdev->stats.rx_packets += (unsigned long)packets_cnt;
+	rmb();
+	iowrite32(cpu_to_le32(packets_cnt * sizeof(struct dma_desc)), 
+		  pdi->reg3);
 	return packets_cnt;
 }
 
