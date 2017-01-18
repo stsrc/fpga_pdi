@@ -449,7 +449,17 @@ static void pdi_deinit_dma_rx_ring_info(struct pdi *pdi)
 
 static void pdi_deinit_dma_tx_ring_info(struct pdi *pdi)
 {
-	/* TODO: UNMAP MAPPED PACKETS! */
+	int i = 0;
+	struct sk_buff *skb = NULL;
+
+	for (i = tx_ring->desc_cons; i != tx_ring->desc_cur; 
+	     i = (i + 1) % tx_ring->desc_max) {
+		skb = tx_ring->buffer[i].skb;
+		dma_unmap_single(pdi->dev, tx_ring->buffer[i].map, skb->len,
+				 DMA_TO_DEVICE);
+		dev_kfree_skb(skb);
+	}
+	tx_ring->desc_cons = i;
 }
 
 static int pdi_init_dma_rings(struct platform_device *pdev)
@@ -733,19 +743,19 @@ static int pdi_remove(struct platform_device *pdev)
 	free_irq(pdi->irq, pdi);
 	debug_print("pdi: 2\n");
 
-	pdi_deinit_dma_rings(pdev);
+	unregister_netdev(netdev);
 	debug_print("pdi: 3\n");
 
-	pdi_deinit_registers(pdi);
+	netif_napi_del(napi);
 	debug_print("pdi: 4\n");
 
-	unregister_netdev(netdev);
+	free_netdev(netdev);
 	debug_print("pdi: 5\n");
 
-	netif_napi_del(napi);
+	pdi_deinit_dma_rings(pdev);
 	debug_print("pdi: 6\n");
 
-	free_netdev(netdev);
+	pdi_deinit_registers(pdi);
 	debug_print("pdi: 7\n");
 
 	pdev->dev.platform_data = NULL;
