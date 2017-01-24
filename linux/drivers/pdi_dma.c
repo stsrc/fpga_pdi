@@ -451,7 +451,8 @@ static void pdi_deinit_dma_tx_ring_info(struct pdi *pdi)
 {
 	int i = 0;
 	struct sk_buff *skb = NULL;
-
+	struct dma_ring *tx_ring = &pdi->tx_ring;
+	
 	for (i = tx_ring->desc_cons; i != tx_ring->desc_cur; 
 	     i = (i + 1) % tx_ring->desc_max) {
 		skb = tx_ring->buffer[i].skb;
@@ -619,6 +620,11 @@ static int pdi_init_ethernet(struct platform_device *pdev)
 	pdi->netdev->netdev_ops = &pdi_netdev_ops;
 
 	netif_napi_add(pdi->netdev, &pdi->napi, pdi_poll, 4);
+	/* TODO here:
+	 * NETIF_F_SG, NETIF_F_GSO, NETIF_F_GRO and many many more.
+	 */
+	pdi->netdev->hw_features = 0;
+	pdi->netdev->features = 0;
 
 	rt = register_netdev(pdi->netdev);
 	
@@ -749,13 +755,13 @@ static int pdi_remove(struct platform_device *pdev)
 	netif_napi_del(napi);
 	debug_print("pdi: 4\n");
 
-	free_netdev(netdev);
+	pdi_deinit_dma_rings(pdev);
 	debug_print("pdi: 5\n");
 
-	pdi_deinit_dma_rings(pdev);
+	pdi_deinit_registers(pdi);
 	debug_print("pdi: 6\n");
 
-	pdi_deinit_registers(pdi);
+	free_netdev(netdev);
 	debug_print("pdi: 7\n");
 
 	pdev->dev.platform_data = NULL;
