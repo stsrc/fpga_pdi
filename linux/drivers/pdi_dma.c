@@ -613,13 +613,15 @@ static int pdi_init_ethernet(struct platform_device *pdev)
 {	
 	int rt;
 	struct pdi *pdi = pdev->dev.platform_data;
+
+	SET_NETDEV_DEV(netdev, pdev->dev);		
 	
+	netif_napi_add(pdi->netdev, &pdi->napi, pdi_poll, 4);
+
 	pdi->netdev->irq = pdi->irq;
 	pdi->netdev->base_addr = pdi->iomem->start;
 	memset(pdi->netdev->dev_addr, DEVICE_MAC_BYTE, ETH_ALEN);
 	pdi->netdev->netdev_ops = &pdi_netdev_ops;
-
-	netif_napi_add(pdi->netdev, &pdi->napi, pdi_poll, 4);
 	/* TODO here:
 	 * NETIF_F_SG, NETIF_F_GSO, NETIF_F_GRO and many many more.
 	 */
@@ -668,6 +670,7 @@ static int pdi_probe(struct platform_device *pdev)
 		debug_print("pdi: alloc_etherdev failed.\n");
 		return -ENOMEM;
 	}
+
 	debug_print("pdi: init 1\n");
 	pdi = netdev_priv(netdev);
 	if (!pdi) {
