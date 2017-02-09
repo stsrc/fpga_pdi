@@ -105,7 +105,7 @@ signal TX_PRCSSD_INT_S 		: std_logic;
 --Size of AXI Burst
 signal BURST_S			: unsigned(7 downto 0);
 
-signal COUNTER			: unsigned(1 downto 0);
+signal COUNTER			: unsigned(2 downto 0);
 
 type tx_states is (
 		IDLE,
@@ -310,7 +310,7 @@ process(clk) begin
 				TX_PCKT_CNT <= std_logic_vector(TX_BYTES_REG);
 				TX_PCKT_CNT_STRB <= '1';
 
-				if (COUNTER = 3) then
+				if (COUNTER + 1 = 0) then
 					TX_PRCSSD_INT_S <= '1';
 				end if;
 				
