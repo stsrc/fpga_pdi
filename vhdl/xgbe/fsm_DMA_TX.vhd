@@ -105,6 +105,7 @@ signal TX_PRCSSD_INT_S 		: std_logic;
 --Size of AXI Burst
 signal BURST_S			: unsigned(7 downto 0);
 
+signal COUNTER			: unsigned(1 downto 0);
 
 type tx_states is (
 		IDLE,
@@ -140,6 +141,7 @@ process(clk) begin
 			TX_INCR_STRB_CNT <= (others => '0');	
 			TX_BYTES_REG <= (others => '0');
 			TX_BYTES_ACTUAL <= (others => '0');
+			COUNTER <= (others => '0');
 			TX_FAKE_READ <= '0';
 			TX_PRCSSD_INT_S <= '0';
 
@@ -307,7 +309,13 @@ process(clk) begin
 			when PUSH_PCKT_CNT =>
 				TX_PCKT_CNT <= std_logic_vector(TX_BYTES_REG);
 				TX_PCKT_CNT_STRB <= '1';
-				TX_PRCSSD_INT_S <= '1';
+
+				if (COUNTER = 3) then
+					TX_PRCSSD_INT_S <= '1';
+				end if;
+				
+				COUNTER <= COUNTER + 1;
+
 				TX_PRCSSD_REG <= TX_PRCSSD_REG + 8;
 				if (TX_PRCSSD_STRB = '1') then
 					TX_PRCSSD_REG <= to_unsigned(8, 32);

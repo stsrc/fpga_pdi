@@ -614,9 +614,9 @@ static int pdi_init_ethernet(struct platform_device *pdev)
 	int rt;
 	struct pdi *pdi = pdev->dev.platform_data;
 
-	SET_NETDEV_DEV(netdev, pdev->dev);		
+	SET_NETDEV_DEV(pdi->netdev, &pdev->dev);		
 	
-	netif_napi_add(pdi->netdev, &pdi->napi, pdi_poll, 4);
+	netif_napi_add(pdi->netdev, &pdi->napi, pdi_poll, 64);
 
 	pdi->netdev->irq = pdi->irq;
 	pdi->netdev->base_addr = pdi->iomem->start;
@@ -625,8 +625,7 @@ static int pdi_init_ethernet(struct platform_device *pdev)
 	/* TODO here:
 	 * NETIF_F_SG, NETIF_F_GSO, NETIF_F_GRO and many many more.
 	 */
-	pdi->netdev->hw_features = 0;
-	pdi->netdev->features = 0;
+
 
 	rt = register_netdev(pdi->netdev);
 	
