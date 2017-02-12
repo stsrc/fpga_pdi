@@ -19,11 +19,9 @@ entity xgbe is
 	port (
 		clk_156_25MHz		: in std_logic;
 		rst_clk_156_25MHz 	: in std_logic;
-		clk_20MHz	: in std_logic;
+		clk_20MHz		: in std_logic;
 		rst_clk_20MHz		: in std_logic;
-
 		interrupt		: out std_logic;
-
 		s_axi_aclk		: in std_logic;
 		s_axi_aresetn		: in std_logic;
 		s_axi_awaddr		: in std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
@@ -91,7 +89,6 @@ entity xgbe is
 		M_AXI_RVALID	: in std_logic;
 		M_AXI_RREADY	: out std_logic;
 
-
 		xgmii_rxc 		: in std_logic_vector(7 downto 0);
 		xgmii_rxd 		: in std_logic_vector(63 downto 0);
 		xgmii_txc 		: out std_logic_vector(7 downto 0);
@@ -116,9 +113,12 @@ component MUX is
 end component;
 
 component interrupt_controller is
-	port (
-	int_0 : in std_logic;
-	int_1 : in std_logic;
+port (
+	clk 	: in std_logic;
+	resetn 	: in std_logic;
+	int_0 	: in std_logic;
+	int_1 	: in std_logic;
+	int_en 	: in std_logic;
 	int_out : out std_logic
 );
 end component;
@@ -162,10 +162,9 @@ component xge_mac is
 	);
 end component xge_mac;
 
-component counter is
+component counter_pdi is
 	generic (
-		REG_WIDTH : integer := 32;
-		INT_GEN_DELAY : integer := 100
+		REG_WIDTH : integer := 32
 	);
 	port (
 		clk		: in std_logic;
@@ -174,9 +173,9 @@ component counter is
 		get_val		: in std_logic;
 		int_en		: in std_logic;
 		cnt_out		: out std_logic_vector(REG_WIDTH - 1 downto 0);
-		interrupt   : out std_logic
+		interrupt   	: out std_logic
 	);
-end component counter;
+end component counter_pdi;
 
 component bit_over_clocks is
 	port (
@@ -443,8 +442,8 @@ component fsm_DMA_RX is
 		RX_DESC_ADDR_STRB 	: in  std_logic;
 		RX_SIZE			: in  std_logic_vector(31 downto 0);
 		RX_SIZE_STRB		: in  std_logic;
-		RX_PRCSSD		: out std_logic_vector(31 downto 0);
-		RX_PRCSSD_STRB		: in  std_logic;
+		RX_READ			: in  std_logic_vector(31 downto 0);
+		RX_READ_STRB		: in  std_logic;
 		RX_PRCSSD_INT		: out std_logic;
 		RX_WSTRB		: out std_logic_vector(3 downto 0);
 		XGBE_PCKT_RCV		: in  std_logic;
@@ -503,14 +502,15 @@ end component;
 
 component fsm_axi_to_fifo is
 port (
-	clk 			: in std_logic;
-	resetn 			: in std_logic;
-	data_from_axi 		: in std_logic_vector(31 downto 0);
-	data_from_axi_strb 	: in std_logic;
+	clk 			: in  std_logic;
+	resetn 			: in  std_logic;
+	data_from_axi 		: in  std_logic_vector(31 downto 0);
+	data_from_axi_strb 	: in  std_logic;
 	data_to_fifo 		: out std_logic_vector(63 downto 0);
 	data_to_fifo_strb 	: out std_logic;
-	cnt_from_axi 		: in std_logic_vector(31 downto 0);
-	cnt_from_axi_strb 	: in std_logic;
+	fifo_is_full		: in  std_logic;
+	cnt_from_axi 		: in  std_logic_vector(31 downto 0);
+	cnt_from_axi_strb 	: in  std_logic;
 	cnt_to_fifo 		: out std_logic_vector(13 downto 0);
 	cnt_to_fifo_strb 	: out std_logic;
 	packet_strb 		: out std_logic
@@ -686,6 +686,7 @@ begin
 		if (rising_edge(s_axi_aclk)) then
 			if (s_axi_aresetn = '0') then
 				slv_reg2_rd 	<= (others => '0');
+				slv_reg4_rd 	<= (others => '0');
 				slv_reg5_rd 	<= (others => '0');
 				slv_reg7_rd 	<= (others => '0');
 				dma_tx_data_out <= (others => '0');
@@ -695,19 +696,22 @@ begin
 
 	interrupt_controller_0 : interrupt_controller
 		port map (
+			clk => s_axi_aclk,
+			resetn => con_100MHz_resetn,
 			int_0 => interrupt_rx_counter,
 			int_1 => interrupt_tx_prcssd,
+			int_en	=> int_en_100MHz,
 			int_out => interrupt_to_axi
 		);
 
-	not_read_packet_counter : counter
-		generic map ( REG_WIDTH => 32, INT_GEN_DELAY => 100000)
+	not_read_packet_counter : counter_pdi
+		generic map ( REG_WIDTH => 32)
 		port map (
 			clk => s_axi_aclk,
 			resetn => con_100MHz_resetn,
 			incr => int_to_counter,
+			int_en => int_en_100MHz,
 			get_val => slv_reg3_rd_strb,
-			int_en	=> int_en_100MHz,
 			cnt_out => slv_reg3_rd,
 			interrupt => interrupt_rx_counter
 		);
@@ -794,17 +798,18 @@ begin
 
 	fsm_axi_to_fifo_0 : fsm_axi_to_fifo
 		port map (
-			clk => s_axi_aclk,
-			resetn => con_100MHz_resetn,
-			data_from_axi => data_mux_fsm_tx,
-			data_from_axi_strb => strb_data_mux_fsm_tx, 
-			data_to_fifo => data_axi_fifo, 
-			data_to_fifo_strb => strb_data_axi_fifo, 
-			cnt_from_axi   => cnt_mux_fsm_tx,
-			cnt_from_axi_strb => strb_cnt_mux_fsm_tx,
-			cnt_to_fifo  => cnt_axi_fifo,
-			cnt_to_fifo_strb => strb_cnt_axi_fifo,
-			packet_strb => interrupt_axi_fifo
+			clk 			=> s_axi_aclk,
+			resetn 			=> con_100MHz_resetn,
+			data_from_axi 		=> data_mux_fsm_tx,
+			data_from_axi_strb 	=> strb_data_mux_fsm_tx, 
+			data_to_fifo 		=> data_axi_fifo, 
+			data_to_fifo_strb 	=> strb_data_axi_fifo,
+		 	fifo_is_full 		=> full_fifo_axi_mac,
+			cnt_from_axi   		=> cnt_mux_fsm_tx,
+			cnt_from_axi_strb 	=> strb_cnt_mux_fsm_tx,
+			cnt_to_fifo  		=> cnt_axi_fifo,
+			cnt_to_fifo_strb 	=> strb_cnt_axi_fifo,
+			packet_strb 		=> interrupt_axi_fifo
 		);
 
 	fsm_fifo_to_mac_0 : fsm_fifo_to_mac 
@@ -1124,10 +1129,10 @@ begin
 			BURST 			=> dma_rx_burst,
 			RX_DESC_ADDR 		=> slv_reg6_wr,
 			RX_DESC_ADDR_STRB 	=> slv_reg6_wr_strb,
-			RX_SIZE 		=> slv_reg3_wr,
-			RX_SIZE_STRB 		=> slv_reg3_wr_strb,
-			RX_PRCSSD 		=> slv_reg4_rd,
-			RX_PRCSSD_STRB 		=> slv_reg4_rd_strb,
+			RX_SIZE 		=> slv_reg5_wr,
+			RX_SIZE_STRB 		=> slv_reg5_wr_strb,
+			RX_READ 		=> slv_reg3_wr,
+			RX_READ_STRB 		=> slv_reg3_wr_strb,
 			RX_PRCSSD_INT 		=> interrupt_fsm_DMA_RX,
 			RX_WSTRB		=> dma_rx_wstrb,
 			XGBE_PCKT_RCV 		=> interrupt_fifo_counter,

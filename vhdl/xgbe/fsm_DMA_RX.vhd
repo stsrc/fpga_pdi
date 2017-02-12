@@ -28,10 +28,10 @@ entity fsm_DMA_RX is
 		RX_SIZE			: in std_logic_vector(31 downto 0);
 		RX_SIZE_STRB		: in std_logic;
 
-		--Processed RX descriptors size from the last read.
-		RX_PRCSSD		: out std_logic_vector(31 downto 0);
-		--Processed RX descriptors size read strobe (resets counter).
-		RX_PRCSSD_STRB		: in std_logic;
+		--Read RX descriptors size
+		RX_READ			: in std_logic_vector(31 downto 0);
+		RX_READ_STRB		: in std_logic;
+
 		--Processed RX descriptor interrupt.
 		RX_PRCSSD_INT		: out std_logic;
 		
@@ -84,7 +84,8 @@ signal RX_BYTES_REG			: unsigned(31 downto 0);
 signal RX_DESC_ADDR_REG 		: unsigned(31 downto 0);
 signal RX_SIZE_REG			: unsigned(31 downto 0);
 signal RX_DESC_ADDR_ACTUAL		: unsigned(31 downto 0);
-signal RX_PRCSSD_REG			: unsigned(31 downto 0);
+signal RX_HEAD_REG			: unsigned(31 downto 0);
+signal RX_TAIL_REG			: unsigned(31 downto 0);
 signal RX_PRCSSD_INT_S			: std_logic;
 signal RX_BUFF_ADDR			: unsigned(31 downto 0);
 signal RX_FAKE_READ        		: std_logic;
@@ -115,7 +116,6 @@ signal RX_STATE : rx_states;
 
 begin
 	BURST		<= std_logic_vector(BURST_S);
-	RX_PRCSSD 	<= std_logic_vector(RX_PRCSSD_REG);
 	RX_PRCSSD_INT	<= RX_PRCSSD_INT_S;
 
 process(clk) begin
@@ -125,7 +125,6 @@ process(clk) begin
  			RX_BYTES_REG_tmp		<= (others => '0');
 			RX_DESC_ADDR_REG 		<= (others => '0');
 			RX_SIZE_REG			<= (others => '0');
-			RX_PRCSSD_REG			<= (others => '0');
 			RX_DESC_ADDR_ACTUAL		<= (others => '0');
 			RX_BUFF_ADDR			<= (others => '0');
 			BURST_S				<= (others => '0');
@@ -133,6 +132,8 @@ process(clk) begin
 			ADDR 				<= (others => '0');
 			XGBE_PCKT_RCV_CNT		<= (others => '0');
 			RX_PCKT_SAVE			<= (others => '0');
+			RX_TAIL_REG 			<= (others => '0');	
+			RX_HEAD_REG 			<= (others => '0');
 			AXI_TXN_IN_STRB			<= '0';
 			INIT_AXI_TXN			<= '0';
 			INIT_AXI_RXN			<= '0';
@@ -155,26 +156,25 @@ process(clk) begin
 			RX_PRCSSD_INT_S			<= '0';
 			AXI_TXN_IN_STRB			<= '0';
 
-			--TODO: Move it somewhere else	
-			if (RX_PRCSSD_STRB = '1') then
-				RX_PRCSSD_REG <= (others => '0');
-				if (RX_PRCSSD_INT_S = '1') then
-					RX_PRCSSD_REG <= to_unsigned(8, 32);
+			--TODO: Move it somewhere else
+			if (RX_READ_STRB = '1') then
+				if (RX_TAIL_REG + unsigned(RX_READ) >= RX_SIZE_REG) then
+					RX_TAIL_REG <= unsigned(RX_READ) - (RX_SIZE_REG - RX_TAIL_REG);
+				else
+					RX_TAIL_REG <= RX_TAIL_REG + unsigned(RX_READ);
 				end if;
 			end if;
 
 			if (RX_DESC_ADDR_STRB = '1') then
-
-				RX_DESC_ADDR_REG <= unsigned(RX_DESC_ADDR);
-				RX_DESC_ADDR_ACTUAL <= unsigned(RX_DESC_ADDR);
-				RX_PRCSSD_REG <= (others => '0');
-			
+				RX_DESC_ADDR_REG 	<= unsigned(RX_DESC_ADDR);
+				RX_DESC_ADDR_ACTUAL 	<= unsigned(RX_DESC_ADDR);
+				RX_TAIL_REG 		<= (others => '0');	
+				RX_HEAD_REG 		<= (others => '0');
 			elsif (RX_SIZE_STRB = '1') then
-
-				RX_SIZE_REG <= unsigned(RX_SIZE);
-				RX_DESC_ADDR_ACTUAL <= RX_DESC_ADDR_REG;
-				RX_PRCSSD_REG <= (others => '0');
-			
+				RX_SIZE_REG 		<= unsigned(RX_SIZE);
+				RX_DESC_ADDR_ACTUAL 	<= RX_DESC_ADDR_REG;
+				RX_HEAD_REG 		<= (others => '0');
+				RX_TAIL_REG 		<= (others => '0');
 			end if;
 		
 
@@ -185,11 +185,7 @@ process(clk) begin
 				then
 					XGBE_PCKT_RCV_CNT <= XGBE_PCKT_RCV_CNT;
 				else
-					if (RX_PRCSSD_REG /= RX_SIZE_REG) then 
-						XGBE_PCKT_RCV_CNT <= XGBE_PCKT_RCV_CNT + 1;
-					else
-						XGBE_PCKT_RCV_CNT <= XGBE_PCKT_RCV_CNT;
-					end if;
+					XGBE_PCKT_RCV_CNT <= XGBE_PCKT_RCV_CNT + 1;
 				end if;
 			else
 				if (RX_STATE = WRITE_WORD_WAIT 
@@ -205,10 +201,18 @@ process(clk) begin
 				RX_WRITE_PHASE 	<= '0';
 				RX_WSTRB 	<= "1111";
 				if (XGBE_PCKT_RCV_CNT /= 0 and DMA_EN = '1') then
-					if (RX_PRCSSD_REG = RX_SIZE_REG) then
-						RX_STATE <= IDLE;
+					if (RX_HEAD_REG + 8 >= RX_SIZE_REG) then
+						if (RX_TAIL_REG = 0) then
+							RX_STATE <= IDLE;
+						else
+							RX_STATE <= SET_CNT;
+						end if;
 					else
-						RX_STATE <= SET_CNT; 
+						if (RX_HEAD_REG + 8 = RX_TAIL_REG) then
+							RX_STATE <= IDLE;
+						else
+							RX_STATE <= SET_CNT; 
+						end if;
 					end if;
 				end if;
 			when SET_CNT =>
@@ -289,10 +293,10 @@ process(clk) begin
 							RX_STATE	<= IDLE;
 						end if;
 						RX_PRCSSD_INT_S <= '1';
-						if (RX_PRCSSD_STRB = '0') then
-							RX_PRCSSD_REG	<= RX_PRCSSD_REG + 8;
+						if (RX_HEAD_REG + 8 >= RX_SIZE_REG) then
+							RX_HEAD_REG <= (others => '0');
 						else
-							RX_PRCSSD_REG 	<= to_unsigned(8, 32);
+							RX_HEAD_REG <= (RX_HEAD_REG + 8);
 						end if;
 					else
 						RX_STATE <= WRITE_WORD;
