@@ -762,14 +762,15 @@ static int pdi_init_ethernet(struct platform_device *pdev)
 {	
 	int rt;
 	struct pdi *pdi = pdev->dev.platform_data;
+
+	SET_NETDEV_DEV(pdi->netdev, &pdi->dev);
+
+	netif_napi_add(pdi->netdev, &pdi->napi, pdi_poll, 64);
 	
 	pdi->netdev->irq = pdi->irq;
 	pdi->netdev->base_addr = pdi->iomem->start;
 	memset(pdi->netdev->dev_addr, DEVICE_MAC_BYTE, ETH_ALEN);
 	pdi->netdev->netdev_ops = &pdi_netdev_ops;
-
-
-	netif_napi_add(pdi->netdev, &pdi->napi, pdi_poll, 64);
 
 	pdi->netdev->features |= NETIF_F_SG;
 	pdi->netdev->hw_features |= NETIF_F_SG;
