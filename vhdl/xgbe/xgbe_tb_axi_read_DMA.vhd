@@ -182,6 +182,8 @@ signal xgmii_tx_clk, xgmii_rx_clk : std_logic := '0';
 signal clk_156_25MHz, clk_20MHz, rst_clk_156_25MHz, rst_clk_20MHz : std_logic := '0';
 signal interrupt : std_logic := '0';
 
+signal temp : std_logic_vector(31 downto 0) := (others => '0');
+
 signal s_axi_aclk, s_axi_aresetn, s_axi_arready, s_axi_arvalid, s_axi_awready, s_axi_awvalid : std_logic := '0';
 signal s_axi_bready, s_axi_bvalid, s_axi_rready, s_axi_rvalid, s_axi_wready, s_axi_wvalid : std_logic := '0';
 signal s_axi_rdata, s_axi_wdata : std_logic_vector(31 downto 0) := (others => '0');
@@ -701,26 +703,28 @@ begin
 	s_axi_wstrb<=b"0000";
 
 	while (true) loop
-	wait for 10 us;
 	if (interrupt /= '1') then
 		wait until interrupt = '1';
 	end if;
+	wait for 100 us;
 	s_axi_araddr<="01100";  
 	readit<='1';
 	wait for 1 ns; 
-	readit<='0'; 
+	readit<='0';
 	wait until s_axi_rready = '1';
 	wait until s_axi_rready = '0';	
-
-	s_axi_araddr<="10000";  
-	readit<='1';
+    s_axi_wdata(31 downto 3) <= s_axi_rdata(28 downto 0);
+    s_axi_wdata(2 downto 0) <= (others => '0');
+ 	s_axi_awaddr<="01100";
+	s_axi_wstrb<=b"1111";
+	wait for 1 ns;
+	sendit<='1';                --start axi write to slave
 	wait for 1 ns; 
-	readit<='0'; 
-	wait until s_axi_rready = '1';
-	wait until s_axi_rready = '0';	
-
+	sendit<='0'; --clear start send flag
+	wait until s_axi_bvalid = '1';
+	wait until s_axi_bvalid = '0';  --axi write finished
+	s_axi_wstrb<=b"0000";
 	end loop;
-
 	wait;
 end process;
 

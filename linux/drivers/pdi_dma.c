@@ -33,8 +33,11 @@
 #include <linux/skbuff.h>
 
 #include <linux/spinlock.h>
+#include <linux/highmem.h>
 
-#include <linux/dmapool.h>
+#include <linux/ip.h>
+#include <linux/tcp.h>
+#include <linux/udp.h>
 
 #define DRIVER_NAME "pdi"
 /* 
@@ -47,7 +50,7 @@
 #define __DEBUG__
 
 #ifdef __DEBUG__
-#define debug_print(x) pr_info(x)
+#define debug_print(x) pr_warn(x)
 #else
 #define debug_print(x)
 #endif
@@ -129,6 +132,7 @@ struct pdi {
 static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	uint32_t cnt_desc, nr_frags;
+	unsigned int len;
 	struct dma_ring_tx *tx_ring = NULL;
 	struct pdi *pdi = (struct pdi *)netdev_priv(dev);
 	u32 is_nonlinear = skb_is_nonlinear(skb);
@@ -160,6 +164,7 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if (!is_nonlinear) {
+
 		tx_ring->buffer[cnt_desc].map = dma_map_single(pdi->dev, 
 					skb->data, skb->len, DMA_TO_DEVICE);
 		if (dma_mapping_error(pdi->dev, tx_ring->buffer[cnt_desc].map)) {
@@ -189,7 +194,7 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	} else {
 		/* Packet is fragmented */
-		unsigned int len = skb_headlen(skb);
+		len = skb_headlen(skb);
 		if (len) {
 			tx_ring->buffer[cnt_desc].map = dma_map_single(pdi->dev,
 						skb->data, len, DMA_TO_DEVICE);	
@@ -391,19 +396,11 @@ static int pdi_rx(struct pdi *pdi)
 	struct sk_buff *skb = NULL;
 	struct dma_ring *rx_ring = &pdi->rx_ring;
 	int ret = 0;
- 	
-	/*
-	 * TODO: here I only flush the registers.
-	 * I should deactivate not_read_packets_counter
-	 * from xgbe when DMA RX is on.
-	 */
-	
-	ioread32(pdi->reg3);
-	packets_cnt = ioread32(pdi->reg4);
+ 		
+	packets_cnt = ioread32(pdi->reg3);
+
 	if (!packets_cnt)
 		return 0;		
-
-	packets_cnt /= 8;
 
 	for (i = rx_ring->desc_cons; i != (rx_ring->desc_cons + packets_cnt) %
 		rx_ring->desc_max; i = (i + 1) % rx_ring->desc_max) {
@@ -422,6 +419,9 @@ static int pdi_rx(struct pdi *pdi)
 
 	rx_ring->desc_cons = i;
 	pdi->netdev->stats.rx_packets += (unsigned long)packets_cnt;
+	rmb();
+	iowrite32(cpu_to_le32(packets_cnt * sizeof(struct dma_desc)),
+		pdi->reg3);
 	return packets_cnt;
 }
 
@@ -429,17 +429,14 @@ static int pdi_poll(struct napi_struct *napi, int budget)
 {
 	int packets_cnt;
 	struct pdi *pdi = container_of(napi, struct pdi, napi);
-	packets_cnt = pdi_rx(pdi);
-	packets_cnt += pdi_complete_xmit(pdi);
+	packets_cnt = pdi_complete_xmit(pdi);
+	packets_cnt += pdi_rx(pdi);
 
 	if (budget > packets_cnt) {
 		/* Enable interrupt, data reception and DMA. */
-		iowrite32(cpu_to_le32((1 << 1) | (1 << 2) | (1 << 3)), pdi->reg2);
 		napi_complete(&pdi->napi);
+		iowrite32(cpu_to_le32((1 << 1) | (1 << 2) | (1 << 3)), pdi->reg2);
 	}
-
-	if (packets_cnt > budget)
-		pr_info("packets_cnt = %d, budget = %d\n", packets_cnt, budget);
 
 	return packets_cnt;
 }
@@ -763,7 +760,7 @@ static int pdi_init_ethernet(struct platform_device *pdev)
 	int rt;
 	struct pdi *pdi = pdev->dev.platform_data;
 
-	SET_NETDEV_DEV(pdi->netdev, &pdi->dev);
+	SET_NETDEV_DEV(pdi->netdev, &pdev->dev);
 
 	netif_napi_add(pdi->netdev, &pdi->napi, pdi_poll, 64);
 	
@@ -778,6 +775,7 @@ static int pdi_init_ethernet(struct platform_device *pdev)
 	rt = register_netdev(pdi->netdev);
 	
 	if (rt) {
+		debug_print("pdi_init_ethernet\n");
 		return -EINVAL;
 	}
 	
