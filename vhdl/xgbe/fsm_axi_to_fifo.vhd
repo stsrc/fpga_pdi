@@ -22,13 +22,42 @@ port (
 	cnt_to_fifo : out std_logic_vector(13 downto 0);
 	cnt_to_fifo_strb : out std_logic;
 	-- Signal informs about new packet to be send.
-	packet_strb : out std_logic
+	packet_strb : out std_logic;
+
+	-- signals to checksum generator
+	input_1		: out std_logic_vector(15 downto 0);
+	input_2		: out std_logic_vector(15 downto 0);
+	input_1_strb	: out std_logic;
+	input_2_strb	: out std_logic;
+	reset		: out std_logic;
+	oe		: out std_logic
 );
 end fsm_axi_to_fifo;
 
 architecture Behavioral of fsm_axi_to_fifo is
 signal state, state_tmp : std_logic_vector(1 downto 0);
 signal data_reg, data_reg_tmp : std_logic_vector(31 downto 0);
+signal prot, prot_tmp: unsigned(7 downto 0);
+
+type chcks_states is
+	(
+		ETH,
+		ETH_IP,
+		IP_LEN,
+		IP_PROT,
+		IP_SRC_1,
+		IP_SRC_2,
+		IP_UDP_TCP,
+		UDP,
+		TCP,
+		PROT_CHCK_UDP,
+		PROT_CHCK_TCP,
+		REST
+	);
+
+signal chcks_state, chcks_state_tmp : chcks_states;
+signal cnt, cnt_tmp: unsigned(31 downto 0);
+
 begin
 
 process (clk) begin
@@ -36,10 +65,15 @@ process (clk) begin
 		if (resetn = '0') then
 			state <= (others => '0');
 			data_reg <= (others => '0');
-
+			cnt <= (others => '0');
+			prot <= (others => '0');
+			chcks_state <= ETH;
 		else
 			state <= state_tmp;
 			data_reg <= data_reg_tmp;
+			chcks_state <= chcks_state_tmp;
+			cnt <= cnt_tmp;
+			prot <= prot_tmp;
 		end if;
 	end if;
 end process;
@@ -80,9 +114,95 @@ process(state, data_reg, data_from_axi_strb, data_from_axi, cnt_from_axi, cnt_fr
 		cnt_to_fifo_strb <= '0';
 		packet_strb <= '0';
 
-	when others => 
-		state_tmp <= "00";
+	when others => 		state_tmp <= "00";
 	end case;
 end process;
+
+process(chcks_state, cnt, data_from_axi_strb, data_from_axi, cnt_from_axi_strb, fifo_is_full) begin
+	oe <= '0';
+	reset <= '0';
+	input_1_strb <= '0';
+	input_2_strb <= '0';
+	input_1 <= data_from_axi(15 downto 0);
+	input_2	<= data_from_axi(31 downto 16);
+	cnt_tmp <= cnt;
+	chcks_state_tmp <= chcks_state;
+	prot_tmp <= prot;
+
+	if (fifo_is_full = '1') then
+		reset <= '1';
+		cnt_tmp <= (others => '0');
+		chcks_state_tmp <= ETH;
+	elsif (data_from_axi_strb = '1') then
+		cnt_tmp <= cnt + 4;
+		case chcks_state is
+		when ETH =>
+			if (cnt + 4 = 12) then
+				chcks_state_tmp <= ETH_IP;
+			end if;
+		when ETH_IP =>
+			chcks_state_tmp <= IP_LEN;
+		when IP_LEN =>
+			input_1 <= std_logic_vector(unsigned(data_from_axi(15 downto 0)) - 20);
+			input_1_strb <= '1';
+			chcks_state_tmp <= IP_PROT;
+		when IP_PROT =>
+			input_2 <= "00000000" & data_from_axi(31 downto 24);
+			prot_tmp <= unsigned(data_from_axi(31 downto 24));	
+			input_2_strb <= '1';
+			chcks_state_tmp <= IP_SRC_1;
+		when IP_SRC_1 =>
+			input_2_strb <= '1';
+			chcks_state_tmp <= IP_SRC_2;
+		when IP_SRC_2 =>
+			input_1_strb <= '1';
+			input_2_strb <= '1';
+			chcks_state_tmp <= IP_UDP_TCP;
+		when IP_UDP_TCP =>
+			cnt_tmp <= to_unsigned(2, 32);
+			input_1_strb <= '1';
+			input_2_strb <= '1';
+			if (prot = 6) then
+				chcks_state_tmp <= TCP;
+			elsif (prot = 17) then
+				chcks_state_tmp <= UDP;
+			else
+				chcks_state_tmp <= ETH;
+				cnt_tmp <= (others => '0');
+			end if;
+		when TCP =>
+			input_1_strb <= '1';
+			input_2_strb <= '1';
+			if (cnt + 4 = 14) then
+				chcks_state_tmp <= PROT_CHCK_TCP;
+			end if;
+		when UDP =>
+			input_1_strb <= '1';
+			input_2_strb <= '1';
+			if (cnt + 4 = 6) then
+				chcks_state_tmp <= PROT_CHCK_UDP;
+			end if;
+		when PROT_CHCK_TCP =>
+			input_1_strb <= '1';
+			chcks_state_tmp <= REST;
+		when PROT_CHCK_UDP =>
+			input_2_strb <= '1';
+			chcks_state_tmp <= REST;
+		when REST =>
+			input_1_strb <= '1';
+			input_2_strb <= '1';
+		when others =>
+			chcks_state_tmp <= ETH;
+			cnt_tmp <= (others => '0');
+		end case;
+	end if;
+
+	if (cnt_from_axi_strb = '1') then
+		oe <= '1';
+		chcks_state_tmp <= ETH;
+		cnt_tmp <= (others => '0');
+	end if;
+end process;
+
 
 end Behavioral;
