@@ -100,6 +100,21 @@ end xgbe;
 
 architecture xgbe_arch of xgbe is 
 
+component chcksum is
+port (
+	clk		: in std_logic;
+	resetn		: in std_logic;
+	input_1		: in std_logic_vector(15 downto 0);
+	input_2		: in std_logic_vector(15 downto 0);
+	input_1_strb	: in std_logic;
+	input_2_strb	: in std_logic;
+	oe		: in std_logic;
+	reset		: in std_logic;
+	output		: out std_logic_vector(15 downto 0);
+	output_strb	: out std_logic
+);
+end component;
+
 component MUX is
 	generic (
 		DATA_WIDTH : integer := 32
@@ -513,7 +528,13 @@ port (
 	cnt_from_axi_strb 	: in  std_logic;
 	cnt_to_fifo 		: out std_logic_vector(13 downto 0);
 	cnt_to_fifo_strb 	: out std_logic;
-	packet_strb 		: out std_logic
+	packet_strb 		: out std_logic;
+	input_1			: out std_logic_vector(15 downto 0);
+	input_2			: out std_logic_vector(15 downto 0);
+	input_1_strb		: out std_logic;
+	input_2_strb		: out std_logic;
+	reset			: out std_logic;
+	oe			: out std_logic
 );
 end component;
 
@@ -531,7 +552,9 @@ component fsm_fifo_to_mac is
 		fifo_data 	: in std_logic_vector(63 downto 0);
 		fifo_cnt 	: in std_logic_vector(13 downto 0);
 		fifo_data_strb 	: out std_logic;
-		fifo_cnt_strb 	: out std_logic
+		fifo_cnt_strb 	: out std_logic;
+		fifo_chcks	: in std_logic_vector(15 downto 0);
+		fifo_chcks_strb : out std_logic
 	);
 end component;
 
@@ -583,7 +606,6 @@ component reset_con is
 		out_resetn	: out std_logic
 	);
 end component reset_con;
-
 
 	signal slv_reg0_rd_strb, slv_reg1_rd_strb, slv_reg2_rd_strb, slv_reg3_rd_strb : std_logic := '0';
 	signal slv_reg0_wr_strb, slv_reg1_wr_strb, slv_reg2_wr_strb, slv_reg3_wr_strb : std_logic := '0';
@@ -669,6 +691,11 @@ end component reset_con;
 	signal strb_data_fifo_mac, strb_cnt_fifo_mac : std_logic := '0';
 	signal strb_data_mac_fifo, strb_cnt_mac_fifo : std_logic := '0';
 	signal strb_data_fifo_axi, strb_cnt_fifo_axi : std_logic := '0';
+
+
+	signal chcksm_inp_1, chcksm_inp_2, chcksm_axi_fifo, chcksm_fifo_mac : std_logic_vector(15 downto 0);
+	signal chcksm_axi_fifo_strb, chcksm_fifo_mac_strb, chcksm_inp_1_strb, chcksm_inp_2_strb : std_logic;
+	signal chcksm_oe, chcksm_reset : std_logic;
 
 	signal fifo_drop : std_logic := '0';
 	signal full_fifo_axi_mac, full_fifo_mac_axi : std_logic := '0';
@@ -809,24 +836,61 @@ begin
 			cnt_from_axi_strb 	=> strb_cnt_mux_fsm_tx,
 			cnt_to_fifo  		=> cnt_axi_fifo,
 			cnt_to_fifo_strb 	=> strb_cnt_axi_fifo,
-			packet_strb 		=> interrupt_axi_fifo
+			packet_strb 		=> interrupt_axi_fifo,
+			input_1			=> chcksm_inp_1,
+			input_2			=> chcksm_inp_2,
+			input_1_strb		=> chcksm_inp_1_strb,
+			input_2_strb		=> chcksm_inp_2_strb,
+			reset			=> chcksm_reset,
+			oe			=> chcksm_oe
+		);
+
+	chcksm	: chcksum
+		port map (
+			clk 		=> s_axi_aclk,
+			resetn 		=> con_100MHz_resetn,
+			input_1		=> chcksm_inp_1,
+			input_2		=> chcksm_inp_2,
+			input_1_strb 	=> chcksm_inp_1_strb,
+			input_2_strb 	=> chcksm_inp_2_strb,
+			oe		=> chcksm_oe,
+			reset		=> chcksm_reset,
+			output 		=> chcksm_axi_fifo,
+			output_strb	=> chcksm_axi_fifo_strb
+		);
+			
+	fifo_axi_mac_chcksm : fifo
+		generic map (DATA_WIDTH => 16, DATA_HEIGHT => 10)
+		port map (
+			clk_in 		=> s_axi_aclk,
+			clk_in_resetn 	=> con_100MHz_resetn,
+			clk_out 	=> clk_156_25MHz,
+			clk_out_resetn 	=> con_156_25MHz_resetn,
+			data_in		=> chcksm_axi_fifo,
+			data_out	=> chcksm_fifo_mac,
+			strb_in		=> chcksm_axi_fifo_strb,
+			strb_out	=> chcksm_fifo_mac_strb,
+			drop_in		=> '0',
+			is_full_clk_in	=> open
 		);
 
 	fsm_fifo_to_mac_0 : fsm_fifo_to_mac 
 		port map (
-			clk => clk_156_25MHz,
-			rst => con_156_25MHz_resetn,
-			pkt_tx_data => pkt_tx_data,
-			pkt_tx_val => pkt_tx_val,
-			pkt_tx_sop => pkt_tx_sop,
-			pkt_tx_eop => pkt_tx_eop,
-			pkt_tx_mod => pkt_tx_mod,
-			pkt_tx_full => pkt_tx_full,
-			packet_strb => interrupt_fifo_mac,
-			fifo_data => data_fifo_mac,
-			fifo_cnt => cnt_fifo_mac,
-			fifo_data_strb => strb_data_fifo_mac,
-			fifo_cnt_strb => strb_cnt_fifo_mac
+			clk 		=> clk_156_25MHz,
+			rst 		=> con_156_25MHz_resetn,
+			pkt_tx_data 	=> pkt_tx_data,
+			pkt_tx_val 	=> pkt_tx_val,
+			pkt_tx_sop 	=> pkt_tx_sop,
+			pkt_tx_eop 	=> pkt_tx_eop,
+			pkt_tx_mod 	=> pkt_tx_mod,
+			pkt_tx_full 	=> pkt_tx_full,
+			packet_strb 	=> interrupt_fifo_mac,
+			fifo_data 	=> data_fifo_mac,
+			fifo_cnt 	=> cnt_fifo_mac,
+			fifo_data_strb 	=> strb_data_fifo_mac,
+			fifo_cnt_strb 	=> strb_cnt_fifo_mac,
+			fifo_chcks 	=> chcksm_fifo_mac,
+			fifo_chcks_strb => chcksm_fifo_mac_strb
 		);
 
 	fsm_mac_to_fifo_0 : fsm_mac_to_fifo
