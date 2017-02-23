@@ -141,7 +141,11 @@ process(chcks_state, cnt, data_from_axi_strb, data_from_axi, cnt_from_axi_strb, 
 				chcks_state_tmp <= ETH_IP;
 			end if;
 		when ETH_IP =>
-			chcks_state_tmp <= IP_LEN;
+			if (unsigned(data_from_axi(31 downto 16)) = X"0800") then
+				chcks_state_tmp <= IP_LEN;
+			else
+				chcks_state_tmp <= ETH;
+			end if;
 		when IP_LEN =>
 			input_1 <= std_logic_vector(unsigned(data_from_axi(15 downto 0)) - 20);
 			input_1_strb <= '1';
@@ -167,8 +171,8 @@ process(chcks_state, cnt, data_from_axi_strb, data_from_axi, cnt_from_axi_strb, 
 			elsif (prot = 17) then
 				chcks_state_tmp <= UDP;
 			else
+				reset <= '1';
 				chcks_state_tmp <= ETH;
-				cnt_tmp <= (others => '0');
 			end if;
 		when TCP =>
 			input_1_strb <= '1';
@@ -195,13 +199,14 @@ process(chcks_state, cnt, data_from_axi_strb, data_from_axi, cnt_from_axi_strb, 
 			chcks_state_tmp <= ETH;
 			cnt_tmp <= (others => '0');
 		end case;
-	end if;
-
-	if (cnt_from_axi_strb = '1') then
-		oe <= '1';
-		chcks_state_tmp <= ETH;
+	elsif (cnt_from_axi_strb = '1') then
+		if (chcks_state /= ETH) then
+			oe <= '1';
+			chcks_state_tmp <= ETH;
+		end if;
 		cnt_tmp <= (others => '0');
 	end if;
+
 end process;
 
 

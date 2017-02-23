@@ -34,8 +34,8 @@ type packet is array (natural range 0 to 7) of std_logic_vector(63 downto 0);
 
 constant packet_tcp : packet := (
 0 => (X"FFFFFFFFFFFFAAAA"),
-1 => (X"AAAAAAAA00000500"),
-2 => (X"0700000032001111"),
+1 => (X"AAAA080000000500"),
+2 => (X"0600000032001111"),
 3 => (X"1234F0F0F0F00F0F"),
 4 => (X"0F0F123443210000"),
 5 => (X"0000111111112222"),
@@ -44,8 +44,8 @@ constant packet_tcp : packet := (
 
 constant data_tcp_ref : packet := (
 0 => (X"FFFFFFFFFFFFAAAA"),
-1 => (X"AAAAAAAA00000500"),
-2 => (X"0700000032001111"),
+1 => (X"AAAA080000000500"),
+2 => (X"0600000032001111"),
 3 => (X"1234F0F0F0F00F0F"),
 4 => (X"0F0F123443210000"),
 5 => (X"0000111111112222"),
@@ -54,7 +54,7 @@ constant data_tcp_ref : packet := (
 
 constant packet_udp : packet := (
 0 => (X"FFFFFFFFFFFFAAAA"),
-1 => (X"AAAAAAAA00000500"),
+1 => (X"AAAA080000000500"),
 2 => (X"1100000032001111"),
 3 => (X"1234F0F0F0F00F0F"),
 4 => (X"0F0F123443210000"),
@@ -64,7 +64,7 @@ constant packet_udp : packet := (
 
 constant data_udp_ref : packet := (
 0 => (X"FFFFFFFFFFFFAAAA"),
-1 => (X"AAAAAAAA00000500"),
+1 => (X"AAAA080000000500"),
 2 => (X"1100000032001111"),
 3 => (X"1234F0F0F0F00F0F"),
 4 => (X"0F0F123443210000"),
@@ -72,6 +72,15 @@ constant data_udp_ref : packet := (
 6 => (X"2222ABCDFFFFFFFF"),
 7 => (X"FFFFFFFFFFFFFFFF"));
 
+constant packet_test : packet := (
+0 => (X"FFFFFFFFFFFFAAAA"),
+1 => (X"AAAA010000000500"),
+2 => (X"2200000032001111"),
+3 => (X"1234F0F0F0F00F0F"),
+4 => (X"0F0F123443210000"),
+5 => (X"000011111111FFFF"),
+6 => (X"2222ABCDFFFFFFFF"),
+7 => (X"FFFFFFFFFFFFFFFF"));
 
 type ref is array (natural range 0 to 9) of std_logic;
 constant val_ref : ref := (
@@ -298,7 +307,33 @@ process begin
 		wait for 10 ns;
 	end loop;
 
-	wait;
+wait for 10 ns;
+	fifo_data <= packet_test(0);
+	fifo_cnt <= std_logic_vector(to_unsigned(64, 14));
+	fifo_chcks <= std_logic_vector(to_unsigned(3333, 16));
+	packet_strb <= '1';
+
+	for i in 0 to 0 loop
+		wait for 1 ns;
+		fifo_data <= packet_test(i);
+		wait for 9 ns;
+	end loop;
+
+	packet_strb <= '0';
+
+	for i in 1 to 7 loop
+		fifo_data <= packet_test(i);
+		wait for 10 ns;
+	end loop;
+
+	for i in 8 to 8 loop
+		wait for 10 ns;
+	end loop;
+
+	for i in 9 to 9 loop
+		wait for 10 ns;
+	end loop;
+	
 end process;
 
 end tb_arch;

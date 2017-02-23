@@ -146,6 +146,8 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	tx_ring->buffer[cnt_desc].skb = skb;
 	nr_frags = skb_shinfo(skb)->nr_frags; 
 
+	pr_info("TEST TEST TEST!\n");
+
 	if ((cnt_desc + 1) % tx_ring->desc_max == 
 	    tx_ring->desc_cons) {
 		debug_print("pdi: tx_ring full! Packet will be droped.\n");

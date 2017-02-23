@@ -77,7 +77,7 @@ constant packet_tcp : packet := (
 0 => (X"FFFFFFFF"),
 1 => (X"FFFFAAAA"),
 2 => (X"AAAAAAAA"),
-3 => (X"00000500"),
+3 => (X"01000800"),
 4 => (X"32001111"),
 5 => (X"06000000"),
 6 => (X"1234F0F0"),
@@ -95,9 +95,27 @@ constant packet_udp : packet := (
 0 => (X"FFFFFFFF"),
 1 => (X"FFFFAAAA"),
 2 => (X"AAAAAAAA"),
-3 => (X"00000500"),
+3 => (X"01000800"),
 4 => (X"32001111"),
 5 => (X"11000000"),
+6 => (X"1234F0F0"),
+7 => (X"F0F00F0F"),
+8 => (X"0F0F1234"),
+9 => (X"43210000"),
+10 => (X"00001111"),
+11 => (X"11112222"),
+12 => (X"2222ABCD"),
+13 => (X"FFFFFFFF"),
+14 => (X"FFFFFFFF"),
+15 => (X"FFFFFFFF"));
+
+constant packet_test : packet := (
+0 => (X"FFFFFFFF"),
+1 => (X"FFFFAAAA"),
+2 => (X"AAAAAAAA"),
+3 => (X"01000900"),
+4 => (X"32001111"),
+5 => (X"99999999"),
 6 => (X"1234F0F0"),
 7 => (X"F0F00F0F"),
 8 => (X"0F0F1234"),
@@ -245,8 +263,19 @@ process begin
 	cnt_from_axi_strb <= '1';
 	wait for 1 ns;
 	assert oe = '1' and cnt_to_fifo_strb = '1' severity failure;
+	wait for 9 ns;
+	cnt_from_axi_strb <= '0';
+	wait for 10 ns;
+	for i in 0 to 15 loop
+		data_from_axi <= packet_test(i);
+		data_from_axi_strb <= '1';
+		wait for 10 ns;
+	end loop;
+	data_from_axi_strb <= '0';
+	cnt_from_axi <= std_logic_vector(to_unsigned(64, 32));
+	cnt_from_axi_strb <= '1';
+	wait for 10 ns;
 	cnt_from_axi_strb <= '0';
 
-	wait;
 end process;
 end Behavioral;

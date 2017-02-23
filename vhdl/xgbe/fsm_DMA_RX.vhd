@@ -263,7 +263,7 @@ process(clk) begin
 				RX_BUFF_ADDR 		<= RX_BUFF_ADDR + 32;
 				INIT_AXI_TXN 		<= '1';
 				RX_STATE 		<= WRITE_WORD_WAIT;
-				case (to_integer(RX_BUFF_ADDR_MOD)) is
+				case (to_integer(RX_BUFF_ADDR_MOD)) is --TODO
 				when 0 =>
 					BURST_SIZE(BURST_S, RX_BUFF_ADDR_MOD, RX_BYTES_REG);
 					RX_WSTRB		<= "1111";
@@ -281,7 +281,17 @@ process(clk) begin
 						end if;
 					end if;
 				when others =>
-					RX_BUFF_ADDR_MOD <= (others => '0');
+					BURST_SIZE(BURST_S, RX_BUFF_ADDR_MOD, RX_BYTES_REG_tmp);
+					if (RX_WRITE_PHASE = '0') then
+						DATA_OUT <= RX_PCKT_DATA(15 downto 0) & "0000000000000000";
+						RX_PCKT_SAVE <= unsigned(RX_PCKT_DATA(31 downto 16));
+						RX_WSTRB <= "1100";
+					else
+						RX_WSTRB <= "1111";
+						if (RX_BYTES_REG = 0 and RX_BYTES_REG_tmp = 2) then
+							RX_WSTRB <= "0011";
+						end if;
+					end if;
 				end case;
 
 			when WRITE_WORD_WAIT =>

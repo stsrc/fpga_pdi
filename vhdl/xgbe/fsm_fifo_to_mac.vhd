@@ -188,8 +188,12 @@ begin
 			end if;
 		when ETH_IP =>
 			fifo_data_reg_tmp <= fifo_data;
-		 	chcks_state_tmp <= IP_LEN_PROT;
 			fifo_data_strb <= '1';
+			if (fifo_data(47 downto 32) = X"0800") then
+			 	chcks_state_tmp <= IP_LEN_PROT;
+			else
+				chcks_state_tmp <= REST;
+			end if;
 		when IP_LEN_PROT =>
 			fifo_data_reg_tmp <= fifo_data;
 			protocol_tmp <= unsigned(fifo_data(63 downto 56));
@@ -202,10 +206,12 @@ begin
 		when IP_DST_OTHER =>
 			fifo_data_strb <= '1';
 			fifo_data_reg_tmp <= fifo_data;
-			if (protocol = 7) then
+			if (protocol = 6) then
 				chcks_state_tmp <= TCP_0;
 			elsif (protocol = 17) then
 				chcks_state_tmp <= UDP_0;
+			else
+				chcks_state_tmp <= ETH;
 			end if;
 		when UDP_0 =>
 			fifo_data_strb <= '1';

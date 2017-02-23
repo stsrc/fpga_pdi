@@ -555,10 +555,10 @@ end process;
 process begin
 	s_axi_aclk <= '0';
 	m_axi_aclk <= '0';
-	wait for 5 ns;
+	wait for 3.2 ns;
 	s_axi_aclk <= '1';
 	m_axi_aclk <= '1';
-	wait for 5 ns;
+	wait for 3.2 ns;
 end process;
  
 process begin
@@ -582,7 +582,6 @@ process begin
 	rst_clk_20MHz <= '0';
 	wait for 6.4 ns;
 	rst_clk_156_25MHz <= '1';
-	wait for 3.6 ns;
 	s_axi_aresetn <= '1';
 	m_axi_aresetn <= '1';
 	wait for 40 ns;

@@ -185,7 +185,7 @@ signal interrupt : std_logic := '0';
 
 signal s_axi_aclk, s_axi_aresetn, s_axi_arready, s_axi_arvalid, s_axi_awready, s_axi_awvalid : std_logic := '0';
 signal s_axi_bready, s_axi_bvalid, s_axi_rready, s_axi_rvalid, s_axi_wready, s_axi_wvalid : std_logic := '0';
-signal s_axi_rdata, s_axi_wdata : std_logic_vector(31 downto 0) := (others => '0');
+signal s_axi_rdata, s_axi_wdata, s_axi_temp : std_logic_vector(31 downto 0) := (others => '0');
 signal s_axi_wstrb : std_logic_vector(3 downto 0) := (others => '0');
 signal s_axi_araddr, s_axi_awaddr : std_logic_vector(4 downto 0) := (others => '0');
 signal s_axi_arprot, s_axi_awprot : std_logic_vector(2 downto 0) := (others => '0');
@@ -227,6 +227,44 @@ signal M_AXI_RUSER	: std_logic_vector(-1 downto 0) := (others => '0');
 
   signal ReadIt, SendIt : std_logic := '0';
   shared variable cnt : integer := 0;
+
+type packet is array (natural range 0 to 15) of std_logic_vector(31 downto 0);
+
+constant packet_tcp : packet := (
+0 => (X"FFFFFFFF"),
+1 => (X"AAAAFFFF"),
+2 => (X"AAAAAAAA"),
+3 => (X"05000800"),
+4 => (X"32001111"),
+5 => (X"06000000"),
+6 => (X"1234F0F0"),
+7 => (X"F0F00F0F"),
+8 => (X"0F0F1234"),
+9 => (X"43210000"),
+10 => (X"00001111"),
+11 => (X"11112222"),
+12 => (X"2222ABCD"),
+13 => (X"FFFFFFFF"),
+14 => (X"FFFFFFFF"),
+15 => (X"FFFFFFFF"));
+
+constant packet_test : packet := (
+0 => (X"FFFFFFFF"),
+1 => (X"AAAAFFFF"),
+2 => (X"AAAAAAAA"),
+3 => (X"01000500"),
+4 => (X"32001111"),
+5 => (X"06000000"),
+6 => (X"1234F0F0"),
+7 => (X"F0F00F0F"),
+8 => (X"0F0F1234"),
+9 => (X"43210000"),
+10 => (X"00001111"),
+11 => (X"11112222"),
+12 => (X"2222ABCD"),
+13 => (X"FFFFFFFF"),
+14 => (X"FFFFFFFF"),
+15 => (X"FFFFFFFF"));
 
 begin
 
@@ -527,7 +565,7 @@ begin
 	s_axi_wstrb<=b"0000";
 
 	while (true) loop
-	for j in 0 to 8 loop
+
 
 	--Trigger byte transmission.
 	s_axi_awaddr<="11100";
@@ -540,10 +578,13 @@ begin
 	wait until s_axi_bvalid = '0';  --axi write finished
 	s_axi_wstrb<=b"0000";
 			
-	M_RD_DATA <= std_logic_vector(to_unsigned(56 + j , 32));
+	M_RD_DATA <= std_logic_vector(to_unsigned(64 , 32));
 	wait until M_RD_STRB = '1';
 	wait until M_RD_STRB = '0';
 	M_RD_DATA <= std_logic_vector(to_unsigned(128 , 32));
+	wait until M_RD_STRB = '1';
+	wait until M_RD_STRB = '0';
+	M_RD_DATA <= std_logic_vector(to_unsigned(0 , 32));
 
 --	if (unsigned(M_AXI_ARLEN) > 1) then
 --		for i in 0 to to_integer(unsigned(M_AXI_ARLEN) - 2) loop
@@ -553,31 +594,76 @@ begin
 --		end loop;
 --	end if;
 
-	if (j >= 1 and j <= 4) then
-		to_add := 1;
-	elsif (j >= 5 and j <= 8) then
-		to_add := 2;
-	else
-		to_add := 0;
-	end if;
-
-	for i in 0 to 14 + to_add loop
+	for i in 0 to 15 loop
 		wait until M_RD_STRB = '1';
 		wait until M_RD_STRB = '0';
-		M_RD_DATA <= std_logic_vector(to_unsigned(i, 32));
+		M_RD_DATA <= packet_tcp(i);
 	end loop;
 
-	if j = 5 then	
-	       s_axi_araddr<="11000";  
-               readit<='1';
-               wait for 1 ns; 
-               readit<='0'; 
-               wait until s_axi_rready = '1';
-               wait until s_axi_rready = '0';
-	end if;
+	--Trigger byte transmission.
+	s_axi_awaddr<="11100";
+	s_axi_wdata<=x"FFFFFFFF";
+	s_axi_wstrb<=b"1111";
+	sendit<='1';                --start axi write to slave
+	wait for 1 ns; 
+	sendit<='0'; --clear start send flag
+	wait until s_axi_bvalid = '1';
+	wait until s_axi_bvalid = '0';  --axi write finished
+	s_axi_wstrb<=b"0000";
+			
+	M_RD_DATA <= std_logic_vector(to_unsigned(64 , 32));
+	wait until M_RD_STRB = '1';
+	wait until M_RD_STRB = '0';
+	M_RD_DATA <= std_logic_vector(to_unsigned(128 , 32));
+	wait until M_RD_STRB = '1';
+	wait until M_RD_STRB = '0';
+	M_RD_DATA <= std_logic_vector(to_unsigned(0 , 32));
 
+--	if (unsigned(M_AXI_ARLEN) > 1) then
+--		for i in 0 to to_integer(unsigned(M_AXI_ARLEN) - 2) loop
+--			M_RD_DATA <= std_logic_vector(to_unsigned(64 , 32));
+--			wait until M_RD_STRB = '1';
+--			wait until M_RD_STRB = '0';
+--		end loop;
+--	end if;
+
+	for i in 0 to 15 loop
+		wait until M_RD_STRB = '1';
+		wait until M_RD_STRB = '0';
+		M_RD_DATA <= packet_test(i);
 	end loop;
+
+	s_axi_araddr<="11000";  
+       	readit<='1';
+        wait for 1 ns; 
+        readit<='0'; 
+       	wait until s_axi_rready = '1';
+       	wait until s_axi_rready = '0';
+
+
+	s_axi_araddr<="01100";  
+       	readit<='1';
+        wait for 1 ns; 
+        readit<='0'; 
+       	wait until s_axi_rready = '1';
+	s_axi_temp <= s_axi_rdata;
+       	wait until s_axi_rready = '0';
+
+	s_axi_wdata <= s_axi_temp;
+ 	s_axi_awaddr<="01100";
+	s_axi_wstrb<=b"1111";
+	sendit<='1';                --start axi write to slave
+	wait for 1 ns; 
+	sendit<='0'; --clear start send flag
+	wait until s_axi_bvalid = '1';
+	wait until s_axi_bvalid = '0';  --axi write finished
+	s_axi_wstrb<=b"0000";
+
+
 	end loop;
 end process;
+
+xgmii_rxd <= xgmii_txd;
+xgmii_rxc <= xgmii_txc;
  
 end structure;
