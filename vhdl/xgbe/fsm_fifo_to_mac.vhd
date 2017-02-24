@@ -211,7 +211,7 @@ begin
 			elsif (protocol = 17) then
 				chcks_state_tmp <= UDP_0;
 			else
-				chcks_state_tmp <= ETH;
+				chcks_state_tmp <= REST;
 			end if;
 		when UDP_0 =>
 			fifo_data_strb <= '1';

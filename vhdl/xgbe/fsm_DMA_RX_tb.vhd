@@ -28,9 +28,14 @@ component fsm_DMA_RX is
 		RX_DESC_ADDR_STRB 		: in std_logic;
 		RX_SIZE			: in std_logic_vector(31 downto 0);
 		RX_SIZE_STRB		: in std_logic;
-		RX_PRCSSD		: out std_logic_vector(31 downto 0);
-		RX_PRCSSD_STRB		: in std_logic;
+
+		--Read RX descriptors size
+		RX_READ			: in std_logic_vector(31 downto 0);
+		RX_READ_STRB		: in std_logic;
+
+		--Processed RX descriptor interrupt.
 		RX_PRCSSD_INT		: out std_logic;
+
 		RX_WSTRB		: out std_logic_vector(3 downto 0);
 		XGBE_PCKT_RCV		: in std_logic;
 		DMA_EN			: in std_logic;
@@ -51,12 +56,11 @@ signal RX_PCKT_DATA_STRB, RX_PCKT_CNT_STRB 						: std_logic := '0';
 
 signal BURST 				: std_logic_vector(7 downto 0) 	:= (others => '0');
 signal DATA_IN, DATA_OUT, ADDR 		: std_logic_vector(31 downto 0) := (others => '0');
-signal RX_DESC_ADDR, RX_SIZE, RX_PRCSSD : std_logic_vector(31 downto 0) := (others => '0');
+signal RX_DESC_ADDR, RX_SIZE, RX_READ   : std_logic_vector(31 downto 0) := (others => '0');
 signal RX_PCKT_DATA, RX_PCKT_CNT	: std_logic_vector(31 downto 0) := (others => '0');
 signal RX_WSTRB				: std_logic_vector(3 downto 0) := (others => '0');
 
-
-signal RX_DESC_ADDR_STRB, RX_SIZE_STRB, RX_PRCSSD_STRB, RX_PRCSSD_INT : std_logic := '0';
+signal RX_DESC_ADDR_STRB, RX_SIZE_STRB, RX_READ_STRB, RX_PRCSSD_INT : std_logic := '0';
 signal XGBE_PACKET_RCV	: std_logic := '0';
 
 begin
@@ -79,9 +83,9 @@ begin
 		RX_DESC_ADDR_STRB 	=> RX_DESC_ADDR_STRB,
 		RX_SIZE 	=> RX_SIZE,
 		RX_SIZE_STRB 	=> RX_SIZE_STRB,
-		RX_PRCSSD 	=> RX_PRCSSD,
-		RX_PRCSSD_STRB 	=> RX_PRCSSD_STRB,
-		RX_PRCSSD_INT 	=> RX_PRCSSD_INT,
+		RX_READ		=> RX_READ,
+		RX_READ_STRB	=> RX_READ_STRB,
+		RX_PRCSSD_INT	=> RX_PRCSSD_INT,
 		RX_WSTRB	=> RX_WSTRB,
 		XGBE_PCKT_RCV => XGBE_PACKET_RCV,
 		DMA_EN		=> DMA_EN,
@@ -176,9 +180,10 @@ begin
 		end loop;
 	end loop;
 	wait for 10 ns;
-	RX_PRCSSD_STRB <= '1';
+	RX_READ <= std_logic_vector(to_unsigned(8 * 10, 32));
+	RX_READ_STRB <= '1';
 	wait for 10 ns;
-	RX_PRCSSD_STRB <= '0'; 	
+	RX_READ_STRB <= '0'; 	
 	end loop;
 end process;
 

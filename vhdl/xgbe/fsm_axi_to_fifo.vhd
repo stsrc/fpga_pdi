@@ -141,7 +141,7 @@ process(chcks_state, cnt, data_from_axi_strb, data_from_axi, cnt_from_axi_strb, 
 				chcks_state_tmp <= ETH_IP;
 			end if;
 		when ETH_IP =>
-			if (unsigned(data_from_axi(31 downto 16)) = X"0800") then
+			if (unsigned(data_from_axi(15 downto 0)) = X"0800") then
 				chcks_state_tmp <= IP_LEN;
 			else
 				chcks_state_tmp <= ETH;
