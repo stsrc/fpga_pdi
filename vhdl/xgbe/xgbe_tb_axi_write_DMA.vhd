@@ -249,11 +249,30 @@ constant packet_tcp : packet := (
 15 => (X"FFFFFFFF"),
 16 => (X"FFFFFFFF"));
 
-constant packet_test : packet := (
+constant packet_test_1 : packet := (
 0 => (X"FFFFFFFF"),
 1 => (X"FFFFFFFF"),
 2 => (X"AAAAAAAA"),
 3 => (X"0800AAAA"),
+4 => (X"11110500"),
+5 => (X"00003200"),
+6 => (X"00000100"),
+7 => (X"1234F0F0"),
+8 => (X"F0F00F0F"),
+9 => (X"0F0F1234"),
+10 => (X"43210000"),
+11 => (X"00001111"),
+12 => (X"11112222"),
+13 => (X"2222ABCD"),
+14 => (X"FFFFFFFF"),
+15 => (X"FFFFFFFF"),
+16 => (X"FFFFFFFF"));
+
+constant packet_test_2 : packet := (
+0 => (X"FFFFFFFF"),
+1 => (X"FFFFFFFF"),
+2 => (X"AAAAAAAA"),
+3 => (X"0900AAAA"),
 4 => (X"11110500"),
 5 => (X"00003200"),
 6 => (X"00000100"),
@@ -571,7 +590,6 @@ begin
     
 	--Trigger byte transmission.
 	s_axi_awaddr<="11100";
-	s_axi_wdata<=x"FFFFFFFF";
 	s_axi_wstrb<=b"1111";
 	sendit<='1';                --start axi write to slave
 	wait for 1 ns; 
@@ -593,11 +611,11 @@ begin
         wait until M_RD_STRB = '0';
         M_RD_DATA <= packet_tcp(i);
     end loop;
-
-	wait for 100 ns;
+    wait until M_RD_STRB = '1';
+    wait until M_RD_STRB = '0';
+	wait for 10 ns;
 
 	s_axi_awaddr<="11100";
-	s_axi_wdata<=x"FFFFFFFF";
 	s_axi_wstrb<=b"1111";
 	sendit<='1';                --start axi write to slave
 	wait for 1 ns; 
@@ -617,13 +635,46 @@ begin
     for i in 0 to 16 loop
         wait until M_RD_STRB = '1';
         wait until M_RD_STRB = '0';
-        M_RD_DATA <= packet_test(i);
+        M_RD_DATA <= packet_test_1(i);
     end loop;
+        wait until M_RD_STRB = '1';
+        wait until M_RD_STRB = '0';
 
-	wait for 100 ns;
+	wait for 10 ns;
+	
+		s_axi_awaddr<="11100";
+    s_axi_wstrb<=b"1111";
+    sendit<='1';                --start axi write to slave
+    wait for 1 ns; 
+    sendit<='0'; --clear start send flag
+    wait until s_axi_bvalid = '1';
+    wait until s_axi_bvalid = '0';  --axi write finished
+    s_axi_wstrb<=b"0000";
+        
+    M_RD_DATA <= std_logic_vector(to_unsigned(64 , 32));    
+    wait until M_RD_STRB = '1';
+    wait until M_RD_STRB = '0';
+    M_RD_DATA <= std_logic_vector(to_unsigned(130 , 32));
+    wait until M_RD_STRB = '1';
+    wait until M_RD_STRB = '0';
+    M_RD_DATA <= std_logic_vector(to_unsigned(0 , 32));
+
+    for i in 0 to 16 loop
+        wait until M_RD_STRB = '1';
+        wait until M_RD_STRB = '0';
+        M_RD_DATA <= packet_test_2(i);
+    end loop;
+        wait until M_RD_STRB = '1';
+        wait until M_RD_STRB = '0';
+
+    wait for 10 ns;
+    
+
+
 
 	end loop;
+	
+	
 end process;
 
- 
 end structure;

@@ -146,8 +146,6 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	tx_ring->buffer[cnt_desc].skb = skb;
 	nr_frags = skb_shinfo(skb)->nr_frags; 
 
-	pr_info("TEST TEST TEST!\n");
-
 	if ((cnt_desc + 1) % tx_ring->desc_max == 
 	    tx_ring->desc_cons) {
 		debug_print("pdi: tx_ring full! Packet will be droped.\n");
@@ -608,7 +606,18 @@ static void pdi_deinit_dma_rx_ring_info(struct pdi *pdi)
 
 static void pdi_deinit_dma_tx_ring_info(struct pdi *pdi)
 {
-	/* TODO: UNMAP MAPPED PACKETS! */
+	int i = 0;
+	struct sk_buff *skb = NULL;
+	struct dma_ring_tx *tx_ring = &pdi->tx_ring;
+	
+	for (i = tx_ring->desc_cons; i != tx_ring->desc_cur; 
+	     i = (i + 1) % tx_ring->desc_max) {
+		skb = tx_ring->buffer[i].skb;
+		dma_unmap_single(pdi->dev, tx_ring->buffer[i].map, skb->len,
+				 DMA_TO_DEVICE);
+		dev_kfree_skb(skb);
+	}
+	tx_ring->desc_cons = i;
 }
 
 static int pdi_init_dma_rings(struct platform_device *pdev)
@@ -788,8 +797,8 @@ static void pdi_set_pdi(struct pdi *pdi, struct platform_device *pdev,
 			struct net_device *netdev)
 {
 	memset(pdi, 0, sizeof(struct pdi));
-	*(u32 *)&pdi->tx_ring.desc_max = 1024;
-	*(u32 *)&pdi->rx_ring.desc_max = 1024;
+	*(u32 *)&pdi->tx_ring.desc_max = 32;
+	*(u32 *)&pdi->rx_ring.desc_max = 32;
 	pdi->netdev = netdev;
 	pdev->dev.platform_data = pdi;
 	pdi->dev = &pdev->dev;

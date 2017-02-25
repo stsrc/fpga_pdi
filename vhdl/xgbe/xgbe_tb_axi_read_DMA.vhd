@@ -689,6 +689,17 @@ begin
 	wait until s_axi_bvalid = '1';
 	wait until s_axi_bvalid = '0';  --axi write finished
 	s_axi_wstrb<=b"0000";
+	
+	--Write RX descriptor ring size in bytes. 128, (16 descriptors).
+         s_axi_awaddr<="10100";
+        s_axi_wdata<=x"00000080";
+        s_axi_wstrb<=b"1111";
+        sendit<='1';                --start axi write to slave
+        wait for 1 ns; 
+        sendit<='0'; --clear start send flag
+        wait until s_axi_bvalid = '1';
+        wait until s_axi_bvalid = '0';  --axi write finished
+        s_axi_wstrb<=b"0000";
 
 	--Enable DMA, interrupt and data reception.
  	s_axi_awaddr<="01000";
@@ -702,10 +713,6 @@ begin
 	s_axi_wstrb<=b"0000";
 
 	while (true) loop
-	if (interrupt /= '1') then
-		wait until interrupt = '1';
-	end if;
-	wait for 100 us;
 	s_axi_araddr<="01100";  
 	readit<='1';
 	wait for 1 ns; 
@@ -714,7 +721,7 @@ begin
 	wait until s_axi_rready = '0';	
     s_axi_wdata(31 downto 3) <= s_axi_rdata(28 downto 0);
     s_axi_wdata(2 downto 0) <= (others => '0');
- 	s_axi_awaddr<="01100";
+ 	s_axi_awaddr<="11000";
 	s_axi_wstrb<=b"1111";
 	wait for 1 ns;
 	sendit<='1';                --start axi write to slave
