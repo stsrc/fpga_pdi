@@ -401,7 +401,7 @@ static int pdi_rx(struct pdi *pdi)
 
 	if (!packets_cnt)
 		return 0;		
-
+ 
 	for (i = rx_ring->desc_cons; i != (rx_ring->desc_cons + packets_cnt) %
 		rx_ring->desc_max; i = (i + 1) % rx_ring->desc_max) {
 		dma_sync_single_for_cpu(pdi->dev, rx_ring->buffer[i].map, 
@@ -515,10 +515,19 @@ static void pdi_set_dma(struct pdi *pdi)
 	iowrite32(pdi->tx_ring.desc_p, pdi->reg4);
 	/* Write where is RX ring located in physical memory. */
 	iowrite32(pdi->rx_ring.desc_p, pdi->reg6);
+
+	/* 
+	 * Stupid workaround, maybe fix it TODO. 
+	 * Enable DMA before setting TX/RX ring size! 
+	 */
+	wmb();
+	iowrite32(1 << 3, pdi->reg2);  
+	wmb();
+
 	/* Write byte size of TX ring. */
-	iowrite32(pdi->tx_ring.desc_max * sizeof(struct dma_desc_tx), pdi->reg5);
+	iowrite32(pdi->tx_ring.desc_max * sizeof(struct dma_desc_tx), pdi->reg0);
  	/* Write byte size of RX ring. */
-	iowrite32(pdi->rx_ring.desc_max * sizeof(struct dma_desc), pdi->reg3); 
+	iowrite32(pdi->rx_ring.desc_max * sizeof(struct dma_desc), pdi->reg5); 
 	wmb();
 }
 
@@ -854,7 +863,6 @@ static int pdi_probe(struct platform_device *pdev)
 	debug_print("pdi: init 3\n");
 
 	pdi_reset_xgbe(pdi);
-	pdi_set_dma(pdi);
 
 	rt = pdi_init_irq(pdev);
 	if (rt) {
@@ -871,6 +879,9 @@ static int pdi_probe(struct platform_device *pdev)
 		goto err3;
 	}
 	wmb();
+
+	pdi_set_dma(pdi);
+
 	/* Enable data reception, interrupts and DMA. */
 	iowrite32(1 << 1 | 1 << 2 | 1 << 3, pdi->reg2); 
 	debug_print("pdi: init 6\n");
