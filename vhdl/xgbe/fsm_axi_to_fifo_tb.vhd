@@ -74,22 +74,26 @@ signal fifo_is_full: std_logic := '0';
 type packet is array (natural range 0 to 15) of std_logic_vector(31 downto 0);
 
 constant packet_tcp : packet := (
-0 => (X"FFFFFFFF"),
-1 => (X"FFFFAAAA"),
-2 => (X"AAAAAAAA"),
-3 => (X"01000800"),
-4 => (X"32001111"),
-5 => (X"06000000"),
-6 => (X"1234F0F0"),
-7 => (X"F0F00F0F"),
-8 => (X"0F0F1234"),
-9 => (X"43210000"),
-10 => (X"00001111"),
-11 => (X"11112222"),
-12 => (X"2222ABCD"),
-13 => (X"FFFFFFFF"),
-14 => (X"FFFFFFFF"),
-15 => (X"FFFFFFFF"));
+0 => (X"5cbae290"),
+1 => (X"A0A04cd2"),
+2 => (X"A0A0A0A0"),
+3 => (X"00450008"),
+4 => (X"00003c00"),
+5 => (X"06400040"),
+6 => (X"000A26B8"),
+7 => (X"000A0300"),
+8 => (X"B8440003"),
+9 => (X"33E422B9"),
+10 => (X"0000F504"),
+11 => (X"00000000"),
+12 => (X"7210A002"),
+13 => (X"00001433"),
+14 => (X"05B40204"),
+15 => (X"080A0402"),
+16 => (X"01AFD101"),
+17 => (X"00000000"),
+18 => (X"03070103")
+);
 
 constant packet_udp : packet := (
 0 => (X"FFFFFFFF"),
@@ -167,7 +171,7 @@ end process;
 process begin
     fifo_is_full <= '0';
 	wait for 10 ns;
-	for i in 0 to 15 loop
+	for i in 0 to 17 loop
 		data_from_axi <= packet_tcp(i);
 		data_from_axi_strb <= '1';
 		wait for 1 ns;
@@ -202,6 +206,10 @@ process begin
 			assert input_1_strb = '1' and input_2_strb = '1' severity failure;
 		when 15 =>
 			assert input_1_strb = '1' and input_2_strb = '1' severity failure;
+		when 16 =>
+			assert input_1_strb = '1' and input_2_strb = '1' severity failure;
+		when 17 =>
+			assert input_1_strb = '1' and input_2_strb = '1' severity failure;
 		when 12 =>
 			assert input_1_strb = '1' and input_2_strb = '0' severity failure;
 		when others =>
@@ -209,7 +217,7 @@ process begin
 		wait for 9 ns;
 	end loop; 
 	data_from_axi_strb <= '0';
-	cnt_from_axi <= std_logic_vector(to_unsigned(64, 32));
+	cnt_from_axi <= std_logic_vector(to_unsigned(72, 32));
 	cnt_from_axi_strb <= '1';
 	wait for 1 ns;
 	assert oe = '1' and cnt_to_fifo_strb = '1' severity failure;

@@ -543,7 +543,7 @@ begin
 	wait for 100 ns;
     
  	s_axi_awaddr<="01000";
-	s_axi_wdata<=x"00000006";
+	s_axi_wdata<=x"00000008";
 	s_axi_wstrb<=b"1111";
 	sendit<='1';                --start axi write to slave
 	wait for 1 ns; 
@@ -551,6 +551,7 @@ begin
 	wait until s_axi_bvalid = '1';
 	wait until s_axi_bvalid = '0';  --axi write finished
 	s_axi_wstrb<=b"0000";
+	
 
 	--Write TX descriptor ring start address. 64.
  	s_axi_awaddr<="10000";
@@ -564,7 +565,7 @@ begin
 	s_axi_wstrb<=b"0000";
 	
 	--Write TX descriptor ring size in bytes. 128, (16 descriptors).
- 	s_axi_awaddr<="10100";
+ 	s_axi_awaddr<="00000";
 	s_axi_wdata<=x"00000050";
 	s_axi_wstrb<=b"1111";
 	sendit<='1';                --start axi write to slave

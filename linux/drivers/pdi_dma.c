@@ -146,6 +146,13 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	tx_ring->buffer[cnt_desc].skb = skb;
 	nr_frags = skb_shinfo(skb)->nr_frags; 
 
+	pr_info("skb_checksum_start_offset = %u; skb->csum_offset = %u\n",
+		(unsigned int)skb_checksum_start_offset(skb),
+		(unsigned int)skb->csum_offset);
+
+	if (skb->ip_summed == CHECKSUM_PARTIAL)
+		skb_checksum_help(skb);	
+
 	if ((cnt_desc + 1) % tx_ring->desc_max == 
 	    tx_ring->desc_cons) {
 		debug_print("pdi: tx_ring full! Packet will be droped.\n");
@@ -524,10 +531,13 @@ static void pdi_set_dma(struct pdi *pdi)
 	iowrite32(1 << 3, pdi->reg2);  
 	wmb();
 
+	mdelay(1);
+	wmb();
 	/* Write byte size of TX ring. */
 	iowrite32(pdi->tx_ring.desc_max * sizeof(struct dma_desc_tx), pdi->reg0);
  	/* Write byte size of RX ring. */
 	iowrite32(pdi->rx_ring.desc_max * sizeof(struct dma_desc), pdi->reg5); 
+
 	wmb();
 }
 
@@ -790,7 +800,7 @@ static int pdi_init_ethernet(struct platform_device *pdev)
 	pdi->netdev->netdev_ops = &pdi_netdev_ops;
 
 	pdi->netdev->features |= NETIF_F_SG;
-	pdi->netdev->hw_features |= NETIF_F_SG;
+	pdi->netdev->hw_features |= NETIF_F_SG | NETIF_F_HW_CSUM;
 
 	rt = register_netdev(pdi->netdev);
 	

@@ -24,6 +24,7 @@ port (
 	-- Signal informs about new packet to be send.
 	packet_strb : out std_logic;
 
+
 	-- signals to checksum generator
 	input_1		: out std_logic_vector(15 downto 0);
 	input_2		: out std_logic_vector(15 downto 0);
@@ -141,7 +142,7 @@ process(chcks_state, cnt, data_from_axi_strb, data_from_axi, cnt_from_axi_strb, 
 				chcks_state_tmp <= ETH_IP;
 			end if;
 		when ETH_IP =>
-			if (unsigned(data_from_axi(15 downto 0)) = X"0800") then
+			if (unsigned(data_from_axi(15 downto 0)) = X"0008") then
 				chcks_state_tmp <= IP_LEN;
 			else
 				chcks_state_tmp <= ETH;
