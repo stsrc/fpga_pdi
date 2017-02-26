@@ -81,6 +81,8 @@ struct dma_desc_tx {
 	u32 cnt;
 	dma_addr_t addr;
 	u32 next;
+	u32 check_start;
+	u32 check_offset;
 }__attribute__((packed));
 
 struct dma_ring {
@@ -146,12 +148,14 @@ static netdev_tx_t pdi_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	tx_ring->buffer[cnt_desc].skb = skb;
 	nr_frags = skb_shinfo(skb)->nr_frags; 
 
-	pr_info("skb_checksum_start_offset = %u; skb->csum_offset = %u\n",
-		(unsigned int)skb_checksum_start_offset(skb),
-		(unsigned int)skb->csum_offset);
-
-	if (skb->ip_summed == CHECKSUM_PARTIAL)
-		skb_checksum_help(skb);	
+	/* TODO: when it will fail? */
+	if (skb->ip_summed != CHECKSUM_PARTIAL) {
+		tx_ring->desc[cnt_desc].check_start = skb_checksum_start_offset(skb);
+		tx_ring->desc[cnt_desc].check_offset = skb->csum_offset; 
+	} else {
+		tx_ring->desc[cnt_desc].check_start = 0;
+		tx_ring->desc[cnt_desc].check_offset = 0;
+	}
 
 	if ((cnt_desc + 1) % tx_ring->desc_max == 
 	    tx_ring->desc_cons) {

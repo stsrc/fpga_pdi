@@ -45,7 +45,11 @@ entity fsm_DMA_TX is
 		TX_PCKT_DATA_STRB	: out std_logic;
 		--TX packet size output
 		TX_PCKT_CNT		: out std_logic_vector(31 downto 0);
-		TX_PCKT_CNT_STRB	: out std_logic
+		TX_PCKT_CNT_STRB	: out std_logic;
+
+		--Checksum info from buffer descriptor
+		CHCKSM_START		: out std_logic_vector(31 downto 0);
+		CHCKSM_OFFSET		: out std_logic_vector(31 downto 0)
 	);
 end fsm_DMA_TX;
 
@@ -144,6 +148,8 @@ process(clk) begin
 			TX_BYTES_REG <= (others => '0');
 			TX_BYTES_ACTUAL <= (others => '0');
 			COUNTER <= (others => '0');
+			CHCKSM_START <= (others => '0');
+			CHCKSM_OFFSET <= (others => '0');
 			TX_FAKE_READ <= '0';
 			TX_PRCSSD_INT_S <= '0';
 
@@ -165,7 +171,7 @@ process(clk) begin
 			if (TX_PRCSSD_STRB = '1') then
 				TX_PRCSSD_REG <= (others => '0');
 				if (TX_PRCSSD_INT_S = '1') then
-					TX_PRCSSD_REG <= to_unsigned(12, 32);
+					TX_PRCSSD_REG <= to_unsigned(20, 32);
 				end if;
 			end if;
 			
@@ -211,10 +217,10 @@ process(clk) begin
 
 			when FETCH_DESC =>
 				ADDR <= std_logic_vector(TX_DESC_ADDR_ACTUAL);
-				BURST_S <= to_unsigned(2, 8);
+				BURST_S <= to_unsigned(4, 8);
 				INIT_AXI_RXN <= '1';
-				TX_DESC_ADDR_ACTUAL <= TX_DESC_ADDR_ACTUAL + 12;
-				if (TX_DESC_ADDR_ACTUAL + 12 = TX_DESC_ADDR_REG + TX_SIZE_REG) then
+				TX_DESC_ADDR_ACTUAL <= TX_DESC_ADDR_ACTUAL + 20;
+				if (TX_DESC_ADDR_ACTUAL + 20 = TX_DESC_ADDR_REG + TX_SIZE_REG) then
 					TX_DESC_ADDR_ACTUAL <= TX_DESC_ADDR_REG;
 				end if;
 				TX_STATE <= FETCH_DESC_WAIT_0;
@@ -235,6 +241,16 @@ process(clk) begin
  			when FETCH_DESC_WAIT_2 =>
 				if (AXI_RXN_STRB = '1') then
 					TX_NEXT_BUFF_ADDR <= unsigned(DATA_IN);
+					TX_STATE <= FETCH_DESC_WAIT_3;
+				end if;
+			when FETCH_DESC_WAIT_3 =>
+				if (AXI_RXN_STRB = '1') then
+					CHCKSM_START <= DATA_IN;
+					TX_STATE <= FETCH_DESC_WAIT_4;
+				end if;
+			when FETCH_DESC_WAIT_4 =>
+				if (AXI_RXN_STRB = '1') then
+					CHCKSM_OFFSET <= DATA_IN;
 					TX_STATE <= SET_FLAGS;
 				end if;
 			when SET_FLAGS =>
@@ -319,9 +335,9 @@ process(clk) begin
 					TX_PRCSSD_INT_S <= '1';
 				end if;
 				COUNTER <= COUNTER + 1;
-				TX_PRCSSD_REG <= TX_PRCSSD_REG + 12;
+				TX_PRCSSD_REG <= TX_PRCSSD_REG + 20;
 				if (TX_PRCSSD_STRB = '1') then
-					TX_PRCSSD_REG <= to_unsigned(12, 32);
+					TX_PRCSSD_REG <= to_unsigned(20, 32);
 				end if;
 				TX_STATE <= IDLE;
 			when others =>
