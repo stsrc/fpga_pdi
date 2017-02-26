@@ -24,7 +24,6 @@ port (
 	-- Signal informs about new packet to be send.
 	packet_strb : out std_logic;
 
-
 	-- signals to checksum generator
 	input_1		: out std_logic_vector(15 downto 0);
 	input_2		: out std_logic_vector(15 downto 0);
